@@ -87,8 +87,9 @@ botmockClient.boards(process.env.BOTMOCK_TEAM_ID, process.env.BOTMOCK_PROJECT_ID
       // write out each file for intent.
       let data_out = JSON.stringify(template_json);
       fs.writeFileSync('output/intents/' + sanitize(intent) + '.json', data_out);
-      console.log("Export completed...");
+
     }
+    console.log("Export completed...");
   });
 
 });
