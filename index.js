@@ -40,9 +40,9 @@ botmockClient.boards(process.env.BOTMOCK_TEAM_ID, process.env.BOTMOCK_PROJECT_ID
         if (!messages_seen.has(message['message_id'])) {
 
           if (message['action'] && typeof message['action'] !== 'string') {
-            
+
             if (!intent_dict[message['action']['title']]) {
-              intent_dict[message['action']['title']] = []; 
+              intent_dict[message['action']['title']] = [];
             }
             intent_dict[message['action']['title']].push(message['message_id']);
           }
@@ -58,6 +58,8 @@ botmockClient.boards(process.env.BOTMOCK_TEAM_ID, process.env.BOTMOCK_PROJECT_ID
   const provider = new Provider('default');
 
   mkdirp('output/intents/', (err) => {
+    fs.copySync('templates/agent_template.json', 'output/agent.json');
+    fs.copySync('templates/package_template.json', 'output/package.json');
     for (var intent of Object.keys(intent_dict)) {
       var message_ids = intent_dict[intent];
       var write_messages = [];
@@ -85,6 +87,7 @@ botmockClient.boards(process.env.BOTMOCK_TEAM_ID, process.env.BOTMOCK_PROJECT_ID
       // write out each file for intent.
       let data_out = JSON.stringify(template_json);
       fs.writeFileSync('output/intents/' + sanitize(intent) + '.json', data_out);
+      echo "Export completed...";
     }
   });
 
