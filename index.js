@@ -38,13 +38,18 @@ botmockClient.boards(process.env.BOTMOCK_TEAM_ID, process.env.BOTMOCK_PROJECT_ID
     node = messages_dict[node_id];
     node['next_message_ids'].forEach(message => {
         if (!messages_seen.has(message['message_id'])) {
+          let nodeName = messages_dict[message['message_id']].payload.nodeName;
+          if (!nodeName) {
+            nodeName = '';
+          }
 
           if (message['action'] && typeof message['action'] !== 'string') {
+            let intentName = (nodeName === '' ? '' : nodeName + '_') + message['action']['title'];
 
-            if (!intent_dict[message['action']['title']]) {
-              intent_dict[message['action']['title']] = [];
+            if (!intent_dict[intentName]) {
+              intent_dict[intentName] = [];
             }
-            intent_dict[message['action']['title']].push(message['message_id']);
+            intent_dict[intentName].push(message['message_id']);
           }
           queue.push(message['message_id']);
           messages_seen.add(message['message_id']);
