@@ -1,14 +1,21 @@
 {
-  "id": "<id>",
-  "name": "<NAME>",
+  "id": "_",
+  "name": "_",
   "auto": true,
   "contexts": [],
   "responses": [
     {
       "resetContexts": false,
+      "action": "input.welcome",
       "affectedContexts": [],
       "parameters": [],
-      "messages": [],
+      "messages": [
+        {
+          "type": 0,
+          "lang": "en",
+          "speech": "You must guess the location of your dearest princess."
+        }
+      ],
       "defaultResponsePlatforms": {},
       "speech": []
     }
@@ -16,7 +23,11 @@
   "priority": 500000,
   "webhookUsed": false,
   "webhookForSlotFilling": false,
-  "lastUpdate": 1546382958,
+  "lastUpdate": 1549043189,
   "fallbackIntent": false,
-  "events": []
+  "events": [
+    {
+      "name": "WELCOME"
+    }
+  ]
 }
