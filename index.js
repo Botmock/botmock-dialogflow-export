@@ -4,9 +4,9 @@ const minimist = require('minimist');
 const Botmock = require('botmock');
 const mkdirp = require('mkdirp');
 const Sema = require('async-sema');
+const uuid = require('uuid/v4');
 const fs = require('fs');
 const { promisify } = require('util');
-// const { cpus } = require('os');
 // const { brotliCompress } = require('zlib');
 // const { findRootParentId } = require('./lib/util');
 const Provider = require('./lib/Provider');
@@ -22,49 +22,74 @@ const args = [
   process.env.BOTMOCK_PROJECT_ID,
   process.env.BOTMOCK_BOARD_ID
 ];
-// We limit the number of concurrent writes in case of an unexpectedly large number
-// of board messages (i.e. nodes).
-const s = new Sema(5, { capacity: 100 });
+const intentTemplate = JSON.parse(
+  fs.readFileSync(`${__dirname}/templates/intent.json`, 'utf8')
+);
 (async () => {
   const start = process.hrtime();
+  // We limit the number of concurrent writes in case of an unexpectedly large number
+  // of board messages (i.e. nodes).
+  const s = new Sema(5, { capacity: 100 });
   try {
     await mkdirpP(`${__dirname}/output/intents`);
-    await mkdirpP(`${__dirname}/output/entities`);
+    // await mkdirpP(`${__dirname}/output/entities`);
     const { board } = await client.boards(...args);
-    const { name, platform } = await client.projects(...args.slice(0, 2));
-    const provider = new Provider(platform);
-    const template = JSON.parse(
-      await fs.promises.readFile(`${__dirname}/templates/intent.json`, 'utf8')
-    );
-    // TODO: doc
+    const intentDict = {};
     await Promise.all(
       board.messages.map(async m => {
         await s.acquire();
-        const is = [];
-        for (const i of m.next_message_ids.map(n => n.intent)) {
-          if (!i.value) {
+        // We associate unseen message ids with intents incident on them; writing a file
+        // for an intent's utterances.
+        for (const nm of m.next_message_ids) {
+          if (!nm.intent.value) {
             continue;
           }
-          is.push(await client.intent(...args.slice(0, 2).concat([i.value])));
+          const i = await client.intent(...args.slice(0, 2).concat([nm.intent.value]));
+          if (!intentDict[nm.message_id] && i.hasOwnProperty('id')) {
+            await fs.promises.writeFile(
+              `${__dirname}/output/intents/${nm.message_id}_usersays_en.json`,
+              JSON.stringify(
+                i.utterances.map(u => ({
+                  data: [{ text: u.text, userDefined: false }],
+                  updated: Date.parse(i.updated_at.date),
+                  isTemplate: false,
+                  count: 0,
+                  id: uuid()
+                }))
+              )
+            );
+            intentDict[nm.message_id] = i;
+          }
         }
-        console.log(is.slice(-1));
-        // await fs.promises.writeFile(
-        //   `${__dirname}/output/intents${m.message_id}_usersays_en.json`,
-        //   JSON.stringify(intentTemplate.map(i => i))
-        // );
-        // TODO: utterances -> "training phrases"
-        const [response = {}] = template.responses;
+        s.release();
+      })
+    );
+    const { name, platform } = await client.projects(...args.slice(0, 2));
+    const provider = new Provider(platform);
+    await Promise.all(
+      board.messages.map(async m => {
+        // TODO: all ancestor intents of this message -> "action" in each response
+        // TODO: entities -> "parameters" in each response
+        const [response = {}] = intentTemplate.responses;
+        const { name: action } = intentDict[m.message_id] || {};
         await fs.promises.writeFile(
           `${__dirname}/output/intents/${m.message_id}.json`,
           JSON.stringify({
-            ...template,
+            ...intentTemplate,
             responses: [
-              { ...response, messages: provider.create(m.message_type, m.payload) }
+              {
+                ...response,
+                action,
+                messages: provider.create(m.message_type, m.payload)
+              }
             ],
+            events: m.is_root ? intentTemplate.events : [],
             // rootParentId: findRootParentId(m.previous_message_ids),
-            parentId: m.previous_message_ids.length
-              ? m.previous_message_ids[0].message_id
-              : undefined,
+            parentId:
+              !m.previous_message_ids.length ||
+              m.previous_message_ids.every(i => board.root_messages.includes(i))
+                ? undefined
+                : m.previous_message_ids[0].message_id,
             name: `${name}-${m.message_id}`,
             id: m.message_id
           })

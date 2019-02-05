@@ -6,7 +6,11 @@
   "scripts": {
     "test": "jest"
   },
-  "keywords": [],
+  "keywords": [
+    "botmock",
+    "dialog-flow",
+    "nodejs"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
