@@ -6,11 +6,12 @@ const mkdirp = require('mkdirp');
 const Sema = require('async-sema');
 const uuid = require('uuid/v4');
 const fs = require('fs');
+// const { resolve } = require('path');
 const { promisify } = require('util');
 // const { brotliCompress } = require('zlib');
-// const { findRootParentId } = require('./lib/util');
 const Provider = require('./lib/Provider');
 const mkdirpP = promisify(mkdirp);
+// const defaultPath = `${__dirname}/output`;
 const { debug, host = 'app' } = minimist(process.argv.slice(2));
 const client = new Botmock({
   api_token: process.env.BOTMOCK_TOKEN,
@@ -25,15 +26,19 @@ const args = [
 const intentTemplate = JSON.parse(
   fs.readFileSync(`${__dirname}/templates/intent.json`, 'utf8')
 );
+const entityTemplate = JSON.parse(
+  fs.readFileSync(`${__dirname}/templates/entity.json`, 'utf8')
+);
 (async () => {
   const start = process.hrtime();
-  // We limit the number of concurrent writes in case of an unexpectedly large number
-  // of board messages (i.e. nodes).
-  const s = new Sema(5, { capacity: 100 });
+  let s;
   try {
     await mkdirpP(`${__dirname}/output/intents`);
-    // await mkdirpP(`${__dirname}/output/entities`);
+    await mkdirpP(`${__dirname}/output/entities`);
     const { board } = await client.boards(...args);
+    // We limit the number of concurrent writes in case of an unexpectedly large number
+    // of board messages (i.e. nodes).
+    s = new Sema(5, { capacity: board.messages.length });
     const intentDict = {};
     await Promise.all(
       board.messages.map(async m => {
@@ -44,21 +49,21 @@ const intentTemplate = JSON.parse(
           if (!nm.intent.value) {
             continue;
           }
-          const i = await client.intent(...args.slice(0, 2).concat([nm.intent.value]));
-          if (!intentDict[nm.message_id] && i.hasOwnProperty('id')) {
+          const int = await client.intent(...args.slice(0, 2), ...[nm.intent.value]);
+          if (!intentDict[nm.message_id] && int.hasOwnProperty('id')) {
             await fs.promises.writeFile(
               `${__dirname}/output/intents/${nm.message_id}_usersays_en.json`,
               JSON.stringify(
-                i.utterances.map(u => ({
+                int.utterances.map(u => ({
                   data: [{ text: u.text, userDefined: false }],
-                  updated: Date.parse(i.updated_at.date),
+                  updated: Date.parse(int.updated_at.date),
                   isTemplate: false,
                   count: 0,
                   id: uuid()
                 }))
               )
             );
-            intentDict[nm.message_id] = i;
+            intentDict[nm.message_id] = { name: int.name };
           }
         }
         s.release();
@@ -71,7 +76,13 @@ const intentTemplate = JSON.parse(
         // TODO: all ancestor intents of this message -> "action" in each response
         // TODO: entities -> "parameters" in each response
         const [response = {}] = intentTemplate.responses;
-        const { name: action } = intentDict[m.message_id] || {};
+        const followsFromRoot = m.previous_message_ids.some(i =>
+          board.root_messages.includes(i.message_id)
+        );
+        let { name: action } = intentDict[m.message_id] || {};
+        if (!typeof action === 'undefined' && followsFromRoot) {
+          action = 'input.welcome';
+        }
         await fs.promises.writeFile(
           `${__dirname}/output/intents/${m.message_id}.json`,
           JSON.stringify({
@@ -83,11 +94,10 @@ const intentTemplate = JSON.parse(
                 messages: provider.create(m.message_type, m.payload)
               }
             ],
-            events: m.is_root ? intentTemplate.events : [],
+            events: followsFromRoot ? intentTemplate.events : [],
             // rootParentId: findRootParentId(m.previous_message_ids),
             parentId:
-              !m.previous_message_ids.length ||
-              m.previous_message_ids.every(i => board.root_messages.includes(i))
+              !m.previous_message_ids.length || followsFromRoot
                 ? undefined
                 : m.previous_message_ids[0].message_id,
             name: `${name}-${m.message_id}`,
@@ -97,8 +107,21 @@ const intentTemplate = JSON.parse(
         s.release();
       })
     );
-    const fileNames = await fs.promises.readdir(`${__dirname}/templates`);
-    for (const f of fileNames) {
+    for (const e of await client.entities(...args.slice(0, 2))) {
+      await fs.promises.writeFile(
+        `${__dirname}/output/entities/${e.name}.json`,
+        JSON.stringify({
+          ...entityTemplate,
+          name: e.name,
+          id: e.id
+        })
+      );
+      await fs.promises.writeFile(
+        `${__dirname}/output/entities/${e.name}_entries_en.json`,
+        JSON.stringify(e.data)
+      );
+    }
+    for (const f of await fs.promises.readdir(`${__dirname}/templates`)) {
       if (f.startsWith('intent')) {
         continue;
       }
@@ -114,7 +137,7 @@ const intentTemplate = JSON.parse(
       `done in ${((seconds * NS_PER_SEC + nanoseconds) / NS_PER_MS).toFixed(2)}ms`
     );
   } catch (err) {
-    if (s.nrWaiting() > 0) {
+    if (s && s.nrWaiting() > 0) {
       await s.drain();
     }
     console.error(err.stack);
