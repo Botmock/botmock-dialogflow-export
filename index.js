@@ -6,7 +6,6 @@ const mkdirp = require('mkdirp');
 const Sema = require('async-sema');
 const uuid = require('uuid/v4');
 const fs = require('fs');
-// const { resolve } = require('path');
 const { promisify } = require('util');
 // const { brotliCompress } = require('zlib');
 const Provider = require('./lib/Provider');

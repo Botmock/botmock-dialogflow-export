@@ -11,7 +11,15 @@
     "dialog-flow",
     "nodejs"
   ],
+  "prettier": {
+    "singleQuote": true,
+    "printWidth": 90
+  },
   "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Botmock/botmock-dialogflow-export.git"
+  },
   "license": "MIT",
   "dependencies": {
     "async-sema": "^2.1.4",
