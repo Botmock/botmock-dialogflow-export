@@ -4,7 +4,8 @@
   "description": "script to make a Botmock project importable in Dialogflow",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "start": "node index.js"
   },
   "keywords": [
     "botmock",

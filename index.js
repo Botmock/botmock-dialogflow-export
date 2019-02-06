@@ -3,13 +3,16 @@ env(`${__dirname}/.env`);
 const minimist = require('minimist');
 const Botmock = require('botmock');
 const mkdirp = require('mkdirp');
+// const tsort = require('@nonnontrivial/tsort');
 const Sema = require('async-sema');
 const uuid = require('uuid/v4');
 const fs = require('fs');
 // const { brotliCompress } = require('zlib');
 const { promisify } = require('util');
+const { exec } = require('child_process');
 const Provider = require('./lib/Provider');
 const mkdirpP = promisify(mkdirp);
+const execP = promisify(exec);
 const { debug, host = 'app' } = minimist(process.argv.slice(2));
 const client = new Botmock({
   api_token: process.env.BOTMOCK_TOKEN,
@@ -72,7 +75,7 @@ const entityTemplate = JSON.parse(
     await Promise.all(
       board.messages.map(async m => {
         // TODO: all ancestor intents of this message -> "action" in each response
-        // TODO: entities -> "parameters" in each response
+        // TODO: concatenate text content of adjacent nodes without intent
         const [response = {}] = intentTemplate.responses;
         const followsFromRoot = m.previous_message_ids.some(i =>
           board.root_messages.includes(i.message_id)
@@ -128,6 +131,8 @@ const entityTemplate = JSON.parse(
         `${__dirname}/output/${f}`
       );
     }
+    await execP(`zip -r ${__dirname}/output.zip ${__dirname}/output`);
+    await execP(`rm -rf ${__dirname}/output`);
     const NS_PER_SEC = 1e9;
     const NS_PER_MS = 1e6;
     const [seconds, nanoseconds] = process.hrtime(start);
