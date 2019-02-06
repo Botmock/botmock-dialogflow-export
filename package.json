@@ -1,14 +1,14 @@
 {
   "name": "botmock-dialogflow-export",
   "version": "1.0.0",
-  "description": "script to make a Botmock project importable in DialogFlow",
+  "description": "script to make a Botmock project importable in Dialogflow",
   "main": "index.js",
   "scripts": {
     "test": "jest"
   },
   "keywords": [
     "botmock",
-    "dialog-flow",
+    "dialogflow",
     "nodejs"
   ],
   "prettier": {
