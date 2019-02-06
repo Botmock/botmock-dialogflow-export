@@ -6,11 +6,10 @@ const mkdirp = require('mkdirp');
 const Sema = require('async-sema');
 const uuid = require('uuid/v4');
 const fs = require('fs');
-const { promisify } = require('util');
 // const { brotliCompress } = require('zlib');
+const { promisify } = require('util');
 const Provider = require('./lib/Provider');
 const mkdirpP = promisify(mkdirp);
-// const defaultPath = `${__dirname}/output`;
 const { debug, host = 'app' } = minimist(process.argv.slice(2));
 const client = new Botmock({
   api_token: process.env.BOTMOCK_TOKEN,
