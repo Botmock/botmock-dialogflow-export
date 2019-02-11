@@ -44,6 +44,7 @@ const entityTemplate = JSON.parse(
     await Promise.all(
       board.messages.map(async m => {
         await s.acquire();
+        // console.log(s.nrWaiting());
         // We associate unseen message ids with intents incident on them; writing a file
         // for an intent's utterances.
         for (const nm of m.next_message_ids) {
@@ -101,7 +102,7 @@ const entityTemplate = JSON.parse(
               !m.previous_message_ids.length || followsFromRoot
                 ? undefined
                 : m.previous_message_ids[0].message_id,
-            name: `${name}-${m.message_id}`,
+            name: `${name}-${intentDict[m.message_id] || m.message_id}`,
             id: m.message_id
           })
         );
