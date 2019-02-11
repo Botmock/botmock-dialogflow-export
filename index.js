@@ -102,7 +102,7 @@ const entityTemplate = JSON.parse(
               !m.previous_message_ids.length || followsFromRoot
                 ? undefined
                 : m.previous_message_ids[0].message_id,
-            name: `${name}-${intentDict[m.message_id] || m.message_id}`,
+            name: `${name}-${action || m.message_id}`,
             id: m.message_id
           })
         );
