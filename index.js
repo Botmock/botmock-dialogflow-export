@@ -3,7 +3,6 @@ env(`${__dirname}/.env`);
 const minimist = require('minimist');
 const Botmock = require('botmock');
 const mkdirp = require('mkdirp');
-// const tsort = require('@nonnontrivial/tsort');
 const Sema = require('async-sema');
 const uuid = require('uuid/v4');
 const fs = require('fs');
@@ -41,14 +40,17 @@ const entityTemplate = JSON.parse(
     // of board messages (i.e. nodes).
     s = new Sema(5, { capacity: board.messages.length });
     const intentDict = {};
+    const intentlessDict = {};
     await Promise.all(
       board.messages.map(async m => {
         await s.acquire();
-        // console.log(s.nrWaiting());
-        // We associate unseen message ids with intents incident on them; writing a file
-        // for an intent's utterances.
         for (const nm of m.next_message_ids) {
           if (!nm.intent.value) {
+            if (Array.isArray(intentlessDict[m.message_id])) {
+              intentlessDict[m.message_id].push(nm.message_id);
+            } else {
+              intentlessDict[m.message_id] = [nm.message_id];
+            }
             continue;
           }
           const int = await client.intent(...args.slice(0, 2), ...[nm.intent.value]);
@@ -75,8 +77,7 @@ const entityTemplate = JSON.parse(
     const provider = new Provider(platform);
     await Promise.all(
       board.messages.map(async m => {
-        // TODO: all ancestor intents of this message -> "action" in each response
-        // TODO: concatenate text content of adjacent nodes without intent
+        await s.acquire();
         const [response = {}] = intentTemplate.responses;
         const followsFromRoot = m.previous_message_ids.some(i =>
           board.root_messages.includes(i.message_id)
@@ -85,24 +86,38 @@ const entityTemplate = JSON.parse(
         if (!typeof action === 'undefined' && followsFromRoot) {
           action = 'input.welcome';
         }
+        const responses = [
+          {
+            ...response,
+            action,
+            messages: provider.create(m.message_type, m.payload)
+          }
+        ].concat(
+          ...(Array.isArray(intentlessDict[m.message_id])
+            ? intentlessDict[m.message_id].map(id => {
+                const adjacentMessage = board.messages.find(m => m.message_id === id);
+                return {
+                  ...response,
+                  action,
+                  messages: provider.create(
+                    adjacentMessage.message_type,
+                    adjacentMessage.payload
+                  )
+                };
+              })
+            : [])
+        );
         await fs.promises.writeFile(
           `${__dirname}/output/intents/${m.message_id}.json`,
           JSON.stringify({
             ...intentTemplate,
-            responses: [
-              {
-                ...response,
-                action,
-                messages: provider.create(m.message_type, m.payload)
-              }
-            ],
+            responses,
             events: followsFromRoot ? intentTemplate.events : [],
-            // rootParentId: findRootParentId(m.previous_message_ids),
             parentId:
               !m.previous_message_ids.length || followsFromRoot
                 ? undefined
                 : m.previous_message_ids[0].message_id,
-            name: `${name}-${action || m.message_id}`,
+            name: m.payload.nodeName || `${platform}-${m.message_id}`,
             id: m.message_id
           })
         );
