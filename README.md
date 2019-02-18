@@ -2,7 +2,7 @@
 
 > requires node >= 10.15.x
 
-Script to make a [Botmock](https://botmock.com) project importable in Dialogflow.
+Import [Botmock](https://botmock.com) projects in Dialogflow.
 
 ## Guide
 
@@ -27,3 +27,11 @@ BOTMOCK_BOARD_ID=""
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
 - Choose the 'Export and Import' tab and choose 'Import From Zip'
 - Select `/output.zip`, typing 'IMPORT' in their form field and clicking 'IMPORT'
+
+## Glossary
+
+| **Botmock** | **Dialogflow**  |
+| ----------- | --------------- |
+| message     | intent          |
+| intent      | action          |
+| utterance   | training phrase |

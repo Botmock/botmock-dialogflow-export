@@ -1,33 +1,58 @@
 {
-  "id": "_",
-  "name": "_",
+  "id": "",
+  "name": "",
   "auto": true,
   "contexts": [],
   "responses": [
     {
       "resetContexts": false,
-      "action": "input.welcome",
-      "affectedContexts": [],
-      "parameters": [],
+      "action": "",
+      "affectedContexts": [
+        {
+          "name": "",
+          "parameters": {},
+          "lifespan": 2
+        }
+      ],
+      "parameters": [
+        {
+          "id": "bfefa4f7-84ed-4b15-a276-e8977dd6e0dd",
+          "required": true,
+          "dataType": "@sys.location",
+          "name": "location",
+          "value": "$location",
+          "isList": false
+        }
+      ],
       "messages": [
+        {
+          "type": 3,
+          "platform": "facebook",
+          "lang": "en",
+          "imageUrl": "https://imgur.com/yUWAUrB"
+        },
+        {
+          "type": 1,
+          "platform": "facebook",
+          "lang": "en",
+          "buttons": []
+        },
         {
           "type": 0,
           "lang": "en",
-          "speech": "You must guess the location of your dearest princess."
+          "speech": ["I\u0027m afraid that\u0027s not possible.", "Not quite."]
         }
       ],
-      "defaultResponsePlatforms": {},
+      "defaultResponsePlatforms": {
+        "facebook": true
+      },
       "speech": []
     }
   ],
   "priority": 500000,
   "webhookUsed": false,
   "webhookForSlotFilling": false,
-  "lastUpdate": 1549043189,
+  "lastUpdate": 1549981097,
   "fallbackIntent": false,
-  "events": [
-    {
-      "name": "WELCOME"
-    }
-  ]
+  "events": []
 }

@@ -1,11 +1,16 @@
 {
   "name": "botmock-dialogflow-export",
   "version": "1.0.0",
-  "description": "script to make a Botmock project importable in Dialogflow",
+  "description": "import Botmock projects in Dialogflow",
   "main": "index.js",
+  "module": "index.js",
   "scripts": {
     "test": "jest",
-    "start": "node index.js"
+    "build": "ncc build -o dist",
+    "start": "node -r esm index.js"
+  },
+  "esm": {
+    "await": true
   },
   "keywords": [
     "botmock",
@@ -16,21 +21,23 @@
     "singleQuote": true,
     "printWidth": 90
   },
-  "author": "",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Botmock/botmock-dialogflow-export.git"
   },
   "license": "MIT",
   "dependencies": {
+    "@zeit/ncc": "0.15.2",
+    "arg": "4.1.0",
     "async-sema": "^2.1.4",
     "botmock": "^1.2.0",
-    "minimist": "^1.2.0",
+    "esm": "3.2.5",
     "mkdirp": "^0.5.1",
     "node-env-file": "^0.1.8",
+    "single-line-log": "1.1.2",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "jest": "^24.0.0"
+    "jest": "24.1.0"
   }
 }
