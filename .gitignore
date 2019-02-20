@@ -1,4 +1,5 @@
 node_modules
+DESIGN.md
 dist
 *.zip
 *.env

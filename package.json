@@ -6,7 +6,6 @@
   "module": "index.js",
   "scripts": {
     "test": "jest",
-    "build": "ncc build -o dist",
     "start": "node -r esm index.js"
   },
   "esm": {
@@ -27,7 +26,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@zeit/ncc": "0.15.2",
     "arg": "4.1.0",
     "async-sema": "^2.1.4",
     "botmock": "^1.2.0",

@@ -1,9 +1,10 @@
 const fs = require('fs');
-const { promisify } = require('util');
 const { exec } = require('child_process');
+const { promisify } = require('util');
 
 const execP = promisify(exec);
 
+// Cleanup output directory
 afterEach(async () => {
   try {
     await fs.promises.access(`${process.cwd()}/output`, fs.constants.R_OK);
@@ -13,7 +14,7 @@ afterEach(async () => {
   }
 });
 
-it('initializes', async () => {
+it('runs', async () => {
   const { stdout } = await execP('npm start');
   expect(stdout).toContain('done');
 });
