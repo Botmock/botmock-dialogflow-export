@@ -40,6 +40,20 @@ const start = process.hrtime();
           }
         }
       }
+      // Determines if id is the node adjacent to root with max number of connections
+      const isWelcomeIntent = id => {
+        const messageIsRoot = message => board.root_messages.includes(message.message_id);
+        return Object.is(
+          board.messages
+            .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
+            .sort(
+              (a, b) =>
+                b.previous_message_ids.filter(messageIsRoot).length -
+                a.previous_message_ids.filter(messageIsRoot).length
+            )[0].message_id,
+          id
+        );
+      };
       // Recursively finds reachable nodes that do not emanate intents
       const collectIntermediateNodes = (nextMessages, collectedIds = []) => {
         for (const { message_id } of nextMessages) {
@@ -74,6 +88,10 @@ const start = process.hrtime();
             const intentFilepath = `${INTENT_PATH}/${intent.name}-${uuid()}.json`;
             const serialIntentData = JSON.stringify({
               ...templates.intent,
+              id: uuid(),
+              name: intent.name,
+              events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
+              lasUpdate: Date.parse(intent.updated_at.date),
               responses: [message, ...intermediateNodes].map(message => ({
                 action: '',
                 speech: [],
@@ -89,18 +107,20 @@ const start = process.hrtime();
             try {
               await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
             } catch (_) {
-              const serialUtterancesData = JSON.stringify(
-                Array.from(
-                  intent.utterances.map(utterance => ({
-                    id: uuid(),
-                    data: [{ text: utterance.text, userDefined: false }],
-                    count: 0,
-                    isTemplate: false,
-                    updated: Date.parse(intent.updated_at.date)
-                  }))
-                )
-              );
-              await fs.promises.writeFile(utterancesFilepath, serialUtterancesData);
+              if (Array.isArray(intent.utterances)) {
+                const serialUtterancesData = JSON.stringify(
+                  Array.from(
+                    intent.utterances.map(utterance => ({
+                      id: uuid(),
+                      data: [{ text: utterance.text, userDefined: false }],
+                      count: 0,
+                      isTemplate: false,
+                      updated: Date.parse(intent.updated_at.date)
+                    }))
+                  )
+                );
+                await fs.promises.writeFile(utterancesFilepath, serialUtterancesData);
+              }
             }
             semaphore.release();
           })
