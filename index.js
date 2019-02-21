@@ -14,6 +14,7 @@ import { getArgs, templates } from './lib/util';
 env(`${__dirname}/.env`);
 
 const INTENT_PATH = `${__dirname}/output/intents`;
+const ENTITY_PATH = `${__dirname}/output/entities`;
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
 
@@ -30,6 +31,7 @@ const start = process.hrtime();
     // new intents or are themselves leaf nodes. We write one file per intent that has as
     // `responses` the content of such intermediate nodes.
     await mkdirpP(INTENT_PATH);
+    await mkdirpP(ENTITY_PATH);
     let semaphore;
     try {
       const messagesDirectlyFollowingIntents = new Map();
@@ -91,23 +93,27 @@ const start = process.hrtime();
               id: uuid(),
               name: intent.name,
               events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
-              lasUpdate: Date.parse(intent.updated_at.date),
-              responses: [message, ...intermediateNodes].map(message => ({
-                action: '',
-                speech: [],
-                parameters: [],
-                resetContexts: false,
-                affectedContexts: [],
-                defaultResponsePlatforms: { [platform.toLowerCase()]: true },
-                messages: provider.create(message.message_type, message.payload)
-              }))
+              lastUpdate: Date.parse(intent.updated_at.date),
+              responses: [
+                {
+                  action: '',
+                  speech: [],
+                  parameters: [],
+                  resetContexts: false,
+                  affectedContexts: [],
+                  defaultResponsePlatforms: { [platform.toLowerCase()]: true },
+                  messages: [message, ...intermediateNodes].map(message =>
+                    provider.create(message.message_type, message.payload)
+                  )
+                }
+              ]
             });
             await fs.promises.writeFile(intentFilepath, serialIntentData);
             const utterancesFilepath = `${intentFilepath.slice(0, -5)}_usersays_en.json`;
             try {
               await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
             } catch (_) {
-              if (Array.isArray(intent.utterances)) {
+              if (Array.isArray(intent.utterances) && intent.utterances.length) {
                 const serialUtterancesData = JSON.stringify(
                   Array.from(
                     intent.utterances.map(utterance => ({
@@ -130,6 +136,20 @@ const start = process.hrtime();
         await semaphore.drain();
       }
       throw err;
+    }
+    // Write entity files
+    for (const entity of await client.getEntities()) {
+      const serialEntityData = JSON.stringify({
+        ...templates.entity,
+        id: uuid(),
+        name: entity.name
+      });
+      await fs.promises.writeFile(`${ENTITY_PATH}/${entity.name}.json`, serialEntityData);
+      const serialSynData = JSON.stringify(entity.data);
+      await fs.promises.writeFile(
+        `${ENTITY_PATH}/${entity.name}_entries_en.json`,
+        serialSynData
+      );
     }
     // Copy template files
     for (const filename of await fs.promises.readdir(`${__dirname}/templates`)) {
