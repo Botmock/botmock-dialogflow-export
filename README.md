@@ -30,8 +30,9 @@ BOTMOCK_BOARD_ID=""
 
 ## Glossary
 
-| **Botmock** | **Dialogflow**  |
-| ----------- | --------------- |
-| message     | intent          |
-| intent      | action          |
-| utterance   | training phrase |
+| **Botmock**    | **Dialogflow**  |
+| -------------- | --------------- |
+| message / node | intent          |
+| intent         | action          |
+| utterance      | training phrase |
+| variable       | parameter       |

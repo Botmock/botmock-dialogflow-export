@@ -88,12 +88,13 @@ const start = process.hrtime();
             );
             await semaphore.acquire();
             const intentFilepath = `${INTENT_PATH}/${intent.name}-${uuid()}.json`;
+            const { date = new Date() } = intent.updated_at || {};
             const serialIntentData = JSON.stringify({
               ...templates.intent,
               id: uuid(),
               name: intent.name,
               events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
-              lastUpdate: Date.parse(intent.updated_at.date),
+              lastUpdate: Date.parse(date),
               responses: [
                 {
                   action: '',
@@ -121,7 +122,7 @@ const start = process.hrtime();
                       data: [{ text: utterance.text, userDefined: false }],
                       count: 0,
                       isTemplate: false,
-                      updated: Date.parse(intent.updated_at.date)
+                      updated: Date.parse(date)
                     }))
                   )
                 );
