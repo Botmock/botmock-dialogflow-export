@@ -64,7 +64,7 @@ const start = process.hrtime();
       }
       return collectedIds;
     };
-    // Recursively finds intent names on `previousMessages` until branching factor > 1
+    // Recursively finds intent values on `previousMessages` until branching factor > 1
     const getIntentAncestry = (previousMessages = [], intentValues = []) => {
       const [messageFollowingIntent, ...rest] =
         previousMessages.filter(message =>
@@ -74,11 +74,13 @@ const start = process.hrtime();
         const { previous_message_ids } = board.messages.find(
           message => message.message_id === messageFollowingIntent.message_id
         );
-        // Recur with the intent of the sole message following from an intent at this depth
-        return getIntentAncestry(previous_message_ids, [
-          messagesDirectlyFollowingIntents.get(messageFollowingIntent.message_id),
-          ...intentValues
-        ]);
+        const value = messagesDirectlyFollowingIntents.get(
+          messageFollowingIntent.message_id
+        );
+        if (!intentValues.includes(value)) {
+          // Recur with the intent of the sole message following from an intent at this depth
+          return getIntentAncestry(previous_message_ids, [value, ...intentValues]);
+        }
       } else if (!messageFollowingIntent && !rest.length) {
         for (const { message_id } of previousMessages) {
           const { previous_message_ids } = board.messages.find(
