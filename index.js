@@ -13,6 +13,7 @@ import { getArgs, templates } from './lib/util';
 
 env(`${__dirname}/.env`);
 
+const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype', 'telegram']);
 const INTENT_PATH = `${__dirname}/output/intents`;
 const ENTITY_PATH = `${__dirname}/output/entities`;
 const mkdirpP = promisify(mkdirp);
@@ -25,74 +26,106 @@ const start = process.hrtime();
     // Create an instance of the SDK and get the initial project payload
     const client = new SDKWrapper({ isInDebug, hostname });
     const { platform, board } = await client.init();
-
-    // Given the ability to see if a node follows directly from an intent, we can iterate
-    // over all that do and exhaustively collect node content up to the nodes that emanate
-    // new intents or are themselves leaf nodes. We write one file per intent that has as
-    // `responses` the content of such intermediate nodes.
+    // Pair messages that directly follow from intents with the intent they follow
+    const messagesDirectlyFollowingIntents = new Map();
+    for (const { next_message_ids } of board.messages) {
+      for (const { message_id, intent } of next_message_ids) {
+        if (typeof intent.value === 'string') {
+          messagesDirectlyFollowingIntents.set(message_id, intent.value);
+        }
+      }
+    }
+    // Determines if `id` is the node adjacent to root with max number of connections
+    const isWelcomeIntent = id => {
+      const messageIsRoot = message => board.root_messages.includes(message.message_id);
+      return Object.is(
+        board.messages
+          .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
+          .sort(
+            (a, b) =>
+              b.previous_message_ids.filter(messageIsRoot).length -
+              a.previous_message_ids.filter(messageIsRoot).length
+          )[0].message_id,
+        id
+      );
+    };
+    // Recursively finds reachable nodes that do not emanate intents
+    const collectIntermediateNodes = (nextMessages, collectedIds = []) => {
+      for (const { message_id } of nextMessages) {
+        if (!messagesDirectlyFollowingIntents.has(message_id)) {
+          const { next_message_ids } = board.messages.find(
+            message => message.message_id === message_id
+          );
+          return collectIntermediateNodes(next_message_ids, [
+            ...collectedIds,
+            message_id
+          ]);
+        }
+      }
+      return collectedIds;
+    };
+    // Recursively finds intent names on `previousMessages` until branching factor > 1
+    const getIntentAncestry = (previousMessages = [], intentNames = []) => {
+      const [messageFollowingIntent, ...rest] =
+        previousMessages.filter(message =>
+          messagesDirectlyFollowingIntents.has(message.message_id)
+        ) || [];
+      // Recur with the intent of the sole message following from an intent at this depth
+      if (messageFollowingIntent && !rest.length) {
+        const { previous_message_ids } = board.messages.find(
+          message => message.message_id === messageFollowingIntent.message_id
+        );
+        return getIntentAncestry(previous_message_ids, [
+          ...intentNames,
+          messagesDirectlyFollowingIntents.get(messageFollowingIntent.message_id)
+        ]);
+      } else if (!messageFollowingIntent && !rest.length) {
+        for (const { message_id } of previousMessages) {
+          const { previous_message_ids } = board.messages.find(
+            message => message.message_id === message_id
+          );
+          return getIntentAncestry(previous_message_ids, intentNames);
+        }
+      }
+      return intentNames;
+    };
     await mkdirpP(INTENT_PATH);
     await mkdirpP(ENTITY_PATH);
     let semaphore;
     try {
-      const messagesDirectlyFollowingIntents = new Map();
-      for (const { next_message_ids } of board.messages) {
-        for (const { message_id, intent } of next_message_ids) {
-          if (typeof intent.value === 'string') {
-            messagesDirectlyFollowingIntents.set(message_id, intent.value);
-          }
-        }
-      }
-      // Determines if id is the node adjacent to root with max number of connections
-      const isWelcomeIntent = id => {
-        const messageIsRoot = message => board.root_messages.includes(message.message_id);
-        return Object.is(
-          board.messages
-            .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
-            .sort(
-              (a, b) =>
-                b.previous_message_ids.filter(messageIsRoot).length -
-                a.previous_message_ids.filter(messageIsRoot).length
-            )[0].message_id,
-          id
-        );
-      };
-      // Recursively finds reachable nodes that do not emanate intents
-      const collectIntermediateNodes = (nextMessages, collectedIds = []) => {
-        for (const { message_id } of nextMessages) {
-          if (!messagesDirectlyFollowingIntents.has(message_id)) {
-            const { next_message_ids } = board.messages.find(
-              message => message.message_id === message_id
-            );
-            return collectIntermediateNodes(next_message_ids, [
-              ...collectedIds,
-              message_id
-            ]);
-          }
-        }
-        return collectedIds;
-      };
       semaphore = new Sema(os.cpus().length, {
         capacity: messagesDirectlyFollowingIntents.size
       });
       const provider = new Provider(platform);
+      // Given the ability to see if a node follows directly from an intent, we can iterate
+      // over all that do and exhaustively collect node content up to the nodes that emanate
+      // new intents or are themselves leaf nodes. We write one file per intent that has as
+      // `responses` the content of such intermediate nodes.
       await Promise.all(
         board.messages
           .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
           .map(async (message, i) => {
             // stdout(`\nwriting ${i + 1} of ${messagesDirectlyFollowingIntents.size}`);
-            const intermediateNodes = collectIntermediateNodes(
-              message.next_message_ids
-            ).map(id => board.messages.find(message => message.message_id === id));
+            await semaphore.acquire();
             const intent = await client.getIntent(
               messagesDirectlyFollowingIntents.get(message.message_id)
             );
-            await semaphore.acquire();
-            const intentFilepath = `${INTENT_PATH}/${intent.name}-${uuid()}.json`;
+            const intentAncestry = (await Promise.all(
+              getIntentAncestry(message.previous_message_ids).map(
+                async value => await client.getIntent(value)
+              )
+            )).map(intent => intent.name);
+            const basename = [...intentAncestry, intent.name].join('_');
+            const intentFilepath = `${INTENT_PATH}/${basename}.json`;
             const { date = new Date() } = intent.updated_at || {};
+            const intermediateNodes = collectIntermediateNodes(
+              message.next_message_ids
+            ).map(id => board.messages.find(message => message.message_id === id));
             const serialIntentData = JSON.stringify({
               ...templates.intent,
               id: uuid(),
               name: intent.name,
+              contexts: intentAncestry,
               events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
               lastUpdate: Date.parse(date),
               responses: [
@@ -102,7 +135,11 @@ const start = process.hrtime();
                   parameters: [],
                   resetContexts: false,
                   affectedContexts: [],
-                  defaultResponsePlatforms: { [platform.toLowerCase()]: true },
+                  defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                    platform.toLowerCase()
+                  )
+                    ? { [platform.toLowerCase()]: true }
+                    : {},
                   messages: [message, ...intermediateNodes].map(message =>
                     provider.create(message.message_type, message.payload)
                   )

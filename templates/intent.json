@@ -3,52 +3,7 @@
   "name": "",
   "auto": true,
   "contexts": [],
-  "responses": [
-    {
-      "resetContexts": false,
-      "action": "",
-      "affectedContexts": [
-        {
-          "name": "",
-          "parameters": {},
-          "lifespan": 2
-        }
-      ],
-      "parameters": [
-        {
-          "id": "bfefa4f7-84ed-4b15-a276-e8977dd6e0dd",
-          "required": true,
-          "dataType": "@sys.location",
-          "name": "location",
-          "value": "$location",
-          "isList": false
-        }
-      ],
-      "messages": [
-        {
-          "type": 3,
-          "platform": "facebook",
-          "lang": "en",
-          "imageUrl": "https://imgur.com/yUWAUrB"
-        },
-        {
-          "type": 1,
-          "platform": "facebook",
-          "lang": "en",
-          "buttons": []
-        },
-        {
-          "type": 0,
-          "lang": "en",
-          "speech": ["I\u0027m afraid that\u0027s not possible.", "Not quite."]
-        }
-      ],
-      "defaultResponsePlatforms": {
-        "facebook": true
-      },
-      "speech": []
-    }
-  ],
+  "responses": [],
   "priority": 500000,
   "webhookUsed": false,
   "webhookForSlotFilling": false,
