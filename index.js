@@ -13,7 +13,7 @@ import { getArgs, templates } from './lib/util';
 
 env(`${__dirname}/.env`);
 
-const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype', 'telegram']);
+const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype']);
 const INTENT_PATH = `${__dirname}/output/intents`;
 const ENTITY_PATH = `${__dirname}/output/entities`;
 const mkdirpP = promisify(mkdirp);
@@ -70,11 +70,11 @@ const start = process.hrtime();
         previousMessages.filter(message =>
           messagesDirectlyFollowingIntents.has(message.message_id)
         ) || [];
-      // Recur with the intent of the sole message following from an intent at this depth
       if (messageFollowingIntent && !rest.length) {
         const { previous_message_ids } = board.messages.find(
           message => message.message_id === messageFollowingIntent.message_id
         );
+        // Recur with the intent of sole message following from an intent at this depth
         return getIntentAncestry(previous_message_ids, [
           messagesDirectlyFollowingIntents.get(messageFollowingIntent.message_id),
           ...intentNames
