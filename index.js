@@ -76,8 +76,8 @@ const start = process.hrtime();
           message => message.message_id === messageFollowingIntent.message_id
         );
         return getIntentAncestry(previous_message_ids, [
-          ...intentNames,
-          messagesDirectlyFollowingIntents.get(messageFollowingIntent.message_id)
+          messagesDirectlyFollowingIntents.get(messageFollowingIntent.message_id),
+          ...intentNames
         ]);
       } else if (!messageFollowingIntent && !rest.length) {
         for (const { message_id } of previousMessages) {
@@ -124,7 +124,7 @@ const start = process.hrtime();
             const serialIntentData = JSON.stringify({
               ...templates.intent,
               id: uuid(),
-              name: intent.name,
+              name: basename,
               contexts: intentAncestry,
               events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
               lastUpdate: Date.parse(date),
@@ -134,7 +134,11 @@ const start = process.hrtime();
                   speech: [],
                   parameters: [],
                   resetContexts: false,
-                  affectedContexts: [],
+                  affectedContexts: [...intentAncestry, intent.name].map(name => ({
+                    name,
+                    parameters: {},
+                    lifespan: 5
+                  })),
                   defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
                     platform.toLowerCase()
                   )
