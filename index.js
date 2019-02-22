@@ -65,7 +65,7 @@ const start = process.hrtime();
       return collectedIds;
     };
     // Recursively finds intent names on `previousMessages` until branching factor > 1
-    const getIntentAncestry = (previousMessages = [], intentNames = []) => {
+    const getIntentAncestry = (previousMessages = [], intentValues = []) => {
       const [messageFollowingIntent, ...rest] =
         previousMessages.filter(message =>
           messagesDirectlyFollowingIntents.has(message.message_id)
@@ -74,20 +74,20 @@ const start = process.hrtime();
         const { previous_message_ids } = board.messages.find(
           message => message.message_id === messageFollowingIntent.message_id
         );
-        // Recur with the intent of sole message following from an intent at this depth
+        // Recur with the intent of the sole message following from an intent at this depth
         return getIntentAncestry(previous_message_ids, [
           messagesDirectlyFollowingIntents.get(messageFollowingIntent.message_id),
-          ...intentNames
+          ...intentValues
         ]);
       } else if (!messageFollowingIntent && !rest.length) {
         for (const { message_id } of previousMessages) {
           const { previous_message_ids } = board.messages.find(
             message => message.message_id === message_id
           );
-          return getIntentAncestry(previous_message_ids, intentNames);
+          return getIntentAncestry(previous_message_ids, intentValues);
         }
       }
-      return intentNames;
+      return intentValues;
     };
     await mkdirpP(INTENT_PATH);
     await mkdirpP(ENTITY_PATH);
@@ -137,7 +137,7 @@ const start = process.hrtime();
                   affectedContexts: [...intentAncestry, intent.name].map(name => ({
                     name,
                     parameters: {},
-                    lifespan: 5
+                    lifespan: 1
                   })),
                   defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
                     platform.toLowerCase()
