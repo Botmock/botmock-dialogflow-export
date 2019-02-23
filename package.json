@@ -27,12 +27,12 @@
   "license": "MIT",
   "dependencies": {
     "arg": "4.1.0",
-    "async-sema": "^2.1.4",
+    "async-sema": "2.2.0",
     "botmock": "^1.2.0",
-    "esm": "3.2.5",
+    "debug": "4.1.1",
+    "dotenv": "6.2.0",
+    "esm": "3.2.6",
     "mkdirp": "^0.5.1",
-    "node-env-file": "^0.1.8",
-    "single-line-log": "1.1.2",
     "uuid": "^3.3.2"
   },
   "devDependencies": {

@@ -33,6 +33,5 @@ BOTMOCK_BOARD_ID=""
 | **Botmock**    | **Dialogflow**  |
 | -------------- | --------------- |
 | message / node | intent          |
-| intent         | action          |
 | utterance      | training phrase |
 | variable       | parameter       |

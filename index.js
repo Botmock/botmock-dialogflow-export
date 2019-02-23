@@ -1,8 +1,7 @@
-import { stdout } from 'single-line-log';
+// import debug from 'debug';
 import mkdirp from 'mkdirp';
 import Sema from 'async-sema';
 import uuid from 'uuid/v4';
-import env from 'node-env-file';
 import fs from 'fs';
 import os from 'os';
 import { exec } from 'child_process';
@@ -11,7 +10,7 @@ import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
 import { getArgs, templates } from './lib/util';
 
-env(`${__dirname}/.env`);
+(await import('dotenv')).config();
 
 const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype']);
 const INTENT_PATH = `${__dirname}/output/intents`;
@@ -107,7 +106,6 @@ const start = process.hrtime();
         board.messages
           .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
           .map(async (message, i) => {
-            // stdout(`\nwriting ${i + 1} of ${messagesDirectlyFollowingIntents.size}`);
             await semaphore.acquire();
             const intent = await client.getIntent(
               messagesDirectlyFollowingIntents.get(message.message_id)
@@ -211,7 +209,9 @@ const start = process.hrtime();
     const [seconds, nanoseconds] = process.hrtime(start);
     const NS_PER_SEC = 1e9;
     const NS_PER_MS = 1e6;
-    stdout(`done in ${((seconds * NS_PER_SEC + nanoseconds) / NS_PER_MS).toFixed(2)}ms`);
+    console.log(
+      `done in ${((seconds * NS_PER_SEC + nanoseconds) / NS_PER_MS).toFixed(2)}ms`
+    );
   } catch (err) {
     console.error(err.stack);
     process.exit(1);
