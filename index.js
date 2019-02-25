@@ -155,16 +155,63 @@ const start = process.hrtime();
             try {
               await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
             } catch (_) {
+              // We do not yet have a file for these utterances; write one
               if (Array.isArray(intent.utterances) && intent.utterances.length) {
                 const serialUtterancesData = JSON.stringify(
                   Array.from(
-                    intent.utterances.map(utterance => ({
-                      id: uuid(),
-                      data: [{ text: utterance.text, userDefined: false }],
-                      count: 0,
-                      isTemplate: false,
-                      updated: Date.parse(date)
-                    }))
+                    intent.utterances.map(utterance => {
+                      const data = [];
+                      const pairs = utterance.variables.reduce(
+                        (acc, vari) => ({
+                          ...acc,
+                          [vari.id]: [
+                            vari.start_index,
+                            vari.start_index + vari.name.length
+                          ]
+                        }),
+                        {}
+                      );
+                      let lastIndex = 0;
+                      // Iterate over variable locations in text to form array of objects
+                      // for each text or variable group
+                      for (const [id, [start, end]] of Object.entries(pairs)) {
+                        const previousBlock = [];
+                        if (start !== lastIndex) {
+                          // Keep text block between last variable occurance
+                          previousBlock.push({
+                            text: utterance.text.slice(lastIndex, start),
+                            userDefined: false
+                          });
+                        }
+                        const { name, entity } = utterance.variables.find(
+                          vari => vari.id === id
+                        );
+                        data.push(
+                          ...previousBlock.concat({
+                            text: name.slice(1, -1),
+                            meta: `@${entity}`,
+                            userDefined: true
+                          })
+                        );
+                        if (id !== Object.keys(pairs).pop()) {
+                          lastIndex = end;
+                        } else {
+                          data.push({
+                            text: utterance.text.slice(end),
+                            userDefined: false
+                          });
+                        }
+                      }
+                      return {
+                        id: uuid(),
+                        data: data.length
+                          ? data
+                          : [{ text: utterance.text, userDefined: false }],
+                        count: 0,
+                        isTemplate: false,
+                        updated: Date.parse(date)
+                      };
+                    })
                   )
                 );
                 await fs.promises.writeFile(utterancesFilepath, serialUtterancesData);
