@@ -227,7 +227,8 @@ const start = process.hrtime();
       throw err;
     }
     // Write entity files
-    for (const entity of await client.getEntities()) {
+    const entities = await client.getEntities();
+    for (const entity of entities) {
       const serialEntityData = JSON.stringify({
         ...templates.entity,
         id: uuid(),
