@@ -15,6 +15,7 @@ import { getArgs, templates } from './lib/util';
 const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype']);
 const INTENT_PATH = `${__dirname}/output/intents`;
 const ENTITY_PATH = `${__dirname}/output/entities`;
+const ZIP_PATH = `${__dirname}/output.zip`;
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
 
@@ -65,10 +66,9 @@ const start = process.hrtime();
     };
     // Recursively finds intent values on `previousMessages` until branching factor > 1
     const getIntentAncestry = (previousMessages = [], intentValues = []) => {
-      const [messageFollowingIntent, ...rest] =
-        previousMessages.filter(message =>
-          messagesDirectlyFollowingIntents.has(message.message_id)
-        ) || [];
+      const [messageFollowingIntent, ...rest] = previousMessages.filter(message =>
+        messagesDirectlyFollowingIntents.has(message.message_id)
+      );
       if (messageFollowingIntent && !rest.length) {
         const { previous_message_ids } = board.messages.find(
           message => message.message_id === messageFollowingIntent.message_id
@@ -76,8 +76,8 @@ const start = process.hrtime();
         const value = messagesDirectlyFollowingIntents.get(
           messageFollowingIntent.message_id
         );
+        // Recur with the intent on the sole message following from an intent at this depth
         if (!intentValues.includes(value)) {
-          // Recur with the intent of the sole message following from an intent at this depth
           return getIntentAncestry(previous_message_ids, [value, ...intentValues]);
         }
       } else if (!messageFollowingIntent && !rest.length) {
@@ -115,12 +115,11 @@ const start = process.hrtime();
                 async value => await client.getIntent(value)
               )
             )).map(intent => intent.name);
-            const basename = [...intentAncestry, intent.name].join('_');
-            const intentFilepath = `${INTENT_PATH}/${basename}.json`;
-            const { date = new Date() } = intent.updated_at || {};
             const intermediateNodes = collectIntermediateNodes(
               message.next_message_ids
             ).map(id => board.messages.find(message => message.message_id === id));
+            const { date = new Date() } = intent.updated_at || {};
+            const basename = [...intentAncestry, intent.name].join('_');
             const serialIntentData = JSON.stringify({
               ...templates.intent,
               id: uuid(),
@@ -150,6 +149,7 @@ const start = process.hrtime();
                 }
               ]
             });
+            const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
             await fs.promises.writeFile(intentFilepath, serialIntentData);
             const utterancesFilepath = `${intentFilepath.slice(0, -5)}_usersays_en.json`;
             try {
@@ -242,7 +242,8 @@ const start = process.hrtime();
       );
     }
     // Copy template files
-    for (const filename of await fs.promises.readdir(`${__dirname}/templates`)) {
+    const filenames = await fs.promises.readdir(`${__dirname}/templates`);
+    for (const filename of filenames) {
       if (filename.startsWith('intent') || filename.startsWith('entity')) {
         continue;
       }
@@ -251,9 +252,15 @@ const start = process.hrtime();
         `${__dirname}/output/${filename}`
       );
     }
-    // Zip output dir; remove it afterwards
-    await execP(`zip -r ${__dirname}/output.zip ${__dirname}/output`);
-    await execP(`rm -rf ${__dirname}/output`);
+    // Remove zip file if it exists; then zip and remove output dir
+    try {
+      await fs.promises.access(ZIP_PATH, fs.constants.F_OK);
+      await fs.promises.unlink(ZIP_PATH);
+    } catch (_) {
+    } finally {
+      await execP(`zip -r ${__dirname}/output.zip ${__dirname}/output`);
+      await execP(`rm -rf ${__dirname}/output`);
+    }
     const [seconds, nanoseconds] = process.hrtime(start);
     const NS_PER_SEC = 1e9;
     const NS_PER_MS = 1e6;

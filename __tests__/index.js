@@ -9,9 +9,7 @@ afterEach(async () => {
   try {
     await fs.promises.access(`${process.cwd()}/output`, fs.constants.R_OK);
     await execP(`rm -rf ${process.cwd()}/output`);
-  } catch (_) {
-    // ..
-  }
+  } catch (_) {}
 });
 
 it('runs', async () => {
