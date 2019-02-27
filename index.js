@@ -12,6 +12,7 @@ import { getArgs, templates } from './lib/util';
 
 (await import('dotenv')).config();
 
+const DIALOGFLOW_CONTEXT_LIMIT = 5;
 const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype']);
 const INTENT_PATH = `${__dirname}/output/intents`;
 const ENTITY_PATH = `${__dirname}/output/entities`;
@@ -80,8 +81,11 @@ const start = process.hrtime();
         const value = messagesDirectlyFollowingIntents.get(
           messageFollowingIntent.message_id
         );
-        // Recur with the intent on the sole message following from an intent at this depth
-        if (!intentValues.includes(value)) {
+        if (
+          !intentValues.includes(value) &&
+          intentValues.length < DIALOGFLOW_CONTEXT_LIMIT
+        ) {
+          // Recur with the intent on the sole message following from an intent at this depth
           return getIntentAncestry(previous_message_ids, [value, ...intentValues]);
         }
       } else if (!messageFollowingIntent && !rest.length) {
