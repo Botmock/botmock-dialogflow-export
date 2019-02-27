@@ -4,7 +4,6 @@ import Sema from 'async-sema';
 import uuid from 'uuid/v4';
 import fs from 'fs';
 import os from 'os';
-import { basename } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Provider } from './lib/providers';
@@ -19,8 +18,7 @@ const ENTITY_PATH = `${__dirname}/output/entities`;
 const ZIP_PATH = `${__dirname}/output.zip`;
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
-const log = debug(basename(__filename));
-log.enabled = true;
+const log = debug('*');
 
 const start = process.hrtime();
 (async argv => {
@@ -29,9 +27,9 @@ const start = process.hrtime();
     // Create an instance of the SDK and get the initial project payload
     const client = new SDKWrapper({ isInDebug, hostname });
     client.on('error', err => {
-      throw err;
+      log(`SDK encountered an error: ${err.stack}`);
     });
-    const { platform, board } = await client.init();
+    const { platform, board, intents } = await client.init();
     // Pair messages that directly follow from intents with the intent they follow
     const messagesDirectlyFollowingIntents = new Map();
     for (const { next_message_ids } of board.messages) {
@@ -111,17 +109,14 @@ const start = process.hrtime();
       await Promise.all(
         board.messages
           .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
-          .map(async (message, i, arr) => {
+          .map(async (message, i, messages) => {
             await semaphore.acquire();
-            log(`writing ${i} of ${arr.length - 1} intents`);
-            const intent = await client.getIntent(
+            const intent = intents.get(
               messagesDirectlyFollowingIntents.get(message.message_id)
             );
-            const intentAncestry = (await Promise.all(
-              getIntentAncestry(message.previous_message_ids).map(
-                async value => await client.getIntent(value)
-              )
-            )).map(intent => intent.name);
+            const intentAncestry = getIntentAncestry(message.previous_message_ids).map(
+              value => intents.get(value).name
+            );
             const intermediateNodes = collectIntermediateNodes(
               message.next_message_ids
             ).map(id => board.messages.find(message => message.message_id === id));
@@ -157,6 +152,7 @@ const start = process.hrtime();
               ]
             });
             const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
+            log(`writing ${i + 1} of ${messages.length} intents`);
             await fs.promises.writeFile(intentFilepath, serialIntentData);
             const utterancesFilepath = `${intentFilepath.slice(0, -5)}_usersays_en.json`;
             try {
@@ -271,17 +267,17 @@ const start = process.hrtime();
     const NS_PER_MS = 1e6;
     log(`done in ${((seconds * NS_PER_SEC + nanoseconds) / NS_PER_MS).toFixed(2)}ms`);
   } catch (err) {
-    console.error(err.stack);
+    log(err.stack);
     process.exit(1);
   }
 })(process.argv);
 
 process.on('unhandledRejection', err => {
-  console.error(err.stack);
+  log(err.stack);
   process.exit(1);
 });
 
 process.on('uncaughtException', err => {
-  console.error(err.stack);
+  log(err.stack);
   process.exit(1);
 });
