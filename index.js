@@ -1,9 +1,10 @@
-// import debug from 'debug';
+import debug from 'debug';
 import mkdirp from 'mkdirp';
 import Sema from 'async-sema';
 import uuid from 'uuid/v4';
 import fs from 'fs';
 import os from 'os';
+import { basename } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Provider } from './lib/providers';
@@ -18,6 +19,8 @@ const ENTITY_PATH = `${__dirname}/output/entities`;
 const ZIP_PATH = `${__dirname}/output.zip`;
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
+const log = debug(basename(__filename));
+log.enabled = true;
 
 const start = process.hrtime();
 (async argv => {
@@ -25,6 +28,9 @@ const start = process.hrtime();
     const { isInDebug = false, hostname = 'app' } = getArgs(argv);
     // Create an instance of the SDK and get the initial project payload
     const client = new SDKWrapper({ isInDebug, hostname });
+    client.on('error', err => {
+      throw err;
+    });
     const { platform, board } = await client.init();
     // Pair messages that directly follow from intents with the intent they follow
     const messagesDirectlyFollowingIntents = new Map();
@@ -105,8 +111,9 @@ const start = process.hrtime();
       await Promise.all(
         board.messages
           .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
-          .map(async (message, i) => {
+          .map(async (message, i, arr) => {
             await semaphore.acquire();
+            log(`writing ${i} of ${arr.length - 1} intents`);
             const intent = await client.getIntent(
               messagesDirectlyFollowingIntents.get(message.message_id)
             );
@@ -227,8 +234,7 @@ const start = process.hrtime();
       throw err;
     }
     // Write entity files
-    const entities = await client.getEntities();
-    for (const entity of entities) {
+    for (const entity of await client.getEntities()) {
       const serialEntityData = JSON.stringify({
         ...templates.entity,
         id: uuid(),
@@ -242,8 +248,7 @@ const start = process.hrtime();
       );
     }
     // Copy template files
-    const filenames = await fs.promises.readdir(`${__dirname}/templates`);
-    for (const filename of filenames) {
+    for (const filename of await fs.promises.readdir(`${__dirname}/templates`)) {
       if (filename.startsWith('intent') || filename.startsWith('entity')) {
         continue;
       }
@@ -264,9 +269,7 @@ const start = process.hrtime();
     const [seconds, nanoseconds] = process.hrtime(start);
     const NS_PER_SEC = 1e9;
     const NS_PER_MS = 1e6;
-    console.log(
-      `done in ${((seconds * NS_PER_SEC + nanoseconds) / NS_PER_MS).toFixed(2)}ms`
-    );
+    log(`done in ${((seconds * NS_PER_SEC + nanoseconds) / NS_PER_MS).toFixed(2)}ms`);
   } catch (err) {
     console.error(err.stack);
     process.exit(1);
