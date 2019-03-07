@@ -1,0 +1,13 @@
+{
+  "id": "",
+  "name": "",
+  "auto": true,
+  "contexts": [],
+  "responses": [],
+  "priority": 500000,
+  "webhookUsed": false,
+  "webhookForSlotFilling": false,
+  "lastUpdate": 1549981097,
+  "fallbackIntent": false,
+  "events": []
+}

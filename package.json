@@ -1,21 +1,41 @@
 {
   "name": "botmock-dialogflow-export",
   "version": "1.0.0",
-  "description": "",
+  "description": "import Botmock projects in Dialogflow",
   "main": "index.js",
+  "module": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "start": "node --no-warnings -r esm index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "esm": {
+    "await": true
+  },
+  "keywords": [
+    "botmock",
+    "dialogflow",
+    "nodejs"
+  ],
+  "prettier": {
+    "singleQuote": true,
+    "printWidth": 90
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Botmock/botmock-dialogflow-export.git"
+  },
+  "license": "MIT",
   "dependencies": {
-    "botmock": "^1.0.1",
-    "fs-extra": "^7.0.1",
+    "arg": "4.1.0",
+    "async-sema": "2.2.0",
+    "botmock": "^1.2.0",
+    "debug": "4.1.1",
+    "dotenv": "6.2.0",
+    "esm": "3.2.7",
     "mkdirp": "^0.5.1",
-    "node-env-file": "^0.1.8",
-    "sanitize-filename": "^1.6.1",
-    "template-file": "^3.0.1",
     "uuid": "^3.3.2"
+  },
+  "devDependencies": {
+    "jest": "24.1.0"
   }
 }

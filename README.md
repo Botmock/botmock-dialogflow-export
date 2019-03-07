@@ -1,9 +1,37 @@
 # Botmock Dialogflow Export
 
-To run:
-- Rename `sample.env` to  `.env` file and fill it with your team ID, project ID and board ID along with your API Key
-- run `npm install`
-- run `node index.js` 
-- Once it successfully runs, it will create a `output` directory with all the content files in it
-- Zip the `output` directory and upload it to DialogFlow
+> requires node >= 10.15.x
 
+Import [Botmock](https://botmock.com) projects in Dialogflow.
+
+## Guide
+
+### Running the script
+
+- Clone this repo by running `git clone git@github.com:Botmock/botmock-dialogflow-export.git`
+- Create a `.env` file in `/botmock-dialogflow-export` with the following variables (and your values filled in)
+
+```console
+BOTMOCK_TOKEN=""
+BOTMOCK_TEAM_ID=""
+BOTMOCK_PROJECT_ID=""
+BOTMOCK_BOARD_ID=""
+```
+
+- Run `npm install`
+- Run `npm start`
+- Find your zipped project in `/output.zip`
+
+### Importing to Dialogflow
+
+- Visit [your dashboard](console.dialogflow.com) and create a new agent
+- Choose the 'Export and Import' tab and choose 'Import From Zip'
+- Select `/output.zip`, typing 'IMPORT' in their form field and clicking 'IMPORT'
+
+## Glossary
+
+| **Botmock**    | **Dialogflow**  |
+| -------------- | --------------- |
+| message / node | intent          |
+| utterance      | training phrase |
+| variable       | parameter       |
