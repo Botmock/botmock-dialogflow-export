@@ -28,14 +28,14 @@ const start = process.hrtime();
     // Create an instance of the SDK and get the initial project payload
     const client = new SDKWrapper({ isInDebug, hostname });
     client.on('error', err => {
-      log(`SDK encountered an error: ${err.stack}`);
+      log(`SDK encountered an error:\n ${err.stack}`);
     });
     const { platform, board, intents } = await client.init();
     // Pair messages that directly follow from intents with the intent they follow
     const messagesDirectlyFollowingIntents = new Map();
     for (const { next_message_ids } of board.messages) {
       for (const { message_id, intent } of next_message_ids) {
-        if (typeof intent.value === 'string') {
+        if (intent.value) {
           messagesDirectlyFollowingIntents.set(message_id, intent.value);
         }
       }
@@ -124,7 +124,6 @@ const start = process.hrtime();
             const intermediateNodes = collectIntermediateNodes(
               message.next_message_ids
             ).map(id => board.messages.find(message => message.message_id === id));
-            const { date = new Date() } = intent.updated_at || {};
             const basename = [...intentAncestry, intent.name].join('_');
             const serialIntentData = JSON.stringify({
               ...templates.intent,
@@ -132,7 +131,7 @@ const start = process.hrtime();
               name: basename,
               contexts: intentAncestry,
               events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
-              lastUpdate: Date.parse(date),
+              lastUpdate: Date.parse(intent.updated_at.date),
               responses: [
                 {
                   action: '',
@@ -216,7 +215,7 @@ const start = process.hrtime();
                           : [{ text: utterance.text, userDefined: false }],
                         count: 0,
                         isTemplate: false,
-                        updated: Date.parse(date)
+                        updated: Date.parse(intent.updated_at.date)
                       };
                     })
                   )
