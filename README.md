@@ -38,7 +38,7 @@ BOTMOCK_BOARD_ID=""
 
 ## Want to help?
 
-Do you have feedback? Bugs? We'd love to to hear from you! You can start by submitting an issue at the [Issues](https://github.com/Botmock/botmock-dialogflow-export/issues) tab.
+Found bugs or have some ideas to improve this plugin? We'd love to to hear from you! You can start by submitting an issue at the [Issues](https://github.com/Botmock/botmock-dialogflow-export/issues) tab. If you want, feel free to submit a pull request and propose a change as well!
 
 ### Submitting a Pull Request
 1. Adding a Pull Request
@@ -51,4 +51,3 @@ Do you have feedback? Bugs? We'd love to to hear from you! You can start by subm
 
 ## License
 Botmock Dialogflow Export is copyright © 2019 Botmock. It is free software, and may be redistributed under the terms specified in the LICENSE file.
-
