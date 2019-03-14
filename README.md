@@ -49,3 +49,6 @@ Do you have feedback? Bugs? We'd love to to hear from you! You can start by subm
 
 *NOTE: Make sure to leave any sensitive information out of an issue when reporting a bug with imagery or copying and pasting error data. We want to make sure all your info is safe!*
 
+## License
+Botmock Dialogflow Export is copyright © 2019 Botmock. It is free software, and may be redistributed under the terms specified in the LICENSE file.
+
