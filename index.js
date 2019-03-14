@@ -1,3 +1,4 @@
+(await import('dotenv')).config();
 import debug from 'debug';
 import mkdirp from 'mkdirp';
 import Sema from 'async-sema';
@@ -10,8 +11,6 @@ import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
 import { getArgs, templates } from './lib/util';
 
-(await import('dotenv')).config();
-
 const DIALOGFLOW_CONTEXT_LIMIT = 5;
 const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype']);
 const INTENT_PATH = `${__dirname}/output/intents`;
@@ -21,17 +20,15 @@ const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
 const log = debug('*');
 
-const start = process.hrtime();
 (async argv => {
   try {
     const { isInDebug = false, hostname = 'app' } = getArgs(argv);
-    // Create an instance of the SDK and get the initial project payload
     const client = new SDKWrapper({ isInDebug, hostname });
     client.on('error', err => {
       log(`SDK encountered an error:\n ${err.stack}`);
     });
+    log('initializing client');
     const { platform, board, intents } = await client.init();
-    // Pair messages that directly follow from intents with the intent they follow
     const messagesDirectlyFollowingIntents = new Map();
     for (const { next_message_ids } of board.messages) {
       for (const { message_id, intent } of next_message_ids) {
@@ -106,14 +103,14 @@ const start = process.hrtime();
         capacity: messagesDirectlyFollowingIntents.size
       });
       const provider = new Provider(platform);
-      // Given the ability to see if a node follows directly from an intent, we can iterate
-      // over all that do and exhaustively collect node content up to the nodes that emanate
-      // new intents or are themselves leaf nodes. We write one file per intent that has as
-      // `responses` the content of such intermediate nodes.
+      log('beginning write phase');
+      // Writes intent files corresponding to enumeration of intent ancestry for each message
+      // that directly follows an intent. Intent files have as `responses` all messages between
+      // this message and the next message that immediately follows an intent.
       await Promise.all(
         board.messages
           .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
-          .map(async (message, i, messages) => {
+          .map(async message => {
             await semaphore.acquire();
             const intent = intents.get(
               messagesDirectlyFollowingIntents.get(message.message_id)
@@ -121,52 +118,55 @@ const start = process.hrtime();
             const intentAncestry = getIntentAncestry(message.previous_message_ids).map(
               value => intents.get(value).name
             );
+            const basename = [...intentAncestry, intent.name].join('_');
             const intermediateNodes = collectIntermediateNodes(
               message.next_message_ids
             ).map(id => board.messages.find(message => message.message_id === id));
-            const basename = [...intentAncestry, intent.name].join('_');
-            const serialIntentData = JSON.stringify({
-              ...templates.intent,
-              id: uuid(),
-              name: basename,
-              contexts: intentAncestry,
-              events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
-              lastUpdate: Date.parse(intent.updated_at.date),
-              responses: [
-                {
-                  action: '',
-                  speech: [],
-                  parameters: [],
-                  resetContexts: false,
-                  affectedContexts: [...intentAncestry, intent.name].map(name => ({
-                    name,
-                    parameters: {},
-                    lifespan: 1
-                  })),
-                  defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
-                    platform.toLowerCase()
-                  )
-                    ? { [platform.toLowerCase()]: true }
-                    : {},
-                  messages: [message, ...intermediateNodes].map(message =>
-                    provider.create(message.message_type, message.payload)
-                  )
-                }
-              ]
-            });
             const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
-            log(`writing ${i + 1} of ${messages.length} intents`);
-            await fs.promises.writeFile(intentFilepath, serialIntentData);
+            await fs.promises.writeFile(
+              intentFilepath,
+              JSON.stringify({
+                ...templates.intent,
+                id: uuid(),
+                name: basename,
+                contexts: intentAncestry,
+                events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
+                lastUpdate: Date.parse(intent.updated_at.date),
+                responses: [
+                  {
+                    action: '',
+                    speech: [],
+                    parameters: [],
+                    resetContexts: false,
+                    affectedContexts: [...intentAncestry, intent.name].map(name => ({
+                      name,
+                      parameters: {},
+                      lifespan: 1
+                    })),
+                    defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                      platform.toLowerCase()
+                    )
+                      ? { [platform.toLowerCase()]: true }
+                      : {},
+                    messages: [message, ...intermediateNodes].map(message =>
+                      provider.create(message.message_type, message.payload)
+                    )
+                  }
+                ]
+              })
+            );
             const utterancesFilepath = `${intentFilepath.slice(0, -5)}_usersays_en.json`;
+            // Writes new file in the case of no preexisting file by the same name
             try {
               await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
             } catch (_) {
-              // We do not yet have a file for these utterances; write one
               if (Array.isArray(intent.utterances) && intent.utterances.length) {
-                const serialUtterancesData = JSON.stringify(
-                  Array.from(
+                await fs.promises.writeFile(
+                  utterancesFilepath,
+                  JSON.stringify(
                     intent.utterances.map(utterance => {
                       const data = [];
+                      // Keeps relation of variable id and its location in the text
                       const pairs = utterance.variables.reduce(
                         (acc, vari) => ({
                           ...acc,
@@ -178,12 +178,9 @@ const start = process.hrtime();
                         {}
                       );
                       let lastIndex = 0;
-                      // Iterate over variable locations in text to form array of objects
-                      // for each text or variable group
                       for (const [id, [start, end]] of Object.entries(pairs)) {
                         const previousBlock = [];
                         if (start !== lastIndex) {
-                          // Keep text block between last variable occurance
                           previousBlock.push({
                             text: utterance.text.slice(lastIndex, start),
                             userDefined: false
@@ -220,7 +217,6 @@ const start = process.hrtime();
                     })
                   )
                 );
-                await fs.promises.writeFile(utterancesFilepath, serialUtterancesData);
               }
             }
             semaphore.release();
@@ -258,6 +254,7 @@ const start = process.hrtime();
     }
     // Remove zip file if it exists; then zip and remove output dir
     try {
+      log('zipping output directory');
       await fs.promises.access(ZIP_PATH, fs.constants.F_OK);
       await fs.promises.unlink(ZIP_PATH);
     } catch (_) {
@@ -265,10 +262,7 @@ const start = process.hrtime();
       await execP(`zip -r ${__dirname}/output.zip ${__dirname}/output`);
       await execP(`rm -rf ${__dirname}/output`);
     }
-    const [seconds, nanoseconds] = process.hrtime(start);
-    const NS_PER_SEC = 1e9;
-    const NS_PER_MS = 1e6;
-    log(`done in ${((seconds * NS_PER_SEC + nanoseconds) / NS_PER_MS).toFixed(2)}ms`);
+    log('done');
   } catch (err) {
     log(err.stack);
     process.exit(1);
