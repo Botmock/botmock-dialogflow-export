@@ -35,3 +35,7 @@ BOTMOCK_BOARD_ID=""
 | message / node | intent          |
 | utterance      | training phrase |
 | variable       | parameter       |
+
+## Want to help?
+
+Do you have feedback? Bugs? We'd love to to hear from you! You can start by submitting an issue at the [Issues](https://github.com/Botmock/botmock-dialogflow-export/issues) tab.
