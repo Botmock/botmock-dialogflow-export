@@ -28,15 +28,12 @@ const log = debug('*');
       log(`SDK encountered an error:\n ${err.stack}`);
     });
     log('initializing client');
-    const { platform, board, intents } = await client.init();
-    const messagesDirectlyFollowingIntents = new Map();
-    for (const { next_message_ids } of board.messages) {
-      for (const { message_id, intent } of next_message_ids) {
-        if (intent.value) {
-          messagesDirectlyFollowingIntents.set(message_id, intent.value);
-        }
-      }
-    }
+    const {
+      platform,
+      board,
+      intents,
+      messagesDirectlyFollowingIntents
+    } = await client.init();
     // Determines if `id` is the node adjacent to root with max number of connections
     const isWelcomeIntent = id => {
       const messageIsRoot = message => board.root_messages.includes(message.message_id);
@@ -67,6 +64,7 @@ const log = debug('*');
       return collectedIds;
     };
     // Recursively finds intent values on `previousMessages` until branching factor > 1
+    // TODO: Recursively enumerates paths to each previous message while within limit
     const getIntentAncestry = (previousMessages = [], intentValues = []) => {
       const [messageFollowingIntent, ...rest] = previousMessages.filter(message =>
         messagesDirectlyFollowingIntents.has(message.message_id)
@@ -118,6 +116,8 @@ const log = debug('*');
             const intentAncestry = getIntentAncestry(message.previous_message_ids).map(
               value => intents.get(value).name
             );
+            // for (const intentAncestry of intentAncestries) {}
+            // TODO: the intent write step (not the utterances step) is contained in the loop
             const basename = [...intentAncestry, intent.name].join('_');
             const intermediateNodes = collectIntermediateNodes(
               message.next_message_ids
