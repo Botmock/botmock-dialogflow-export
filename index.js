@@ -11,23 +11,35 @@ import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
 import { getArgs, templates } from './lib/util';
 
-const DIALOGFLOW_CONTEXT_LIMIT = 5;
+process.on('unhandledRejection', err => {
+  console.error(err);
+  process.exit(1);
+});
+
+process.on('uncaughtException', err => {
+  console.error(err);
+  process.exit(1);
+});
+
 const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype']);
+const DIALOGFLOW_CONTEXT_LIMIT = 5;
+
 const INTENT_PATH = `${__dirname}/output/intents`;
 const ENTITY_PATH = `${__dirname}/output/entities`;
-const ZIP_PATH = `${__dirname}/output.zip`;
+const ZIP_PATH = `${process.cwd()}/output.zip`;
+
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
 const log = debug('*');
 
 (async argv => {
+  const { isInDebug = false, hostname = 'app' } = getArgs(argv);
+  const client = new SDKWrapper({ isInDebug, hostname });
+  client.on('error', err => {
+    log(`SDK encountered an error:\n ${err.stack}`);
+  });
+  log('initializing client');
   try {
-    const { isInDebug = false, hostname = 'app' } = getArgs(argv);
-    const client = new SDKWrapper({ isInDebug, hostname });
-    client.on('error', err => {
-      log(`SDK encountered an error:\n ${err.stack}`);
-    });
-    log('initializing client');
     const {
       platform,
       board,
@@ -35,7 +47,7 @@ const log = debug('*');
       messagesDirectlyFollowingIntents
     } = await client.init();
     // Determines if `id` is the node adjacent to root with max number of connections
-    const isWelcomeIntent = id => {
+    function isWelcomeIntent(id) {
       const messageIsRoot = message => board.root_messages.includes(message.message_id);
       return Object.is(
         board.messages
@@ -47,9 +59,9 @@ const log = debug('*');
           )[0].message_id,
         id
       );
-    };
+    }
     // Recursively finds reachable nodes that do not emanate intents
-    const collectIntermediateNodes = (nextMessages, collectedIds = []) => {
+    function collectIntermediateNodes(nextMessages, collectedIds = []) {
       for (const { message_id } of nextMessages) {
         if (!messagesDirectlyFollowingIntents.has(message_id)) {
           const { next_message_ids } = board.messages.find(
@@ -62,10 +74,9 @@ const log = debug('*');
         }
       }
       return collectedIds;
-    };
+    }
     // Recursively finds intent values on `previousMessages` until branching factor > 1
-    // TODO: Recursively enumerates paths to each previous message while within limit
-    const getIntentAncestry = (previousMessages = [], intentValues = []) => {
+    function getIntentAncestry(previousMessages = [], intentValues = []) {
       const [messageFollowingIntent, ...rest] = previousMessages.filter(message =>
         messagesDirectlyFollowingIntents.has(message.message_id)
       );
@@ -92,7 +103,27 @@ const log = debug('*');
         }
       }
       return intentValues;
-    };
+    }
+    // TODO: doc
+    // function assembleAncestries(
+    //   // rootMessageId,
+    //   previousMessages = [],
+    //   ancestryThread = new Map(),
+    //   ancestries = new Set()
+    // ) {
+    //   for (const { message_id } of previousMessages) {
+    //     const { next_message_ids } =
+    //       board.messages.find(m => m.message_id === message_id) || {};
+    //     // Of those messages that have an intent on the "latest" node, recur
+    //     for (const { intent } of next_message_ids) {
+    //       const [intentValue, messageId] = Array.from(ancestryThread).pop() || [];
+    //       if (intent.value === intentValue) {
+    //         // console.log(ancestryThread);
+    //       }
+    //     }
+    //   }
+    //   return ancestries;
+    // }
     await mkdirpP(INTENT_PATH);
     await mkdirpP(ENTITY_PATH);
     let semaphore;
@@ -109,20 +140,24 @@ const log = debug('*');
         board.messages
           .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
           .map(async message => {
+            // Attempts to meaningfully limit num concurrent writes (for large projects)
             await semaphore.acquire();
+            // const intentAncestries = assembleAncestries(message.previous_message_ids);
+            // for (const ancestry of Array.from(intentAncestries)) {
+            //   // ..
+            // }
             const intent = intents.get(
               messagesDirectlyFollowingIntents.get(message.message_id)
             );
             const intentAncestry = getIntentAncestry(message.previous_message_ids).map(
               value => intents.get(value).name
             );
-            // for (const intentAncestry of intentAncestries) {}
-            // TODO: the intent write step (not the utterances step) is contained in the loop
             const basename = [...intentAncestry, intent.name].join('_');
             const intermediateNodes = collectIntermediateNodes(
               message.next_message_ids
             ).map(id => board.messages.find(message => message.message_id === id));
             const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
+            // log(intentAncestry);
             await fs.promises.writeFile(
               intentFilepath,
               JSON.stringify({
@@ -138,6 +173,7 @@ const log = debug('*');
                     speech: [],
                     parameters: [],
                     resetContexts: false,
+                    // i.e. output contexts
                     affectedContexts: [...intentAncestry, intent.name].map(name => ({
                       name,
                       parameters: {},
@@ -156,10 +192,10 @@ const log = debug('*');
               })
             );
             const utterancesFilepath = `${intentFilepath.slice(0, -5)}_usersays_en.json`;
-            // Writes new file in the case of no preexisting file by the same name
             try {
               await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
             } catch (_) {
+              // If we do not already have an utterances file for this intent, write a file
               if (Array.isArray(intent.utterances) && intent.utterances.length) {
                 await fs.promises.writeFile(
                   utterancesFilepath,
@@ -178,6 +214,8 @@ const log = debug('*');
                         {}
                       );
                       let lastIndex = 0;
+                      // Appends `data` by iterating over the variables occurances in
+                      // the text, adding previous and final blocks when necessary
                       for (const [id, [start, end]] of Object.entries(pairs)) {
                         const previousBlock = [];
                         if (start !== lastIndex) {
@@ -228,7 +266,7 @@ const log = debug('*');
       }
       throw err;
     }
-    // Write entity files
+    // Write entity files in one-to-one correspondence with original project
     for (const entity of await client.getEntities()) {
       const serialEntityData = JSON.stringify({
         ...templates.entity,
@@ -242,7 +280,7 @@ const log = debug('*');
         serialSynData
       );
     }
-    // Copy template files
+    // Copy template files into output directory
     for (const filename of await fs.promises.readdir(`${__dirname}/templates`)) {
       if (filename.startsWith('intent') || filename.startsWith('entity')) {
         continue;
@@ -254,11 +292,11 @@ const log = debug('*');
     }
     // Remove zip file if it exists; then zip and remove output dir
     try {
-      log('zipping output directory');
       await fs.promises.access(ZIP_PATH, fs.constants.F_OK);
       await fs.promises.unlink(ZIP_PATH);
     } catch (_) {
     } finally {
+      log('zipping output directory');
       await execP(`zip -r ${__dirname}/output.zip ${__dirname}/output`);
       await execP(`rm -rf ${__dirname}/output`);
     }
@@ -268,13 +306,3 @@ const log = debug('*');
     process.exit(1);
   }
 })(process.argv);
-
-process.on('unhandledRejection', err => {
-  log(err.stack);
-  process.exit(1);
-});
-
-process.on('uncaughtException', err => {
-  log(err.stack);
-  process.exit(1);
-});
