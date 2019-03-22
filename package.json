@@ -18,7 +18,7 @@
   ],
   "prettier": {
     "singleQuote": true,
-    "printWidth": 90
+    "printWidth": 80
   },
   "repository": {
     "type": "git",

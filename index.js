@@ -22,7 +22,7 @@ process.on('uncaughtException', err => {
 });
 
 const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype']);
-const DIALOGFLOW_CONTEXT_LIMIT = 5;
+// const DIALOGFLOW_CONTEXT_LIMIT = 5;
 
 const INTENT_PATH = `${__dirname}/output/intents`;
 const ENTITY_PATH = `${__dirname}/output/entities`;
@@ -33,131 +33,61 @@ const execP = promisify(exec);
 const log = debug('*');
 
 (async argv => {
+  // Parse args passed on execution
   const { isInDebug = false, hostname = 'app' } = getArgs(argv);
   const client = new SDKWrapper({ isInDebug, hostname });
   client.on('error', err => {
     log(`SDK encountered an error:\n ${err.stack}`);
   });
-  log('initializing client');
   try {
+    log('initializing client');
+    let semaphore;
     const {
       platform,
       board,
       intents,
-      messagesDirectlyFollowingIntents
+      messagesFromIntents
     } = await client.init();
-    // Determines if `id` is the node adjacent to root with max number of connections
-    function isWelcomeIntent(id) {
-      const messageIsRoot = message => board.root_messages.includes(message.message_id);
-      return Object.is(
-        board.messages
-          .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
-          .sort(
-            (a, b) =>
-              b.previous_message_ids.filter(messageIsRoot).length -
-              a.previous_message_ids.filter(messageIsRoot).length
-          )[0].message_id,
-        id
-      );
-    }
-    // Recursively finds reachable nodes that do not emanate intents
-    function collectIntermediateNodes(nextMessages, collectedIds = []) {
-      for (const { message_id } of nextMessages) {
-        if (!messagesDirectlyFollowingIntents.has(message_id)) {
-          const { next_message_ids } = board.messages.find(
-            message => message.message_id === message_id
-          );
-          return collectIntermediateNodes(next_message_ids, [
-            ...collectedIds,
-            message_id
-          ]);
-        }
-      }
-      return collectedIds;
-    }
-    // Recursively finds intent values on `previousMessages` until branching factor > 1
-    function getIntentAncestry(previousMessages = [], intentValues = []) {
-      const [messageFollowingIntent, ...rest] = previousMessages.filter(message =>
-        messagesDirectlyFollowingIntents.has(message.message_id)
-      );
-      if (messageFollowingIntent && !rest.length) {
-        const { previous_message_ids } = board.messages.find(
-          message => message.message_id === messageFollowingIntent.message_id
-        );
-        const value = messagesDirectlyFollowingIntents.get(
-          messageFollowingIntent.message_id
-        );
-        if (
-          !intentValues.includes(value) &&
-          intentValues.length < DIALOGFLOW_CONTEXT_LIMIT
-        ) {
-          // Recur with the intent on the sole message following from an intent at this depth
-          return getIntentAncestry(previous_message_ids, [value, ...intentValues]);
-        }
-      } else if (!messageFollowingIntent && !rest.length) {
-        for (const { message_id } of previousMessages) {
-          const { previous_message_ids } = board.messages.find(
-            message => message.message_id === message_id
-          );
-          return getIntentAncestry(previous_message_ids, intentValues);
-        }
-      }
-      return intentValues;
-    }
-    // TODO: doc
-    // function assembleAncestries(
-    //   // rootMessageId,
-    //   previousMessages = [],
-    //   ancestryThread = new Map(),
-    //   ancestries = new Set()
-    // ) {
-    //   for (const { message_id } of previousMessages) {
-    //     const { next_message_ids } =
-    //       board.messages.find(m => m.message_id === message_id) || {};
-    //     // Of those messages that have an intent on the "latest" node, recur
-    //     for (const { intent } of next_message_ids) {
-    //       const [intentValue, messageId] = Array.from(ancestryThread).pop() || [];
-    //       if (intent.value === intentValue) {
-    //         // console.log(ancestryThread);
-    //       }
-    //     }
-    //   }
-    //   return ancestries;
-    // }
     await mkdirpP(INTENT_PATH);
     await mkdirpP(ENTITY_PATH);
-    let semaphore;
     try {
-      semaphore = new Sema(os.cpus().length, {
-        capacity: messagesDirectlyFollowingIntents.size
-      });
-      const provider = new Provider(platform);
       log('beginning write phase');
-      // Writes intent files corresponding to enumeration of intent ancestry for each message
-      // that directly follows an intent. Intent files have as `responses` all messages between
-      // this message and the next message that immediately follows an intent.
+      // Create instance of platform-specific class to map responses
+      const provider = new Provider(platform);
+      // Attempt to limit num concurrent writes (for large projects)
+      semaphore = new Sema(os.cpus().length, {
+        capacity: messagesFromIntents.size
+      });
+      // We need all possible ways of arriving at each node group (= messages
+      // that follow from intents), and the ability to describe this history
+      // (as a set of intent ids); given this we can create intent files with
+      // correct input and output contexts easily
       await Promise.all(
         board.messages
-          .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
+          .filter(({ message_id }) => messagesFromIntents.has(message_id))
           .map(async message => {
-            // Attempts to meaningfully limit num concurrent writes (for large projects)
             await semaphore.acquire();
-            // const intentAncestries = assembleAncestries(message.previous_message_ids);
-            // for (const ancestry of Array.from(intentAncestries)) {
-            //   // ..
-            // }
-            const intent = intents.get(
-              messagesDirectlyFollowingIntents.get(message.message_id)
+            const intentAncestries = getIntentAncestries(
+              message.previous_message_ids
             );
-            const intentAncestry = getIntentAncestry(message.previous_message_ids).map(
-              value => intents.get(value).name
+            console.log(intentAncestries.size);
+            console.log(intentAncestries);
+            // for (const ancestry of intentAncestries) {
+            //   console.log(ancestry);
+            // }
+            const intentAncestry = getIntentAncestry(
+              message.previous_message_ids
+            ).map(value => intents.get(value).name);
+            const intent = intents.get(
+              messagesFromIntents.get(message.message_id)
             );
             const basename = [...intentAncestry, intent.name].join('_');
+            const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
             const intermediateNodes = collectIntermediateNodes(
               message.next_message_ids
-            ).map(id => board.messages.find(message => message.message_id === id));
-            const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
-            // log(intentAncestry);
+            ).map(id =>
+              board.messages.find(message => message.message_id === id)
+            );
             await fs.promises.writeFile(
               intentFilepath,
               JSON.stringify({
@@ -165,7 +95,9 @@ const log = debug('*');
                 id: uuid(),
                 name: basename,
                 contexts: intentAncestry,
-                events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
+                events: isWelcomeIntent(message.message_id)
+                  ? [{ name: 'WELCOME' }]
+                  : [],
                 lastUpdate: Date.parse(intent.updated_at.date),
                 responses: [
                   {
@@ -173,12 +105,13 @@ const log = debug('*');
                     speech: [],
                     parameters: [],
                     resetContexts: false,
-                    // i.e. output contexts
-                    affectedContexts: [...intentAncestry, intent.name].map(name => ({
-                      name,
-                      parameters: {},
-                      lifespan: 1
-                    })),
+                    affectedContexts: [...intentAncestry, intent.name].map(
+                      name => ({
+                        name,
+                        parameters: {},
+                        lifespan: 1
+                      })
+                    ),
                     defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
                       platform.toLowerCase()
                     )
@@ -191,12 +124,18 @@ const log = debug('*');
                 ]
               })
             );
-            const utterancesFilepath = `${intentFilepath.slice(0, -5)}_usersays_en.json`;
+            const utterancesFilepath = `${intentFilepath.slice(
+              0,
+              -5
+            )}_usersays_en.json`;
             try {
               await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
             } catch (_) {
               // If we do not already have an utterances file for this intent, write a file
-              if (Array.isArray(intent.utterances) && intent.utterances.length) {
+              if (
+                Array.isArray(intent.utterances) &&
+                intent.utterances.length
+              ) {
                 await fs.promises.writeFile(
                   utterancesFilepath,
                   JSON.stringify(
@@ -260,6 +199,93 @@ const log = debug('*');
             semaphore.release();
           })
       );
+      // Determines if `id` is the node adjacent to root with max number of connections
+      function isWelcomeIntent(id) {
+        const messageIsRoot = message =>
+          board.root_messages.includes(message.message_id);
+        // TODO: likely wrong
+        const messages = messagesFromIntents.size
+          ? board.messages.filter(message =>
+              messagesFromIntents.has(message.message_id)
+            )
+          : board.messages;
+        const [{ message_id }] = messages.sort(
+          (a, b) =>
+            b.previous_message_ids.filter(messageIsRoot).length -
+            a.previous_message_ids.filter(messageIsRoot).length
+        );
+        return id === message_id;
+      }
+      // Recursively finds reachable nodes that do not emanate intents
+      function collectIntermediateNodes(nextMessages, collectedIds = []) {
+        for (const { message_id } of nextMessages) {
+          if (!messagesFromIntents.has(message_id)) {
+            const { next_message_ids } = board.messages.find(
+              message => message.message_id === message_id
+            );
+            return collectIntermediateNodes(next_message_ids, [
+              ...collectedIds,
+              message_id
+            ]);
+          }
+        }
+        return collectedIds;
+      }
+      // TODO: doc
+      function getIntentAncestries(
+        previousMessages,
+        ancestries = new Set([Array.from(intents.keys()).shift()])
+      ) {
+        for (const { message_id } of previousMessages) {
+          const { previous_message_ids, ...rest } = board.messages.find(
+            message => message.message_id === message_id
+          );
+          // If this previous message is the `v` node of a `(u, v)` pair that
+          // has an intent, find which intent it is & recur with the set + the
+          // set's last element with this intent appended to it
+          if (messagesFromIntents.has(message_id)) {
+            const intent = messagesFromIntents.get(message_id);
+            const lastAncestry = Array.from(ancestries).pop();
+            return getIntentAncestries(
+              previous_message_ids,
+              ancestries.add(new Set([lastAncestry, intent]))
+            );
+          } else {
+            return getIntentAncestries(previous_message_ids, ancestries);
+          }
+        }
+        return ancestries;
+      }
+      // TODO: deprecate
+      function getIntentAncestry(previousMessages = [], intentValues = []) {
+        // >> Get a previous message that follows from an intent
+        const [messageFollowingIntent, ...rest] = previousMessages.filter(
+          message => messagesFromIntents.has(message.message_id)
+        );
+        if (messageFollowingIntent && !rest.length) {
+          const { previous_message_ids } = board.messages.find(
+            message => message.message_id === messageFollowingIntent.message_id
+          );
+          const value = messagesFromIntents.get(
+            messageFollowingIntent.message_id
+          );
+          if (!intentValues.includes(value) && intentValues.length < 5) {
+            // >> Recur with the intent on the sole message following from an intent at this depth
+            return getIntentAncestry(previous_message_ids, [
+              value,
+              ...intentValues
+            ]);
+          }
+        } else if (!messageFollowingIntent && !rest.length) {
+          for (const { message_id } of previousMessages) {
+            const { previous_message_ids } = board.messages.find(
+              message => message.message_id === message_id
+            );
+            return getIntentAncestry(previous_message_ids, intentValues);
+          }
+        }
+        return intentValues;
+      }
     } catch (err) {
       if (semaphore && semaphore.nrWaiting() > 0) {
         await semaphore.drain();
@@ -273,7 +299,10 @@ const log = debug('*');
         id: uuid(),
         name: entity.name
       });
-      await fs.promises.writeFile(`${ENTITY_PATH}/${entity.name}.json`, serialEntityData);
+      await fs.promises.writeFile(
+        `${ENTITY_PATH}/${entity.name}.json`,
+        serialEntityData
+      );
       const serialSynData = JSON.stringify(entity.data);
       await fs.promises.writeFile(
         `${ENTITY_PATH}/${entity.name}_entries_en.json`,
@@ -281,7 +310,9 @@ const log = debug('*');
       );
     }
     // Copy template files into output directory
-    for (const filename of await fs.promises.readdir(`${__dirname}/templates`)) {
+    for (const filename of await fs.promises.readdir(
+      `${__dirname}/templates`
+    )) {
       if (filename.startsWith('intent') || filename.startsWith('entity')) {
         continue;
       }
@@ -302,7 +333,7 @@ const log = debug('*');
     }
     log('done');
   } catch (err) {
-    log(err.stack);
+    console.error(err.stack);
     process.exit(1);
   }
 })(process.argv);
