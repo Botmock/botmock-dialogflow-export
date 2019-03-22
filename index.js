@@ -68,133 +68,126 @@ const log = debug('*');
               message.message_id,
               message.previous_message_ids
             );
-            console.log(`\n${message.payload.text}`);
-            console.log(intentAncestries);
-            // console.log(message.previous_message_ids);
-            // for (const ancestry of intentAncestries) {
-            //   console.log(ancestry);
-            //   // console.log(intents.get(Array.from(ancestry).pop()).name);
-            // }
-            // TODO: deprecate!
-            const intentAncestry = getIntentAncestry(
-              message.previous_message_ids
-            ).map(value => intents.get(value).name);
-            const intent = intents.get(
-              messagesFromIntents.get(message.message_id)
-            );
-            const basename = [...intentAncestry, intent.name].join('_');
-            const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
-            const intermediateNodes = collectIntermediateNodes(
-              message.next_message_ids
-            ).map(id =>
-              board.messages.find(message => message.message_id === id)
-            );
-            await fs.promises.writeFile(
-              intentFilepath,
-              JSON.stringify({
-                ...templates.intent,
-                id: uuid(),
-                name: basename,
-                contexts: intentAncestry,
-                events: isWelcomeIntent(message.message_id)
-                  ? [{ name: 'WELCOME' }]
-                  : [],
-                lastUpdate: Date.parse(intent.updated_at.date),
-                responses: [
-                  {
-                    action: '',
-                    speech: [],
-                    parameters: [],
-                    resetContexts: false,
-                    affectedContexts: [...intentAncestry, intent.name].map(
-                      name => ({
-                        name,
-                        parameters: {},
-                        lifespan: 1
+            // console.log(`\n${message.payload.text}`);
+            // console.log(intentAncestries);
+            for (const ancestry of intentAncestries) {
+              const intent = intents.get(Array.from(ancestry).pop());
+              const basename = Array.from(ancestry).join('_');
+              const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
+              const intermediateNodes = collectIntermediateNodes(
+                message.next_message_ids
+              ).map(id =>
+                board.messages.find(message => message.message_id === id)
+              );
+              await fs.promises.writeFile(
+                intentFilepath,
+                JSON.stringify({
+                  ...templates.intent,
+                  id: uuid(),
+                  name: basename,
+                  contexts: ancestry,
+                  events: isWelcomeIntent(message.message_id)
+                    ? [{ name: 'WELCOME' }]
+                    : [],
+                  lastUpdate: Date.parse(intent.updated_at.date),
+                  responses: [
+                    {
+                      action: '',
+                      speech: [],
+                      parameters: [],
+                      resetContexts: false,
+                      affectedContexts: message.next_message_ids
+                        .filter(message => message.intent)
+                        .map(name => ({
+                          name,
+                          parameters: {},
+                          lifespan: 1
+                        })),
+                      defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                        platform.toLowerCase()
+                      )
+                        ? { [platform.toLowerCase()]: true }
+                        : {},
+                      messages: [message, ...intermediateNodes].map(message =>
+                        provider.create(message.message_type, message.payload)
+                      )
+                    }
+                  ]
+                })
+              );
+              const utterancesFilepath = `${intentFilepath.slice(
+                0,
+                -5
+              )}_usersays_en.json`;
+              try {
+                await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
+              } catch (_) {
+                // If we do not already have an utterances file for this intent, write a file
+                if (
+                  Array.isArray(intent.utterances) &&
+                  intent.utterances.length
+                ) {
+                  await fs.promises.writeFile(
+                    utterancesFilepath,
+                    JSON.stringify(
+                      intent.utterances.map(utterance => {
+                        const data = [];
+                        // Keeps relation of variable id and its location in the text
+                        const pairs = utterance.variables.reduce(
+                          (acc, vari) => ({
+                            ...acc,
+                            [vari.id]: [
+                              vari.start_index,
+                              vari.start_index + vari.name.length
+                            ]
+                          }),
+                          {}
+                        );
+                        let lastIndex = 0;
+                        // Appends `data` by iterating over the variables occurances in
+                        // the text, adding previous and final blocks when necessary
+                        for (const [id, [start, end]] of Object.entries(
+                          pairs
+                        )) {
+                          const previousBlock = [];
+                          if (start !== lastIndex) {
+                            previousBlock.push({
+                              text: utterance.text.slice(lastIndex, start),
+                              userDefined: false
+                            });
+                          }
+                          const { name, entity } = utterance.variables.find(
+                            vari => vari.id === id
+                          );
+                          data.push(
+                            ...previousBlock.concat({
+                              text: name.slice(1, -1),
+                              meta: `@${entity}`,
+                              userDefined: true
+                            })
+                          );
+                          if (id !== Object.keys(pairs).pop()) {
+                            lastIndex = end;
+                          } else {
+                            data.push({
+                              text: utterance.text.slice(end),
+                              userDefined: false
+                            });
+                          }
+                        }
+                        return {
+                          id: uuid(),
+                          data: data.length
+                            ? data
+                            : [{ text: utterance.text, userDefined: false }],
+                          count: 0,
+                          isTemplate: false,
+                          updated: Date.parse(intent.updated_at.date)
+                        };
                       })
-                    ),
-                    defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
-                      platform.toLowerCase()
                     )
-                      ? { [platform.toLowerCase()]: true }
-                      : {},
-                    messages: [message, ...intermediateNodes].map(message =>
-                      provider.create(message.message_type, message.payload)
-                    )
-                  }
-                ]
-              })
-            );
-            const utterancesFilepath = `${intentFilepath.slice(
-              0,
-              -5
-            )}_usersays_en.json`;
-            try {
-              await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
-            } catch (_) {
-              // If we do not already have an utterances file for this intent, write a file
-              if (
-                Array.isArray(intent.utterances) &&
-                intent.utterances.length
-              ) {
-                await fs.promises.writeFile(
-                  utterancesFilepath,
-                  JSON.stringify(
-                    intent.utterances.map(utterance => {
-                      const data = [];
-                      // Keeps relation of variable id and its location in the text
-                      const pairs = utterance.variables.reduce(
-                        (acc, vari) => ({
-                          ...acc,
-                          [vari.id]: [
-                            vari.start_index,
-                            vari.start_index + vari.name.length
-                          ]
-                        }),
-                        {}
-                      );
-                      let lastIndex = 0;
-                      // Appends `data` by iterating over the variables occurances in
-                      // the text, adding previous and final blocks when necessary
-                      for (const [id, [start, end]] of Object.entries(pairs)) {
-                        const previousBlock = [];
-                        if (start !== lastIndex) {
-                          previousBlock.push({
-                            text: utterance.text.slice(lastIndex, start),
-                            userDefined: false
-                          });
-                        }
-                        const { name, entity } = utterance.variables.find(
-                          vari => vari.id === id
-                        );
-                        data.push(
-                          ...previousBlock.concat({
-                            text: name.slice(1, -1),
-                            meta: `@${entity}`,
-                            userDefined: true
-                          })
-                        );
-                        if (id !== Object.keys(pairs).pop()) {
-                          lastIndex = end;
-                        } else {
-                          data.push({
-                            text: utterance.text.slice(end),
-                            userDefined: false
-                          });
-                        }
-                      }
-                      return {
-                        id: uuid(),
-                        data: data.length
-                          ? data
-                          : [{ text: utterance.text, userDefined: false }],
-                        count: 0,
-                        isTemplate: false,
-                        updated: Date.parse(intent.updated_at.date)
-                      };
-                    })
-                  )
-                );
+                  );
+                }
               }
             }
             semaphore.release();
@@ -236,19 +229,20 @@ const log = debug('*');
         messageId,
         previousMessages,
         // Holds set of unique path sets; defaulting to the welcome intent
-        ancestries = new Set([new Set([Array.from(intents.keys()).shift()])])
+        ancestries = new Set([new Set([])])
       ) {
         for (const { message_id } of previousMessages) {
           // The board data for this message
           const message = board.messages.find(
             message => message.message_id === message_id
           );
-          // The intents incident on the messageId
           const incidentIntents = message.next_message_ids
             .filter(
               message => message.intent && message.message_id === messageId
             )
             .map(message => messagesFromIntents.get(message.message_id));
+          // If this previous message has intents incident on the message id,
+          // inherit (and add to) the last element in the set
           if (incidentIntents.length) {
             const lastAncestry = Array.from(ancestries).pop();
             return getIntentAncestries(
@@ -256,10 +250,10 @@ const log = debug('*');
               message.previous_message_ids,
               ancestries.add(
                 new Set([
+                  ...incidentIntents,
                   ...(typeof lastAncestry !== 'string'
                     ? lastAncestry
-                    : [lastAncestry]),
-                  ...incidentIntents
+                    : [lastAncestry])
                 ])
               )
             );
@@ -271,38 +265,42 @@ const log = debug('*');
             );
           }
         }
+        const [rootIntent] = Array.from(intents).shift();
+        ancestries.forEach(set => {
+          set.add(rootIntent);
+        });
         return ancestries;
       }
       // TODO: deprecate
-      function getIntentAncestry(previousMessages = [], intentValues = []) {
-        // >> Get a previous message that follows from an intent
-        const [messageFollowingIntent, ...rest] = previousMessages.filter(
-          message => messagesFromIntents.has(message.message_id)
-        );
-        if (messageFollowingIntent && !rest.length) {
-          const { previous_message_ids } = board.messages.find(
-            message => message.message_id === messageFollowingIntent.message_id
-          );
-          const value = messagesFromIntents.get(
-            messageFollowingIntent.message_id
-          );
-          if (!intentValues.includes(value) && intentValues.length < 5) {
-            // >> Recur with the intent on the sole message following from an intent at this depth
-            return getIntentAncestry(previous_message_ids, [
-              value,
-              ...intentValues
-            ]);
-          }
-        } else if (!messageFollowingIntent && !rest.length) {
-          for (const { message_id } of previousMessages) {
-            const { previous_message_ids } = board.messages.find(
-              message => message.message_id === message_id
-            );
-            return getIntentAncestry(previous_message_ids, intentValues);
-          }
-        }
-        return intentValues;
-      }
+      // function getIntentAncestry(previousMessages = [], intentValues = []) {
+      //   // >> Get a previous message that follows from an intent
+      //   const [messageFollowingIntent, ...rest] = previousMessages.filter(
+      //     message => messagesFromIntents.has(message.message_id)
+      //   );
+      //   if (messageFollowingIntent && !rest.length) {
+      //     const { previous_message_ids } = board.messages.find(
+      //       message => message.message_id === messageFollowingIntent.message_id
+      //     );
+      //     const value = messagesFromIntents.get(
+      //       messageFollowingIntent.message_id
+      //     );
+      //     if (!intentValues.includes(value) && intentValues.length < 5) {
+      //       // >> Recur with the intent on the sole message following from an intent at this depth
+      //       return getIntentAncestry(previous_message_ids, [
+      //         value,
+      //         ...intentValues
+      //       ]);
+      //     }
+      //   } else if (!messageFollowingIntent && !rest.length) {
+      //     for (const { message_id } of previousMessages) {
+      //       const { previous_message_ids } = board.messages.find(
+      //         message => message.message_id === message_id
+      //       );
+      //       return getIntentAncestry(previous_message_ids, intentValues);
+      //     }
+      //   }
+      //   return intentValues;
+      // }
     } catch (err) {
       if (semaphore && semaphore.nrWaiting() > 0) {
         await semaphore.drain();
