@@ -9,7 +9,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
-import { getArgs, templates } from './lib/util';
+import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
 
 process.on('unhandledRejection', err => {
   console.error(err);
@@ -20,9 +20,6 @@ process.on('uncaughtException', err => {
   console.error(err);
   process.exit(1);
 });
-
-const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype']);
-// const DIALOGFLOW_CONTEXT_LIMIT = 5;
 
 const INTENT_PATH = `${__dirname}/output/intents`;
 const ENTITY_PATH = `${__dirname}/output/entities`;
@@ -68,13 +65,17 @@ const log = debug('*');
           .map(async message => {
             await semaphore.acquire();
             const intentAncestries = getIntentAncestries(
+              message.message_id,
               message.previous_message_ids
             );
-            console.log(intentAncestries.size);
+            console.log(`\n${message.payload.text}`);
             console.log(intentAncestries);
+            // console.log(message.previous_message_ids);
             // for (const ancestry of intentAncestries) {
             //   console.log(ancestry);
+            //   // console.log(intents.get(Array.from(ancestry).pop()).name);
             // }
+            // TODO: deprecate!
             const intentAncestry = getIntentAncestry(
               message.previous_message_ids
             ).map(value => intents.get(value).name);
@@ -231,27 +232,43 @@ const log = debug('*');
         }
         return collectedIds;
       }
-      // TODO: doc
       function getIntentAncestries(
+        messageId,
         previousMessages,
-        ancestries = new Set([Array.from(intents.keys()).shift()])
+        // Holds set of unique path sets; defaulting to the welcome intent
+        ancestries = new Set([new Set([Array.from(intents.keys()).shift()])])
       ) {
         for (const { message_id } of previousMessages) {
-          const { previous_message_ids, ...rest } = board.messages.find(
+          // The board data for this message
+          const message = board.messages.find(
             message => message.message_id === message_id
           );
-          // If this previous message is the `v` node of a `(u, v)` pair that
-          // has an intent, find which intent it is & recur with the set + the
-          // set's last element with this intent appended to it
-          if (messagesFromIntents.has(message_id)) {
-            const intent = messagesFromIntents.get(message_id);
+          // The intents incident on the messageId
+          const incidentIntents = message.next_message_ids
+            .filter(
+              message => message.intent && message.message_id === messageId
+            )
+            .map(message => messagesFromIntents.get(message.message_id));
+          if (incidentIntents.length) {
             const lastAncestry = Array.from(ancestries).pop();
             return getIntentAncestries(
-              previous_message_ids,
-              ancestries.add(new Set([lastAncestry, intent]))
+              message_id,
+              message.previous_message_ids,
+              ancestries.add(
+                new Set([
+                  ...(typeof lastAncestry !== 'string'
+                    ? lastAncestry
+                    : [lastAncestry]),
+                  ...incidentIntents
+                ])
+              )
             );
           } else {
-            return getIntentAncestries(previous_message_ids, ancestries);
+            return getIntentAncestries(
+              message_id,
+              message.previous_message_ids,
+              ancestries
+            );
           }
         }
         return ancestries;
