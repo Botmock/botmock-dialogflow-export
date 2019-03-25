@@ -1,6 +1,7 @@
 (await import('dotenv')).config();
 import debug from 'debug';
 import mkdirp from 'mkdirp';
+// import camelcase from 'camelcase';
 import Sema from 'async-sema';
 import uuid from 'uuid/v4';
 import fs from 'fs';
@@ -21,6 +22,7 @@ process.on('uncaughtException', err => {
   process.exit(1);
 });
 
+const INTENT_SEPARATOR = '.';
 const INTENT_PATH = `${__dirname}/output/intents`;
 const ENTITY_PATH = `${__dirname}/output/entities`;
 const ZIP_PATH = `${process.cwd()}/output.zip`;
@@ -30,66 +32,68 @@ const execP = promisify(exec);
 const log = debug('*');
 
 (async argv => {
-  // Parse args passed on execution
-  const { isInDebug = false, hostname = 'app' } = getArgs(argv);
-  const client = new SDKWrapper({ isInDebug, hostname });
+  await mkdirpP(INTENT_PATH);
+  await mkdirpP(ENTITY_PATH);
+  // Boot up client with any args passed from command line
+  const client = new SDKWrapper(getArgs(argv));
   client.on('error', err => {
     log(`SDK encountered an error:\n ${err.stack}`);
   });
   try {
     log('initializing client');
-    let semaphore;
     const {
       platform,
       board,
       intents,
       messagesFromIntents
     } = await client.init();
-    await mkdirpP(INTENT_PATH);
-    await mkdirpP(ENTITY_PATH);
+    let semaphore;
     try {
-      log('beginning write phase');
-      // Attempt to limit num concurrent writes (for large projects)
       semaphore = new Sema(os.cpus().length, {
         capacity: messagesFromIntents.size
       });
       // Create instance of platform-specific class to map responses
       const provider = new Provider(platform);
+      log('beginning write phase');
       // We need all possible ways of arriving at each collection of messages
       // that flows from an intent as well as the ability to describe each history
       // of arrival (as a set of intent ids); given this we can create intent
-      // files with correct input and output contexts easily
+      // files with correct input and output contexts
       await Promise.all(
         board.messages
           .filter(({ message_id }) => messagesFromIntents.has(message_id))
           .map(async message => {
+            const { message_id: id, previous_message_ids: prevIds } = message;
+            const intentAncestries = getIntentAncestries(id, prevIds);
+            // Wait for ability to write
             await semaphore.acquire();
-            const intentAncestries = getIntentAncestries(
-              message.message_id,
-              message.previous_message_ids
-            );
-            // console.log(`\n${message.payload.text}`);
-            for (const ancestry of intentAncestries) {
+            // Iterate over all intent sequences that reach this message;
+            // write an intent for each of these sequences that carries as
+            // its input context its intent sequence
+            for (const ancestry of Array.from(intentAncestries)) {
+              // console.log(ancestry.map(id => intents.get(id).name));
+              // Get the most immediate intent in the particular ancestry
               const intent = intents.get(Array.from(ancestry).shift());
               const basename = Array.from(ancestry)
                 .map(id => intents.get(id).name)
-                .join('_');
-              const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
+                .join(INTENT_SEPARATOR);
+              const intentFilepath = `${INTENT_PATH}/${basename}.json`;
+              // Group messages that flow from this message and are without an
+              // intent
               const intermediateNodes = collectIntermediateNodes(
                 message.next_message_ids
               ).map(id =>
                 board.messages.find(message => message.message_id === id)
               );
+              // We have what we need for this intent file and can now write
               await fs.promises.writeFile(
                 intentFilepath,
                 JSON.stringify({
                   ...templates.intent,
                   id: uuid(),
                   name: basename,
-                  contexts: ancestry,
-                  events: isWelcomeIntent(message.message_id)
-                    ? [{ name: 'WELCOME' }]
-                    : [],
+                  contexts: ancestry.map(id => intents.get(id).name),
+                  events: isWelcomeIntent(id) ? [{ name: 'WELCOME' }] : [],
                   lastUpdate: Date.parse(intent.updated_at.date),
                   responses: [
                     {
@@ -98,7 +102,10 @@ const log = debug('*');
                       parameters: [],
                       resetContexts: false,
                       affectedContexts: message.next_message_ids
-                        .filter(message => message.intent)
+                        .filter(
+                          message => message.intent && message.intent.value
+                        )
+                        .map(({ intent }) => intent.label)
                         .map(name => ({
                           name,
                           parameters: {},
@@ -120,10 +127,10 @@ const log = debug('*');
                 0,
                 -5
               )}_usersays_en.json`;
+              // Attempt to find an utterance file for this intent; if unable, write
               try {
                 await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
               } catch (_) {
-                // If we do not already have an utterances file for this intent, write a file
                 if (
                   Array.isArray(intent.utterances) &&
                   intent.utterances.length
@@ -133,7 +140,6 @@ const log = debug('*');
                     JSON.stringify(
                       intent.utterances.map(utterance => {
                         const data = [];
-                        // Keeps relation of variable id and its location in the text
                         const pairs = utterance.variables.reduce(
                           (acc, vari) => ({
                             ...acc,
@@ -145,8 +151,7 @@ const log = debug('*');
                           {}
                         );
                         let lastIndex = 0;
-                        // Appends `data` by iterating over the variables occurances in
-                        // the text, adding previous and final blocks when necessary
+                        // Append `data` by iterating over the variable's occurances
                         for (const [id, [start, end]] of Object.entries(
                           pairs
                         )) {
@@ -225,19 +230,19 @@ const log = debug('*');
         }
         return collectedIds;
       }
-      // Recursively builds set of sets containing intent lineage capable of
-      // reaching the given messageId
+      // TODO: doc
       function getIntentAncestries(
         messageId,
         previousMessages,
-        ancestries = new Set([new Set([])])
+        ancestries = new Set([])
       ) {
+        // Look at each previous message of messageId; when a previous message
+        // has an intent on messageId, recur while diverging from the last
+        // element in ancestries
         for (const { message_id } of previousMessages) {
-          // Finds the board data for this previous message
           const message = board.messages.find(
             message => message.message_id === message_id
           );
-          // Finds any intents incident on this previous message
           const intentsOnMessage = message.next_message_ids
             .filter(
               message =>
@@ -246,24 +251,20 @@ const log = debug('*');
                 message.message_id === messageId
             )
             .map(message => messagesFromIntents.get(message.message_id));
-          // console.log(
-          //   board.messages.find(message => message.message_id === messageId)
-          //     .payload.text
-          // );
-          // console.log(intentsOnMessage);
           if (intentsOnMessage.length) {
-            const lastAncestry = Array.from(ancestries).pop();
+            let lastAncestry = Array.from(ancestries).pop();
+            // If there is no last ancestry, make it the welcome intent
+            if (!lastAncestry) {
+              const [welcomeIntent] = Array.from(intents).shift();
+              lastAncestry = [welcomeIntent];
+            }
+            // Recur with this particular previous message as the messageId;
+            // with _its_ previous messages, and the ancestries which append
+            // the last element in ancestries
             return getIntentAncestries(
               message_id,
               message.previous_message_ids,
-              ancestries.add(
-                new Set([
-                  ...intentsOnMessage
-                  // ...(typeof lastAncestry !== 'string'
-                  //   ? lastAncestry
-                  //   : [lastAncestry])
-                ])
-              )
+              ancestries.add([...intentsOnMessage, ...lastAncestry])
             );
           } else {
             return getIntentAncestries(
@@ -273,11 +274,6 @@ const log = debug('*');
             );
           }
         }
-        // Insert the welcome intent in each set
-        const [welcomeIntent] = Array.from(intents).shift();
-        ancestries.forEach(set => {
-          set.add(welcomeIntent);
-        });
         return ancestries;
       }
     } catch (err) {
