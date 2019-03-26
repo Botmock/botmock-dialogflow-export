@@ -1,6 +1,6 @@
 # Botmock Dialogflow Export
 
-> requires node >= 10.15.x
+> requires node version >= 11
 
 Import [Botmock](https://botmock.com) projects in Dialogflow.
 

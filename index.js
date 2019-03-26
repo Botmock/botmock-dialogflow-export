@@ -85,7 +85,12 @@ try {
   (async () => {
     for await (const [key, array] of privilegedMessages.entries()) {
       await semaphore.acquire();
-      const { message_type, payload, next_message_ids } = getMessage(key);
+      const {
+        message_type,
+        payload,
+        next_message_ids,
+        previous_message_ids
+      } = getMessage(key);
       for (const intent of array) {
         const { name, updated_at, utterances } = intents.get(intent);
         const basename = `${name}_${camelcase(payload.nodeName)}`;
@@ -100,7 +105,16 @@ try {
             ...templates.intent,
             id: uuid(),
             name: basename,
-            contexts: [name, camelcase(payload.nodeName)],
+            contexts: [
+              ...(hasWelcomeIntent(key) ? [] : [name]),
+              ...previous_message_ids
+                .filter(message => privilegedMessages.has(message.message_id))
+                .flatMap(message =>
+                  privilegedMessages
+                    .get(message.message_id)
+                    .map(intentId => intents.get(intentId).name)
+                )
+            ],
             events: hasWelcomeIntent(key) ? [{ name: 'WELCOME' }] : [],
             lastUpdate: Date.parse(updated_at.date),
             responses: [
@@ -109,14 +123,18 @@ try {
                 speech: [],
                 parameters: [],
                 resetContexts: false,
-                affectedContexts: next_message_ids
-                  .filter(message => message.intent && message.intent.value)
-                  .map(({ intent }) => intents.get(intent.value).name)
-                  .map(name => ({
-                    name,
-                    parameters: {},
-                    lifespan: 1
-                  })),
+                affectedContexts: [
+                  ...(hasWelcomeIntent(key)
+                    ? [{ name, parameters: {}, lifespan: 1 }]
+                    : []),
+                  ...next_message_ids
+                    .filter(({ intent }) => !!intent.value)
+                    .map(({ intent: { value } }) => ({
+                      name: intents.get(value).name,
+                      parameters: {},
+                      lifespan: 1
+                    }))
+                ],
                 defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
                   platform.toLowerCase()
                 )
