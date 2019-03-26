@@ -109,10 +109,14 @@ try {
               ...(hasWelcomeIntent(key) ? [] : [name]),
               ...previous_message_ids
                 .filter(message => privilegedMessages.has(message.message_id))
-                .flatMap(message =>
-                  privilegedMessages
-                    .get(message.message_id)
-                    .map(intentId => intents.get(intentId).name)
+                .reduce(
+                  (acc, message) => [
+                    ...acc,
+                    ...privilegedMessages
+                      .get(message.message_id)
+                      .map(intentId => intents.get(intentId).name)
+                  ],
+                  []
                 )
             ],
             events: hasWelcomeIntent(key) ? [{ name: 'WELCOME' }] : [],
