@@ -29,6 +29,7 @@
     "arg": "4.1.0",
     "async-sema": "2.2.0",
     "botmock": "^1.2.0",
+    "camelcase": "5.2.0",
     "debug": "4.1.1",
     "dotenv": "7.0.0",
     "esm": "3.2.20",
