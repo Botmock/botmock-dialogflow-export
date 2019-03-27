@@ -41,6 +41,7 @@ client.on('error', err => {
 });
 
 const { platform, board, intents } = await client.init();
+// Associates message id <-> array of intent ids incident on it
 const privilegedMessages = new Map(
   board.messages.reduce(
     (acc, { next_message_ids }) => [
@@ -83,7 +84,7 @@ try {
   const provider = new Provider(platform);
   // Write intent and utterances files for each combination of message -> intent
   (async () => {
-    for await (const [key, array] of privilegedMessages.entries()) {
+    for await (const [key, intentIds] of privilegedMessages.entries()) {
       await semaphore.acquire();
       const {
         message_type,
@@ -91,7 +92,7 @@ try {
         next_message_ids,
         previous_message_ids
       } = getMessage(key);
-      for (const intent of array) {
+      for (const intent of intentIds) {
         const { name, updated_at, utterances } = intents.get(intent);
         const basename = `${name}_${camelcase(payload.nodeName)}`;
         const path = `${INTENT_PATH}/${basename}.json`;
@@ -105,20 +106,7 @@ try {
             ...templates.intent,
             id: uuid(),
             name: basename,
-            contexts: [
-              ...(hasWelcomeIntent(key) ? [] : [name]),
-              ...previous_message_ids
-                .filter(message => privilegedMessages.has(message.message_id))
-                .reduce(
-                  (acc, message) => [
-                    ...acc,
-                    ...privilegedMessages
-                      .get(message.message_id)
-                      .map(intentId => intents.get(intentId).name)
-                  ],
-                  []
-                )
-            ],
+            contexts: hasWelcomeIntent(key) ? [] : [intents.get(intent).name],
             events: hasWelcomeIntent(key) ? [{ name: 'WELCOME' }] : [],
             lastUpdate: Date.parse(updated_at.date),
             responses: [
@@ -127,10 +115,24 @@ try {
                 speech: [],
                 parameters: [],
                 resetContexts: false,
+                // Output contexts are the union of the intents emanated from
+                // any intermediate nodes and those that emanate from _this_ node
                 affectedContexts: [
-                  ...(hasWelcomeIntent(key)
-                    ? [{ name, parameters: {}, lifespan: 1 }]
-                    : []),
+                  ...intermediateNodes.reduce((acc, { next_message_ids }) => {
+                    if (!next_message_ids.length) {
+                      return acc;
+                    }
+                    return [
+                      ...acc,
+                      ...next_message_ids
+                        .filter(({ intent }) => !!intent.value)
+                        .map(({ intent: { value } }) => ({
+                          name: intents.get(value).name,
+                          parameters: {},
+                          lifespan: 1
+                        }))
+                    ];
+                  }, []),
                   ...next_message_ids
                     .filter(({ intent }) => !!intent.value)
                     .map(({ intent: { value } }) => ({
@@ -249,7 +251,7 @@ try {
   } finally {
     log('zipping output directory');
     await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
-    await execP(`rm -rf ${process.cwd()}/output`);
+    // await execP(`rm -rf ${process.cwd()}/output`);
   }
   log('done');
 } catch (err) {
