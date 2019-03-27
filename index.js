@@ -1,286 +1,304 @@
-import debug from 'debug';
+(await import('dotenv')).config();
+import camelcase from 'camelcase';
 import mkdirp from 'mkdirp';
+import debug from 'debug';
 import Sema from 'async-sema';
 import uuid from 'uuid/v4';
+import { promisify } from 'util';
+import { exec } from 'child_process';
 import fs from 'fs';
 import os from 'os';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
-import { getArgs, templates } from './lib/util';
-
-(await import('dotenv')).config();
-
-const DIALOGFLOW_CONTEXT_LIMIT = 5;
-const SUPPORTED_PLATFORMS = new Set(['facebook', 'slack', 'skype']);
-const INTENT_PATH = `${__dirname}/output/intents`;
-const ENTITY_PATH = `${__dirname}/output/entities`;
-const ZIP_PATH = `${__dirname}/output.zip`;
-const mkdirpP = promisify(mkdirp);
-const execP = promisify(exec);
-const log = debug('*');
-
-const start = process.hrtime();
-(async argv => {
-  try {
-    const { isInDebug = false, hostname = 'app' } = getArgs(argv);
-    // Create an instance of the SDK and get the initial project payload
-    const client = new SDKWrapper({ isInDebug, hostname });
-    client.on('error', err => {
-      log(`SDK encountered an error:\n ${err.stack}`);
-    });
-    const { platform, board, intents } = await client.init();
-    // Pair messages that directly follow from intents with the intent they follow
-    const messagesDirectlyFollowingIntents = new Map();
-    for (const { next_message_ids } of board.messages) {
-      for (const { message_id, intent } of next_message_ids) {
-        if (intent.value) {
-          messagesDirectlyFollowingIntents.set(message_id, intent.value);
-        }
-      }
-    }
-    // Determines if `id` is the node adjacent to root with max number of connections
-    const isWelcomeIntent = id => {
-      const messageIsRoot = message => board.root_messages.includes(message.message_id);
-      return Object.is(
-        board.messages
-          .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
-          .sort(
-            (a, b) =>
-              b.previous_message_ids.filter(messageIsRoot).length -
-              a.previous_message_ids.filter(messageIsRoot).length
-          )[0].message_id,
-        id
-      );
-    };
-    // Recursively finds reachable nodes that do not emanate intents
-    const collectIntermediateNodes = (nextMessages, collectedIds = []) => {
-      for (const { message_id } of nextMessages) {
-        if (!messagesDirectlyFollowingIntents.has(message_id)) {
-          const { next_message_ids } = board.messages.find(
-            message => message.message_id === message_id
-          );
-          return collectIntermediateNodes(next_message_ids, [
-            ...collectedIds,
-            message_id
-          ]);
-        }
-      }
-      return collectedIds;
-    };
-    // Recursively finds intent values on `previousMessages` until branching factor > 1
-    const getIntentAncestry = (previousMessages = [], intentValues = []) => {
-      const [messageFollowingIntent, ...rest] = previousMessages.filter(message =>
-        messagesDirectlyFollowingIntents.has(message.message_id)
-      );
-      if (messageFollowingIntent && !rest.length) {
-        const { previous_message_ids } = board.messages.find(
-          message => message.message_id === messageFollowingIntent.message_id
-        );
-        const value = messagesDirectlyFollowingIntents.get(
-          messageFollowingIntent.message_id
-        );
-        if (
-          !intentValues.includes(value) &&
-          intentValues.length < DIALOGFLOW_CONTEXT_LIMIT
-        ) {
-          // Recur with the intent on the sole message following from an intent at this depth
-          return getIntentAncestry(previous_message_ids, [value, ...intentValues]);
-        }
-      } else if (!messageFollowingIntent && !rest.length) {
-        for (const { message_id } of previousMessages) {
-          const { previous_message_ids } = board.messages.find(
-            message => message.message_id === message_id
-          );
-          return getIntentAncestry(previous_message_ids, intentValues);
-        }
-      }
-      return intentValues;
-    };
-    await mkdirpP(INTENT_PATH);
-    await mkdirpP(ENTITY_PATH);
-    let semaphore;
-    try {
-      semaphore = new Sema(os.cpus().length, {
-        capacity: messagesDirectlyFollowingIntents.size
-      });
-      const provider = new Provider(platform);
-      // Given the ability to see if a node follows directly from an intent, we can iterate
-      // over all that do and exhaustively collect node content up to the nodes that emanate
-      // new intents or are themselves leaf nodes. We write one file per intent that has as
-      // `responses` the content of such intermediate nodes.
-      await Promise.all(
-        board.messages
-          .filter(message => messagesDirectlyFollowingIntents.has(message.message_id))
-          .map(async (message, i, messages) => {
-            await semaphore.acquire();
-            const intent = intents.get(
-              messagesDirectlyFollowingIntents.get(message.message_id)
-            );
-            const intentAncestry = getIntentAncestry(message.previous_message_ids).map(
-              value => intents.get(value).name
-            );
-            const intermediateNodes = collectIntermediateNodes(
-              message.next_message_ids
-            ).map(id => board.messages.find(message => message.message_id === id));
-            const basename = [...intentAncestry, intent.name].join('_');
-            const serialIntentData = JSON.stringify({
-              ...templates.intent,
-              id: uuid(),
-              name: basename,
-              contexts: intentAncestry,
-              events: isWelcomeIntent(message.message_id) ? [{ name: 'WELCOME' }] : [],
-              lastUpdate: Date.parse(intent.updated_at.date),
-              responses: [
-                {
-                  action: '',
-                  speech: [],
-                  parameters: [],
-                  resetContexts: false,
-                  affectedContexts: [...intentAncestry, intent.name].map(name => ({
-                    name,
-                    parameters: {},
-                    lifespan: 1
-                  })),
-                  defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
-                    platform.toLowerCase()
-                  )
-                    ? { [platform.toLowerCase()]: true }
-                    : {},
-                  messages: [message, ...intermediateNodes].map(message =>
-                    provider.create(message.message_type, message.payload)
-                  )
-                }
-              ]
-            });
-            const intentFilepath = `${INTENT_PATH}/${basename}-${uuid()}.json`;
-            log(`writing ${i + 1} of ${messages.length} intents`);
-            await fs.promises.writeFile(intentFilepath, serialIntentData);
-            const utterancesFilepath = `${intentFilepath.slice(0, -5)}_usersays_en.json`;
-            try {
-              await fs.promises.access(utterancesFilepath, fs.constants.F_OK);
-            } catch (_) {
-              // We do not yet have a file for these utterances; write one
-              if (Array.isArray(intent.utterances) && intent.utterances.length) {
-                const serialUtterancesData = JSON.stringify(
-                  Array.from(
-                    intent.utterances.map(utterance => {
-                      const data = [];
-                      const pairs = utterance.variables.reduce(
-                        (acc, vari) => ({
-                          ...acc,
-                          [vari.id]: [
-                            vari.start_index,
-                            vari.start_index + vari.name.length
-                          ]
-                        }),
-                        {}
-                      );
-                      let lastIndex = 0;
-                      // Iterate over variable locations in text to form array of objects
-                      // for each text or variable group
-                      for (const [id, [start, end]] of Object.entries(pairs)) {
-                        const previousBlock = [];
-                        if (start !== lastIndex) {
-                          // Keep text block between last variable occurance
-                          previousBlock.push({
-                            text: utterance.text.slice(lastIndex, start),
-                            userDefined: false
-                          });
-                        }
-                        const { name, entity } = utterance.variables.find(
-                          vari => vari.id === id
-                        );
-                        data.push(
-                          ...previousBlock.concat({
-                            text: name.slice(1, -1),
-                            meta: `@${entity}`,
-                            userDefined: true
-                          })
-                        );
-                        if (id !== Object.keys(pairs).pop()) {
-                          lastIndex = end;
-                        } else {
-                          data.push({
-                            text: utterance.text.slice(end),
-                            userDefined: false
-                          });
-                        }
-                      }
-                      return {
-                        id: uuid(),
-                        data: data.length
-                          ? data
-                          : [{ text: utterance.text, userDefined: false }],
-                        count: 0,
-                        isTemplate: false,
-                        updated: Date.parse(intent.updated_at.date)
-                      };
-                    })
-                  )
-                );
-                await fs.promises.writeFile(utterancesFilepath, serialUtterancesData);
-              }
-            }
-            semaphore.release();
-          })
-      );
-    } catch (err) {
-      if (semaphore && semaphore.nrWaiting() > 0) {
-        await semaphore.drain();
-      }
-      throw err;
-    }
-    // Write entity files
-    for (const entity of await client.getEntities()) {
-      const serialEntityData = JSON.stringify({
-        ...templates.entity,
-        id: uuid(),
-        name: entity.name
-      });
-      await fs.promises.writeFile(`${ENTITY_PATH}/${entity.name}.json`, serialEntityData);
-      const serialSynData = JSON.stringify(entity.data);
-      await fs.promises.writeFile(
-        `${ENTITY_PATH}/${entity.name}_entries_en.json`,
-        serialSynData
-      );
-    }
-    // Copy template files
-    for (const filename of await fs.promises.readdir(`${__dirname}/templates`)) {
-      if (filename.startsWith('intent') || filename.startsWith('entity')) {
-        continue;
-      }
-      await fs.promises.copyFile(
-        `${__dirname}/templates/${filename}`,
-        `${__dirname}/output/${filename}`
-      );
-    }
-    // Remove zip file if it exists; then zip and remove output dir
-    try {
-      await fs.promises.access(ZIP_PATH, fs.constants.F_OK);
-      await fs.promises.unlink(ZIP_PATH);
-    } catch (_) {
-    } finally {
-      await execP(`zip -r ${__dirname}/output.zip ${__dirname}/output`);
-      await execP(`rm -rf ${__dirname}/output`);
-    }
-    const [seconds, nanoseconds] = process.hrtime(start);
-    const NS_PER_SEC = 1e9;
-    const NS_PER_MS = 1e6;
-    log(`done in ${((seconds * NS_PER_SEC + nanoseconds) / NS_PER_MS).toFixed(2)}ms`);
-  } catch (err) {
-    log(err.stack);
-    process.exit(1);
-  }
-})(process.argv);
+import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
 
 process.on('unhandledRejection', err => {
-  log(err.stack);
+  console.error(err);
   process.exit(1);
 });
 
 process.on('uncaughtException', err => {
-  log(err.stack);
+  console.error(err);
   process.exit(1);
 });
+
+const mkdirpP = promisify(mkdirp);
+const execP = promisify(exec);
+const log = debug('*');
+
+const ZIP_PATH = `${process.cwd()}/output.zip`;
+const INTENT_PATH = `${process.cwd()}/output/intents`;
+const ENTITY_PATH = `${process.cwd()}/output/entities`;
+
+await mkdirpP(INTENT_PATH);
+await mkdirpP(ENTITY_PATH);
+
+log('initializing client');
+// Boot up client with any args passed from command line
+const client = new SDKWrapper(getArgs(process.argv));
+client.on('error', err => {
+  throw err;
+});
+
+const { platform, board, intents } = await client.init();
+// Associates message id <-> array of intent ids incident on it
+const privilegedMessages = new Map(
+  board.messages.reduce(
+    (acc, { next_message_ids }) => [
+      ...acc,
+      ...next_message_ids
+        .filter(({ intent }) => intent.value)
+        // Group this message with this intent and others like it (in that they
+        // also are incident on this message)
+        .map(message => [
+          message.message_id,
+          [
+            message.intent.value,
+            ...board.messages.reduce(
+              (acc, { next_message_ids }) => [
+                ...acc,
+                // Must have an intent, must not be the one we already have,
+                // and must be incident on this message
+                ...next_message_ids
+                  .filter(
+                    ({ intent, message_id }) =>
+                      intent.value &&
+                      intent.value !== message.intent.value &&
+                      message_id === message.message_id
+                  )
+                  .map(m => m.intent.value)
+              ],
+              []
+            )
+          ]
+        ])
+    ],
+    []
+  )
+);
+
+let semaphore;
+try {
+  log('beginning write phase');
+  semaphore = new Sema(os.cpus().length, { capacity: privilegedMessages.size });
+  const provider = new Provider(platform);
+  // Write intent and utterances files for each combination of message -> intent
+  (async () => {
+    for await (const [key, intentIds] of privilegedMessages.entries()) {
+      await semaphore.acquire();
+      const {
+        message_type,
+        payload,
+        next_message_ids,
+        previous_message_ids
+      } = getMessage(key);
+      for (const intent of intentIds) {
+        const { name, updated_at, utterances } = intents.get(intent);
+        const basename = `${name}_${camelcase(payload.nodeName)}`;
+        const path = `${INTENT_PATH}/${basename}.json`;
+        const intermediateNodes = collectIntermediateNodes(
+          next_message_ids
+        ).map(getMessage);
+        // Write the intent file
+        await fs.promises.writeFile(
+          path,
+          JSON.stringify({
+            ...templates.intent,
+            id: uuid(),
+            name: basename,
+            contexts: hasWelcomeIntent(key) ? [] : [intents.get(intent).name],
+            events: hasWelcomeIntent(key) ? [{ name: 'WELCOME' }] : [],
+            lastUpdate: Date.parse(updated_at.date),
+            responses: [
+              {
+                action: '',
+                speech: [],
+                parameters: [],
+                resetContexts: false,
+                // Output contexts are the union of the intents emanated from
+                // any intermediate nodes and those that emanate from _this_ node
+                affectedContexts: [
+                  ...intermediateNodes.reduce((acc, { next_message_ids }) => {
+                    if (!next_message_ids.length) {
+                      return acc;
+                    }
+                    return [
+                      ...acc,
+                      ...next_message_ids
+                        .filter(({ intent }) => !!intent.value)
+                        .map(({ intent: { value } }) => ({
+                          name: intents.get(value).name,
+                          parameters: {},
+                          lifespan: 1
+                        }))
+                    ];
+                  }, []),
+                  ...next_message_ids
+                    .filter(({ intent }) => !!intent.value)
+                    .map(({ intent: { value } }) => ({
+                      name: intents.get(value).name,
+                      parameters: {},
+                      lifespan: 1
+                    }))
+                ],
+                defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                  platform.toLowerCase()
+                )
+                  ? { [platform.toLowerCase()]: true }
+                  : {},
+                messages: [{ message_type, payload }, ...intermediateNodes].map(
+                  message =>
+                    provider.create(message.message_type, message.payload)
+                )
+              }
+            ]
+          })
+        );
+        // If we have utterances, write a file for them
+        if (Array.isArray(utterances) && utterances.length) {
+          await fs.promises.writeFile(
+            `${path.slice(0, -5)}_usersays_en.json`,
+            JSON.stringify(
+              utterances.map(utterance => {
+                const data = [];
+                const pairs = utterance.variables.reduce(
+                  (acc, vari) => ({
+                    ...acc,
+                    [vari.id]: [
+                      vari.start_index,
+                      vari.start_index + vari.name.length
+                    ]
+                  }),
+                  {}
+                );
+                let lastIndex = 0;
+                // Append `data` by iterating over the variable's occurances
+                for (const [id, [start, end]] of Object.entries(pairs)) {
+                  const previousBlock = [];
+                  if (start !== lastIndex) {
+                    previousBlock.push({
+                      text: utterance.text.slice(lastIndex, start),
+                      userDefined: false
+                    });
+                  }
+                  const { name, entity } = utterance.variables.find(
+                    vari => vari.id === id
+                  );
+                  data.push(
+                    ...previousBlock.concat({
+                      text: name.slice(1, -1),
+                      meta: `@${entity}`,
+                      userDefined: true
+                    })
+                  );
+                  if (id !== Object.keys(pairs).pop()) {
+                    lastIndex = end;
+                  } else {
+                    data.push({
+                      text: utterance.text.slice(end),
+                      userDefined: false
+                    });
+                  }
+                }
+                return {
+                  id: uuid(),
+                  data: data.length
+                    ? data
+                    : [{ text: utterance.text, userDefined: false }],
+                  count: 0,
+                  isTemplate: false,
+                  updated: Date.parse(updated_at.date)
+                };
+              })
+            )
+          );
+        }
+      }
+      semaphore.release();
+    }
+  })();
+  log('ending write phase');
+  // Write entity files in one-to-one correspondence with original project
+  for (const entity of await client.getEntities()) {
+    await fs.promises.writeFile(
+      `${ENTITY_PATH}/${entity.name}.json`,
+      JSON.stringify({
+        ...templates.entity,
+        id: uuid(),
+        name: entity.name
+      })
+    );
+    await fs.promises.writeFile(
+      `${ENTITY_PATH}/${entity.name}_entries_en.json`,
+      JSON.stringify(entity.data)
+    );
+  }
+  // Copy template files into output directory
+  for (const filename of await fs.promises.readdir(`${__dirname}/templates`)) {
+    if (filename.startsWith('intent') || filename.startsWith('entity')) {
+      continue;
+    }
+    await fs.promises.copyFile(
+      `${__dirname}/templates/${filename}`,
+      `${__dirname}/output/${filename}`
+    );
+  }
+  // Remove zip file if it exists; then zip and remove output dir
+  try {
+    await fs.promises.access(ZIP_PATH, fs.constants.F_OK);
+    await fs.promises.unlink(ZIP_PATH);
+  } catch (_) {
+  } finally {
+    log('zipping output directory');
+    await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
+    // await execP(`rm -rf ${process.cwd()}/output`);
+  }
+  log('done');
+} catch (err) {
+  if (semaphore && semaphore.nrWaiting() > 0) {
+    await semaphore.drain();
+  }
+  console.error(err.stack);
+  process.exit(1);
+}
+
+// Gets the message with this id from the board
+function getMessage(id) {
+  return board.messages.find(m => m.message_id === id);
+}
+
+// Determines if `message` is the root
+function messageIsRoot(message) {
+  return board.root_messages.includes(message.message_id);
+}
+
+// Determines if `id` is the node adjacent to root with max number of connections
+function hasWelcomeIntent(id) {
+  const messages = privilegedMessages.size
+    ? board.messages.filter(message =>
+        privilegedMessages.has(message.message_id)
+      )
+    : board.messages;
+  const [{ message_id }] = messages.sort(
+    (a, b) =>
+      b.previous_message_ids.filter(messageIsRoot).length -
+      a.previous_message_ids.filter(messageIsRoot).length
+  );
+  return id === message_id;
+}
+
+// Recursively finds reachable nodes that do not emanate intents
+function collectIntermediateNodes(nextMessages, collectedIds = []) {
+  for (const { message_id } of nextMessages) {
+    if (!privilegedMessages.has(message_id)) {
+      const { next_message_ids } = board.messages.find(
+        message => message.message_id === message_id
+      );
+      return collectIntermediateNodes(next_message_ids, [
+        ...collectedIds,
+        message_id
+      ]);
+    }
+  }
+  return collectedIds;
+}

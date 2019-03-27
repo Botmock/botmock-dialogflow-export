@@ -18,7 +18,7 @@
   ],
   "prettier": {
     "singleQuote": true,
-    "printWidth": 90
+    "printWidth": 80
   },
   "repository": {
     "type": "git",
@@ -29,13 +29,14 @@
     "arg": "4.1.0",
     "async-sema": "2.2.0",
     "botmock": "^1.2.0",
+    "camelcase": "5.2.0",
     "debug": "4.1.1",
-    "dotenv": "6.2.0",
-    "esm": "3.2.7",
+    "dotenv": "7.0.0",
+    "esm": "3.2.20",
     "mkdirp": "^0.5.1",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "jest": "24.1.0"
+    "jest": "24.5.0"
   }
 }

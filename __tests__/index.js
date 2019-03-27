@@ -4,8 +4,8 @@ const { promisify } = require('util');
 
 const execP = promisify(exec);
 
-// Cleanup output directory
 afterEach(async () => {
+  // Cleanup output directory
   try {
     await fs.promises.access(`${process.cwd()}/output`, fs.constants.R_OK);
     await execP(`rm -rf ${process.cwd()}/output`);
@@ -13,6 +13,6 @@ afterEach(async () => {
 });
 
 it('runs', async () => {
-  const { stdout } = await execP('npm start');
-  expect(stdout).toContain('done');
+  const { stderr } = await execP('npm start');
+  expect(stderr).toContain('done');
 });
