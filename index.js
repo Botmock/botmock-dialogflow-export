@@ -40,7 +40,10 @@ client.on('error', err => {
   throw err;
 });
 
-const { platform, board, intents } = await client.init();
+let { platform, board, intents } = await client.init();
+if (platform === 'google-actions') {
+  platform = 'google';
+}
 // Associates message id <-> array of intent ids incident on it
 const privilegedMessages = new Map(
   board.messages.reduce(
