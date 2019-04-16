@@ -1,13 +1,14 @@
 (await import('dotenv')).config();
+import * as utils from '@botmock-api/utils';
 import camelcase from 'camelcase';
 import mkdirp from 'mkdirp';
 import debug from 'debug';
 import Sema from 'async-sema';
 import uuid from 'uuid/v4';
-import { promisify } from 'util';
-import { exec } from 'child_process';
 import fs from 'fs';
 import os from 'os';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
 import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
@@ -44,42 +45,12 @@ let { platform, board, intents } = await client.init();
 if (platform === 'google-actions') {
   platform = 'google';
 }
-// Associates message id <-> array of intent ids incident on it
-const privilegedMessages = new Map(
-  board.messages.reduce(
-    (acc, { next_message_ids }) => [
-      ...acc,
-      ...next_message_ids
-        .filter(({ intent }) => intent.value)
-        // Group this message with this intent and others like it (in that they
-        // also are incident on this message)
-        .map(message => [
-          message.message_id,
-          [
-            message.intent.value,
-            ...board.messages.reduce(
-              (acc, { next_message_ids }) => [
-                ...acc,
-                // Must have an intent, must not be the one we already have,
-                // and must be incident on this message
-                ...next_message_ids
-                  .filter(
-                    ({ intent, message_id }) =>
-                      intent.value &&
-                      intent.value !== message.intent.value &&
-                      message_id === message.message_id
-                  )
-                  .map(m => m.intent.value)
-              ],
-              []
-            )
-          ]
-        ])
-    ],
-    []
-  )
-);
 
+const privilegedMessages = utils.createIntentMap(board.messages);
+const collectIntermediateNodes = utils.getIntermediateNodes(
+  privilegedMessages,
+  getMessage
+);
 let semaphore;
 try {
   log('beginning write phase');
@@ -254,7 +225,7 @@ try {
   } finally {
     log('zipping output directory');
     await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
-    // await execP(`rm -rf ${process.cwd()}/output`);
+    await execP(`rm -rf ${process.cwd()}/output`);
   }
   log('done');
 } catch (err) {
@@ -288,20 +259,4 @@ function hasWelcomeIntent(id) {
       a.previous_message_ids.filter(messageIsRoot).length
   );
   return id === message_id;
-}
-
-// Recursively finds reachable nodes that do not emanate intents
-function collectIntermediateNodes(nextMessages, collectedIds = []) {
-  for (const { message_id } of nextMessages) {
-    if (!privilegedMessages.has(message_id)) {
-      const { next_message_ids } = board.messages.find(
-        message => message.message_id === message_id
-      );
-      return collectIntermediateNodes(next_message_ids, [
-        ...collectedIds,
-        message_id
-      ]);
-    }
-  }
-  return collectedIds;
 }

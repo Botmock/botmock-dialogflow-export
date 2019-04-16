@@ -26,17 +26,18 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@botmock-api/utils": "0.2.0",
     "arg": "4.1.0",
     "async-sema": "2.2.0",
     "botmock": "^1.2.0",
-    "camelcase": "5.2.0",
+    "camelcase": "5.3.1",
     "debug": "4.1.1",
     "dotenv": "7.0.0",
-    "esm": "3.2.20",
+    "esm": "3.2.22",
     "mkdirp": "^0.5.1",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "jest": "24.5.0"
+    "jest": "24.7.1"
   }
 }
