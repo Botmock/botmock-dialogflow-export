@@ -31,7 +31,7 @@
     "async-sema": "2.2.0",
     "botmock": "^1.2.0",
     "camelcase": "5.3.1",
-    "debug": "4.1.1",
+    "chalk": "2.4.2",
     "dotenv": "7.0.0",
     "esm": "3.2.22",
     "mkdirp": "^0.5.1",

@@ -2,7 +2,7 @@
 import * as utils from '@botmock-api/utils';
 import camelcase from 'camelcase';
 import mkdirp from 'mkdirp';
-import debug from 'debug';
+import chalk from 'chalk';
 import Sema from 'async-sema';
 import uuid from 'uuid/v4';
 import fs from 'fs';
@@ -25,7 +25,8 @@ process.on('uncaughtException', err => {
 
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
-const log = debug('*');
+const dim = str => void console.log(chalk.dim(str));
+const bold = str => void console.log(chalk.bold(str));
 
 const ZIP_PATH = `${process.cwd()}/output.zip`;
 const INTENT_PATH = `${process.cwd()}/output/intents`;
@@ -34,7 +35,7 @@ const ENTITY_PATH = `${process.cwd()}/output/entities`;
 await mkdirpP(INTENT_PATH);
 await mkdirpP(ENTITY_PATH);
 
-log('initializing client');
+dim('initializing client');
 // Boot up client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
 client.on('error', err => {
@@ -53,7 +54,7 @@ const collectIntermediateNodes = utils.getIntermediateNodes(
 );
 let semaphore;
 try {
-  log('beginning write phase');
+  dim('beginning write phase');
   semaphore = new Sema(os.cpus().length, { capacity: privilegedMessages.size });
   const provider = new Provider(platform);
   // Write intent and utterances files for each combination of message -> intent
@@ -191,7 +192,7 @@ try {
       semaphore.release();
     }
   })();
-  log('ending write phase');
+  dim('ending write phase');
   // Write entity files in one-to-one correspondence with original project
   for (const entity of await client.getEntities()) {
     await fs.promises.writeFile(
@@ -223,11 +224,11 @@ try {
     await fs.promises.unlink(ZIP_PATH);
   } catch (_) {
   } finally {
-    log('zipping output directory');
+    dim('zipping output directory');
     await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
     await execP(`rm -rf ${process.cwd()}/output`);
   }
-  log('done');
+  bold('done');
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();
