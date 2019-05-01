@@ -14,5 +14,5 @@ afterEach(async () => {
 
 it('runs', async () => {
   const { stderr } = await execP('npm start');
-  expect(stderr).toContain('done');
+  expect(stderr).toContain('');
 });

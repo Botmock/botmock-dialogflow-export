@@ -1,13 +1,14 @@
 (await import('dotenv')).config();
+import * as utils from '@botmock-api/utils';
 import camelcase from 'camelcase';
 import mkdirp from 'mkdirp';
-import debug from 'debug';
+import chalk from 'chalk';
 import Sema from 'async-sema';
 import uuid from 'uuid/v4';
-import { promisify } from 'util';
-import { exec } from 'child_process';
 import fs from 'fs';
 import os from 'os';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
 import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
@@ -24,16 +25,19 @@ process.on('uncaughtException', err => {
 
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
-const log = debug('*');
+
+const dim = str => void console.log(chalk.dim(str));
+const bold = str => void console.log(chalk.bold(str));
 
 const ZIP_PATH = `${process.cwd()}/output.zip`;
 const INTENT_PATH = `${process.cwd()}/output/intents`;
 const ENTITY_PATH = `${process.cwd()}/output/entities`;
 
+// Create directories
 await mkdirpP(INTENT_PATH);
 await mkdirpP(ENTITY_PATH);
 
-log('initializing client');
+dim('initializing client');
 // Boot up client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
 client.on('error', err => {
@@ -44,50 +48,21 @@ let { platform, board, intents } = await client.init();
 if (platform === 'google-actions') {
   platform = 'google';
 }
-// Associates message id <-> array of intent ids incident on it
-const privilegedMessages = new Map(
-  board.messages.reduce(
-    (acc, { next_message_ids }) => [
-      ...acc,
-      ...next_message_ids
-        .filter(({ intent }) => intent.value)
-        // Group this message with this intent and others like it (in that they
-        // also are incident on this message)
-        .map(message => [
-          message.message_id,
-          [
-            message.intent.value,
-            ...board.messages.reduce(
-              (acc, { next_message_ids }) => [
-                ...acc,
-                // Must have an intent, must not be the one we already have,
-                // and must be incident on this message
-                ...next_message_ids
-                  .filter(
-                    ({ intent, message_id }) =>
-                      intent.value &&
-                      intent.value !== message.intent.value &&
-                      message_id === message.message_id
-                  )
-                  .map(m => m.intent.value)
-              ],
-              []
-            )
-          ]
-        ])
-    ],
-    []
-  )
-);
 
 let semaphore;
+const privilegedMessages = utils.createIntentMap(board.messages);
+const collectIntermediateNodes = utils.createNodeCollector(
+  privilegedMessages,
+  getMessage
+);
+
+dim('beginning write phase');
 try {
-  log('beginning write phase');
   semaphore = new Sema(os.cpus().length, { capacity: privilegedMessages.size });
   const provider = new Provider(platform);
   // Write intent and utterances files for each combination of message -> intent
   (async () => {
-    for await (const [key, intentIds] of privilegedMessages.entries()) {
+    for (const [key, intentIds] of privilegedMessages.entries()) {
       await semaphore.acquire();
       const {
         message_type,
@@ -220,7 +195,7 @@ try {
       semaphore.release();
     }
   })();
-  log('ending write phase');
+  dim('ending write phase');
   // Write entity files in one-to-one correspondence with original project
   for (const entity of await client.getEntities()) {
     await fs.promises.writeFile(
@@ -252,11 +227,11 @@ try {
     await fs.promises.unlink(ZIP_PATH);
   } catch (_) {
   } finally {
-    log('zipping output directory');
+    dim('zipping output directory');
     await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
-    // await execP(`rm -rf ${process.cwd()}/output`);
+    await execP(`rm -rf ${process.cwd()}/output`);
   }
-  log('done');
+  bold('done');
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();
@@ -288,20 +263,4 @@ function hasWelcomeIntent(id) {
       a.previous_message_ids.filter(messageIsRoot).length
   );
   return id === message_id;
-}
-
-// Recursively finds reachable nodes that do not emanate intents
-function collectIntermediateNodes(nextMessages, collectedIds = []) {
-  for (const { message_id } of nextMessages) {
-    if (!privilegedMessages.has(message_id)) {
-      const { next_message_ids } = board.messages.find(
-        message => message.message_id === message_id
-      );
-      return collectIntermediateNodes(next_message_ids, [
-        ...collectedIds,
-        message_id
-      ]);
-    }
-  }
-  return collectedIds;
 }
