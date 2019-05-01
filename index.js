@@ -25,6 +25,7 @@ process.on('uncaughtException', err => {
 
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
+
 const dim = str => void console.log(chalk.dim(str));
 const bold = str => void console.log(chalk.bold(str));
 
@@ -32,6 +33,7 @@ const ZIP_PATH = `${process.cwd()}/output.zip`;
 const INTENT_PATH = `${process.cwd()}/output/intents`;
 const ENTITY_PATH = `${process.cwd()}/output/entities`;
 
+// Create directories
 await mkdirpP(INTENT_PATH);
 await mkdirpP(ENTITY_PATH);
 
@@ -47,19 +49,20 @@ if (platform === 'google-actions') {
   platform = 'google';
 }
 
+let semaphore;
 const privilegedMessages = utils.createIntentMap(board.messages);
-const collectIntermediateNodes = utils.getIntermediateNodes(
+const collectIntermediateNodes = utils.createNodeCollector(
   privilegedMessages,
   getMessage
 );
-let semaphore;
+
+dim('beginning write phase');
 try {
-  dim('beginning write phase');
   semaphore = new Sema(os.cpus().length, { capacity: privilegedMessages.size });
   const provider = new Provider(platform);
   // Write intent and utterances files for each combination of message -> intent
   (async () => {
-    for await (const [key, intentIds] of privilegedMessages.entries()) {
+    for (const [key, intentIds] of privilegedMessages.entries()) {
       await semaphore.acquire();
       const {
         message_type,
