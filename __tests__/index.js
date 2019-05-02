@@ -12,7 +12,7 @@ afterEach(async () => {
   } catch (_) {}
 });
 
-it('runs', async () => {
+test('runs', async () => {
   const { stderr } = await execP('npm start');
-  expect(stderr).toContain('');
+  expect(stderr).toBeFalsy();
 });

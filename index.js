@@ -7,41 +7,36 @@ import Sema from 'async-sema';
 import uuid from 'uuid/v4';
 import fs from 'fs';
 import os from 'os';
+import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
 import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
 
-process.on('unhandledRejection', err => {
-  console.error(err);
-  process.exit(1);
-});
-
-process.on('uncaughtException', err => {
-  console.error(err);
-  process.exit(1);
-});
+// try {
+//   await utils.checkEnvVars();
+// } catch (_) {
+//   console.error('too few variables in .env');
+//   process.exit(1);
+// }
 
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
-
-const dim = str => void console.log(chalk.dim(str));
-const bold = str => void console.log(chalk.bold(str));
-
-const ZIP_PATH = `${process.cwd()}/output.zip`;
-const INTENT_PATH = `${process.cwd()}/output/intents`;
-const ENTITY_PATH = `${process.cwd()}/output/entities`;
+const ZIP_PATH = join(process.cwd(), 'output.zip');
+const OUTPUT_PATH = join(process.cwd(), 'output');
+const INTENT_PATH = join(OUTPUT_PATH, 'intents');
+const ENTITY_PATH = join(OUTPUT_PATH, 'entities');
 
 // Create directories
 await mkdirpP(INTENT_PATH);
 await mkdirpP(ENTITY_PATH);
 
-dim('initializing client');
 // Boot up client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
 client.on('error', err => {
-  throw err;
+  console.error(err);
+  process.exit(1);
 });
 
 let { platform, board, intents } = await client.init();
@@ -56,7 +51,6 @@ const collectIntermediateNodes = utils.createNodeCollector(
   getMessage
 );
 
-dim('beginning write phase');
 try {
   semaphore = new Sema(os.cpus().length, { capacity: privilegedMessages.size });
   const provider = new Provider(platform);
@@ -195,7 +189,6 @@ try {
       semaphore.release();
     }
   })();
-  dim('ending write phase');
   // Write entity files in one-to-one correspondence with original project
   for (const entity of await client.getEntities()) {
     await fs.promises.writeFile(
@@ -227,11 +220,10 @@ try {
     await fs.promises.unlink(ZIP_PATH);
   } catch (_) {
   } finally {
-    dim('zipping output directory');
     await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
     await execP(`rm -rf ${process.cwd()}/output`);
   }
-  bold('done');
+  console.log(chalk.bold('done'));
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();
