@@ -14,13 +14,6 @@ import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
 import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
 
-// try {
-//   await utils.checkEnvVars();
-// } catch (_) {
-//   console.error('too few variables in .env');
-//   process.exit(1);
-// }
-
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
 const ZIP_PATH = join(process.cwd(), 'output.zip');
@@ -45,18 +38,25 @@ if (platform === 'google-actions') {
 }
 
 let semaphore;
-const privilegedMessages = utils.createIntentMap(board.messages);
+const intentMap = utils.createIntentMap(board.messages);
 const collectIntermediateNodes = utils.createNodeCollector(
-  privilegedMessages,
+  intentMap,
   getMessage
 );
 
 try {
-  semaphore = new Sema(os.cpus().length, { capacity: privilegedMessages.size });
+  semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
   const provider = new Provider(platform);
   // Write intent and utterances files for each combination of message -> intent
   (async () => {
-    for (const [key, intentIds] of privilegedMessages.entries()) {
+    // if there are no intents, set a welcome-like one
+    if (!intentMap.size) {
+      const { next_message_ids } = board.messages.find(messageIsRoot);
+      const [{ message_id: firstNodeId }] = next_message_ids;
+      // add uuid to the map's value to prevent bypassing the body of the loop below
+      intentMap.set(firstNodeId, [uuid()]);
+    }
+    for (const [key, intentIds] of intentMap.entries()) {
       await semaphore.acquire();
       const {
         message_type,
@@ -65,7 +65,11 @@ try {
         previous_message_ids
       } = getMessage(key);
       for (const intent of intentIds) {
-        const { name, updated_at, utterances } = intents.get(intent);
+        const { name, updated_at, utterances } = intents.get(intent) || {
+          name: 'welcome',
+          updated_at: Date.now(),
+          utterances: []
+        };
         const basename = `${name}_${camelcase(payload.nodeName)}`;
         const path = `${INTENT_PATH}/${basename}.json`;
         const intermediateNodes = collectIntermediateNodes(
@@ -221,7 +225,7 @@ try {
   } catch (_) {
   } finally {
     await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
-    await execP(`rm -rf ${process.cwd()}/output`);
+    // await execP(`rm -rf ${process.cwd()}/output`);
   }
   console.log(chalk.bold('done'));
 } catch (err) {
@@ -244,10 +248,8 @@ function messageIsRoot(message) {
 
 // Determines if `id` is the node adjacent to root with max number of connections
 function hasWelcomeIntent(id) {
-  const messages = privilegedMessages.size
-    ? board.messages.filter(message =>
-        privilegedMessages.has(message.message_id)
-      )
+  const messages = intentMap.size
+    ? board.messages.filter(message => intentMap.has(message.message_id))
     : board.messages;
   const [{ message_id }] = messages.sort(
     (a, b) =>
