@@ -12,7 +12,8 @@ afterEach(async () => {
   } catch (_) {}
 });
 
-test('runs', async () => {
-  const { stderr } = await execP('npm start');
+test('does not write to stderr when done executing', async () => {
+  const { stdout, stderr } = await execP('npm start');
+  expect(stdout).toBeTruthy();
   expect(stderr).toBeFalsy();
 });

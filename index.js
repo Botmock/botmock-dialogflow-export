@@ -225,9 +225,9 @@ try {
   } catch (_) {
   } finally {
     await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
-    // await execP(`rm -rf ${process.cwd()}/output`);
+    await execP(`rm -rf ${process.cwd()}/output`);
   }
-  console.log(chalk.bold('done'));
+  console.log(chalk.bold('Completed. Please upload /output.zip to Dialogflow'));
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();
