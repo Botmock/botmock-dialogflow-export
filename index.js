@@ -14,6 +14,10 @@ import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
 import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
 
+if (os.platform() !== 'darwin') {
+  console.warn('compression of document assumes macOS platform');
+}
+
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
 const ZIP_PATH = join(process.cwd(), 'output.zip');
