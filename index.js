@@ -166,7 +166,7 @@ try {
                   data.push(
                     ...previousBlock.concat({
                       text: name.slice(1, -1),
-                      meta: `@${entity}`,
+                      meta: entity,
                       userDefined: true
                     })
                   );
@@ -230,7 +230,7 @@ try {
     await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
     await execP(`rm -rf ${process.cwd()}/output`);
   }
-  console.log('Completed. Please upload /output.zip to Dialogflow');
+  process.stdout.write('Completed. Please upload /output.zip to Dialogflow');
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();
