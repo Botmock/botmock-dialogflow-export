@@ -2,7 +2,6 @@
 import * as utils from '@botmock-api/utils';
 import camelcase from 'camelcase';
 import mkdirp from 'mkdirp';
-import chalk from 'chalk';
 import Sema from 'async-sema';
 import uuid from 'uuid/v4';
 import fs from 'fs';
@@ -231,7 +230,7 @@ try {
     await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
     await execP(`rm -rf ${process.cwd()}/output`);
   }
-  console.log(chalk.bold('Completed. Please upload /output.zip to Dialogflow'));
+  console.log('Completed. Please upload /output.zip to Dialogflow');
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();
