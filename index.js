@@ -138,57 +138,89 @@ try {
           await fs.promises.writeFile(
             `${path.slice(0, -5)}_usersays_en.json`,
             JSON.stringify(
-              utterances.map(utterance => {
-                const data = [];
-                const pairs = utterance.variables.reduce(
-                  (acc, vari) => ({
-                    ...acc,
-                    [vari.id]: [
-                      vari.start_index,
-                      vari.start_index + vari.name.length
-                    ]
-                  }),
-                  {}
-                );
-                let lastIndex = 0;
-                // Append `data` by iterating over the variable's occurances
-                for (const [id, [start, end]] of Object.entries(pairs)) {
-                  const previousBlock = [];
-                  if (start !== lastIndex) {
-                    previousBlock.push({
-                      text: utterance.text.slice(lastIndex, start),
-                      userDefined: false
-                    });
-                  }
-                  const { name, entity } = utterance.variables.find(
-                    vari => vari.id === id
+              utterances
+                .map(utterance => {
+                  const data = [];
+                  const pairs = utterance.variables.reduce(
+                    (acc, vari) => ({
+                      ...acc,
+                      [vari.id]: [
+                        vari.start_index,
+                        vari.start_index + vari.name.length
+                      ]
+                    }),
+                    {}
                   );
-                  data.push(
-                    ...previousBlock.concat({
-                      text: name.slice(1, -1),
-                      meta: entity,
-                      userDefined: true
-                    })
-                  );
-                  if (id !== Object.keys(pairs).pop()) {
-                    lastIndex = end;
-                  } else {
-                    data.push({
-                      text: utterance.text.slice(end),
-                      userDefined: false
-                    });
+                  let lastIndex = 0;
+                  // Append `data` by iterating over the variable's occurances
+                  for (const [id, [start, end]] of Object.entries(pairs)) {
+                    const previousBlock = [];
+                    if (start !== lastIndex) {
+                      previousBlock.push({
+                        text: utterance.text.slice(lastIndex, start),
+                        userDefined: false
+                      });
+                    }
+                    const { name } = utterance.variables.find(
+                      vari => vari.id === id
+                    );
+                    data.push(
+                      ...previousBlock.concat({
+                        text: name.slice(1, -1),
+                        meta: `@${name.substr(1, name.length - 2)}`,
+                        userDefined: true
+                      })
+                    );
+                    if (id !== Object.keys(pairs).pop()) {
+                      lastIndex = end;
+                    } else {
+                      data.push({
+                        text: utterance.text.slice(end),
+                        userDefined: false
+                      });
+                    }
                   }
-                }
-                return {
-                  id: uuid(),
-                  data: data.length
-                    ? data
-                    : [{ text: utterance.text, userDefined: false }],
-                  count: 0,
-                  isTemplate: false,
-                  updated: Date.parse(updated_at.date)
-                };
-              })
+                  return {
+                    id: uuid(),
+                    data: data.length
+                      ? data
+                      : [{ text: utterance.text, userDefined: false }],
+                    count: 0,
+                    isTemplate: false,
+                    updated: Date.parse(updated_at.date)
+                  };
+                })
+                .concat(
+                  // seed with welcome utterances in the case of welcome intent
+                  !hasWelcomeIntent(key)
+                    ? []
+                    : [
+                        {
+                          id: uuid(),
+                          data: [
+                            {
+                              text: 'hi',
+                              userDefined: false
+                            }
+                          ],
+                          isTemplate: false,
+                          count: 0,
+                          updated: 0
+                        },
+                        {
+                          id: uuid(),
+                          data: [
+                            {
+                              text: 'hello',
+                              userDefined: false
+                            }
+                          ],
+                          isTemplate: false,
+                          count: 0,
+                          updated: 0
+                        }
+                      ]
+                )
             )
           );
         }
