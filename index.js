@@ -70,65 +70,72 @@ try {
           utterances: []
         };
         const basename = `${name}_${camelcase(payload.nodeName)}`;
-        const path = `${INTENT_PATH}/${basename}.json`;
+        const pathToNode = `${INTENT_PATH}${path.sep}${basename}.json`;
         const intermediateNodes = collectIntermediateNodes(
           next_message_ids
         ).map(getMessage);
-        // Write the intent file
-        await fs.promises.writeFile(
-          path,
-          JSON.stringify({
-            ...templates.intent,
-            id: uuid(),
-            name: basename,
-            contexts: hasWelcomeIntent(key) ? [] : [intents.get(intent).name],
-            events: hasWelcomeIntent(key) ? [{ name: 'WELCOME' }] : [],
-            lastUpdate: Date.parse(updated_at.date),
-            responses: [
-              {
-                action: '',
-                speech: [],
-                parameters: [],
-                resetContexts: false,
-                // Output contexts are the union of the intents emanated from
-                // any intermediate nodes and those that emanate from _this_ node
-                affectedContexts: [
-                  ...intermediateNodes.reduce((acc, { next_message_ids }) => {
-                    if (!next_message_ids.length) {
-                      return acc;
-                    }
-                    return [
-                      ...acc,
-                      ...next_message_ids
-                        .filter(({ intent }) => !!intent.value)
-                        .map(({ intent: { value } }) => ({
-                          name: intents.get(value).name,
-                          parameters: {},
-                          lifespan: 1
-                        }))
-                    ];
-                  }, []),
-                  ...next_message_ids
-                    .filter(({ intent }) => !!intent.value)
-                    .map(({ intent: { value } }) => ({
-                      name: intents.get(value).name,
-                      parameters: {},
-                      lifespan: 1
-                    }))
-                ],
-                defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
-                  platform.toLowerCase()
-                )
-                  ? { [platform.toLowerCase()]: true }
-                  : {},
-                messages: [{ message_type, payload }, ...intermediateNodes].map(
-                  message =>
+        try {
+          // Write the intent file
+          await fs.promises.writeFile(
+            pathToNode,
+            JSON.stringify({
+              ...templates.intent,
+              id: uuid(),
+              name: basename,
+              contexts: hasWelcomeIntent(key) ? [] : [intents.get(intent).name],
+              events: hasWelcomeIntent(key) ? [{ name: 'WELCOME' }] : [],
+              lastUpdate: Date.parse(updated_at.date),
+              responses: [
+                {
+                  action: '',
+                  speech: [],
+                  parameters: [],
+                  resetContexts: false,
+                  // Output contexts are the union of the intents emanated from
+                  // any intermediate nodes and those that emanate from _this_ node
+                  affectedContexts: [
+                    ...intermediateNodes.reduce((acc, { next_message_ids }) => {
+                      if (!next_message_ids.length) {
+                        return acc;
+                      }
+                      return [
+                        ...acc,
+                        ...next_message_ids
+                          .filter(({ intent }) => typeof intent !== 'string')
+                          .map(({ intent: { value } }) => ({
+                            name: intents.get(value).name,
+                            parameters: {},
+                            lifespan: 1
+                          }))
+                      ];
+                    }, []),
+                    ...next_message_ids
+                      .filter(({ intent }) => typeof intent !== 'string')
+                      .map(({ intent: { value } }) => ({
+                        name: intents.get(value).name,
+                        parameters: {},
+                        lifespan: 1
+                      }))
+                  ],
+                  defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                    platform.toLowerCase()
+                  )
+                    ? { [platform.toLowerCase()]: true }
+                    : {},
+                  messages: [
+                    { message_type, payload },
+                    ...intermediateNodes
+                  ].map(message =>
                     provider.create(message.message_type, message.payload)
-                )
-              }
-            ]
-          })
-        );
+                  )
+                }
+              ]
+            })
+          );
+        } catch (err) {
+          console.error(`Failed to write ${basename}`);
+          console.error(err);
+        }
         // If we have utterances, write a file for them
         if (Array.isArray(utterances) && utterances.length) {
           await fs.promises.writeFile(
@@ -240,21 +247,27 @@ try {
     );
   }
   // Copy template files into output directory
-  for (const filename of await fs.promises.readdir(path.join(__dirname, "templates"))) {
+  for (const filename of await fs.promises.readdir(
+    path.join(__dirname, 'templates')
+  )) {
     if (filename.startsWith('intent') || filename.startsWith('entity')) {
       continue;
     }
     await fs.promises.copyFile(
-      path.join(__dirname, "templates", filename),
-      path.join(__dirname, "output", filename)
+      path.join(__dirname, 'templates', filename),
+      path.join(__dirname, 'output', filename)
     );
   }
-  console.log(`Completed. Please compress ${path.sep}${path.basename(OUTPUT_PATH)} and import in Dialogflow.`);
+  console.log(
+    `Completed. Please compress ${path.sep}${path.basename(
+      OUTPUT_PATH
+    )} and import the result in Dialogflow.`
+  );
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();
   }
-  console.error(err.stack);
+  console.error(err.message);
   process.exit(1);
 }
 
