@@ -24,7 +24,8 @@ BOTMOCK_BOARD_ID=""
 ### Importing to Dialogflow
 
 - Compress the `output` directory
-- Visit [your dashboard](console.dialogflow.com) and create a new agent
+- Visit [your dashboard](console.dialogflow.com) and create a new agent by clicking "Create new agent" in the top left dropdown.
+- Click the gear icon at the top of the left sidebar.
 - Choose the 'Export and Import' tab and choose 'Import From Zip'
 - Choose your compressed `output` (e.g. `output.zip`), typing 'IMPORT' into the form field and clicking 'IMPORT'
 
