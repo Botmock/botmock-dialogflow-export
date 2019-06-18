@@ -6,23 +6,18 @@ import Sema from 'async-sema';
 import uuid from 'uuid/v4';
 import fs from 'fs';
 import os from 'os';
-import { join } from 'path';
+import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
 import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
 
-if (os.platform() !== 'darwin') {
-  console.warn('compression of document assumes macOS platform');
-}
-
 const mkdirpP = promisify(mkdirp);
 const execP = promisify(exec);
-const ZIP_PATH = join(process.cwd(), 'output.zip');
-const OUTPUT_PATH = join(process.cwd(), 'output');
-const INTENT_PATH = join(OUTPUT_PATH, 'intents');
-const ENTITY_PATH = join(OUTPUT_PATH, 'entities');
+const OUTPUT_PATH = path.join(process.cwd(), 'output');
+const INTENT_PATH = path.join(OUTPUT_PATH, 'intents');
+const ENTITY_PATH = path.join(OUTPUT_PATH, 'entities');
 
 // Create directories
 await mkdirpP(INTENT_PATH);
@@ -30,6 +25,7 @@ await mkdirpP(ENTITY_PATH);
 
 // Boot up client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
+
 client.on('error', err => {
   console.error(err);
   process.exit(1);
@@ -231,7 +227,7 @@ try {
   // Write entity files in one-to-one correspondence with original project
   for (const entity of await client.getEntities()) {
     await fs.promises.writeFile(
-      `${ENTITY_PATH}/${entity.name}.json`,
+      path.join(ENTITY_PATH, `${entity.name}.json`),
       JSON.stringify({
         ...templates.entity,
         id: uuid(),
@@ -239,30 +235,21 @@ try {
       })
     );
     await fs.promises.writeFile(
-      `${ENTITY_PATH}/${entity.name}_entries_en.json`,
+      path.join(ENTITY_PATH, `${entity.name}_entries_en.json`),
       JSON.stringify(entity.data)
     );
   }
   // Copy template files into output directory
-  for (const filename of await fs.promises.readdir(`${__dirname}/templates`)) {
+  for (const filename of await fs.promises.readdir(path.join(__dirname, "templates"))) {
     if (filename.startsWith('intent') || filename.startsWith('entity')) {
       continue;
     }
     await fs.promises.copyFile(
-      `${__dirname}/templates/${filename}`,
-      `${__dirname}/output/${filename}`
+      path.join(__dirname, "templates", filename),
+      path.join(__dirname, "output", filename)
     );
   }
-  // Remove zip file if it exists; then zip and remove output dir
-  try {
-    await fs.promises.access(ZIP_PATH, fs.constants.F_OK);
-    await fs.promises.unlink(ZIP_PATH);
-  } catch (_) {
-  } finally {
-    await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
-    await execP(`rm -rf ${process.cwd()}/output`);
-  }
-  process.stdout.write('Completed. Please upload /output.zip to Dialogflow');
+  console.log(`Completed. Please compress ${path.sep}${path.basename(OUTPUT_PATH)} and import in Dialogflow.`);
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();

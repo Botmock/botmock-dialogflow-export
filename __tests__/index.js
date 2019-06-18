@@ -17,5 +17,3 @@ test('produces /output', async () => {
     await fs.promises.access(join(process.cwd(), 'output'));
   }).not.toThrow();
 });
-
-test.todo('removes /output');
