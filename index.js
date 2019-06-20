@@ -7,25 +7,25 @@ import uuid from 'uuid/v4';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import util from 'util';
 import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
-import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
+import {
+  getArgs,
+  templates,
+  SUPPORTED_PLATFORMS,
+  ZIP_PATH,
+  OUTPUT_PATH,
+  INTENT_PATH,
+  ENTITY_PATH
+} from './lib/util';
 
-const mkdirpP = promisify(mkdirp);
-const execP = promisify(exec);
-const OUTPUT_PATH = path.join(process.cwd(), 'output');
-const INTENT_PATH = path.join(OUTPUT_PATH, 'intents');
-const ENTITY_PATH = path.join(OUTPUT_PATH, 'entities');
+// create directories for intents and entities
+await util.promisify(mkdirp)(INTENT_PATH);
+await util.promisify(mkdirp)(ENTITY_PATH);
 
-// Create directories
-await mkdirpP(INTENT_PATH);
-await mkdirpP(ENTITY_PATH);
-
-// Boot up client with any args passed from command line
+// boot up client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
-
 client.on('error', err => {
   console.error(err);
   process.exit(1);
@@ -36,25 +36,27 @@ if (platform === 'google-actions') {
   platform = 'google';
 }
 
-let semaphore;
 const intentMap = utils.createIntentMap(board.messages);
 const collectIntermediateNodes = utils.createNodeCollector(
   intentMap,
   getMessage
 );
 
+let semaphore;
 try {
+  // limit write concurrency
   semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
+  // create instance of the class that maps the board payload to dialogflow format
   const provider = new Provider(platform);
-  // Write intent and utterances files for each combination of message -> intent
   (async () => {
-    // if there are no intents, set a welcome-like one
-    if (!intentMap.size) {
+    // set a welcome-like intent if no intent from the root is defined
+    if (!intentMap.size || isMissingWelcomeIntent(board.messages)) {
       const { next_message_ids } = board.messages.find(messageIsRoot);
       const [{ message_id: firstNodeId }] = next_message_ids;
-      // add uuid to the map's value to prevent bypassing the body of the loop below
+      // console.log(firstNodeId);
       intentMap.set(firstNodeId, [uuid()]);
     }
+    // write intent and utterances files for each combination of (message, intent)
     for (const [key, intentIds] of intentMap.entries()) {
       await semaphore.acquire();
       const {
@@ -70,160 +72,120 @@ try {
           utterances: []
         };
         const basename = `${name}_${camelcase(payload.nodeName)}`;
-        const pathToNode = `${INTENT_PATH}${path.sep}${basename}.json`;
+        const filePath = `${INTENT_PATH}/${basename}.json`;
+        // group together the nodes that do not create intents
         const intermediateNodes = collectIntermediateNodes(
           next_message_ids
         ).map(getMessage);
-        try {
-          // Write the intent file
-          await fs.promises.writeFile(
-            pathToNode,
-            JSON.stringify({
-              ...templates.intent,
-              id: uuid(),
-              name: basename,
-              contexts: hasWelcomeIntent(key) ? [] : [intents.get(intent).name],
-              events: hasWelcomeIntent(key) ? [{ name: 'WELCOME' }] : [],
-              lastUpdate: Date.parse(updated_at.date),
-              responses: [
-                {
-                  action: '',
-                  speech: [],
-                  parameters: [],
-                  resetContexts: false,
-                  // Output contexts are the union of the intents emanated from
-                  // any intermediate nodes and those that emanate from _this_ node
-                  affectedContexts: [
-                    ...intermediateNodes.reduce((acc, { next_message_ids }) => {
-                      if (!next_message_ids.length) {
-                        return acc;
-                      }
-                      return [
-                        ...acc,
-                        ...next_message_ids
-                          .filter(({ intent }) => typeof intent !== 'string')
-                          .map(({ intent: { value } }) => ({
-                            name: intents.get(value).name,
-                            parameters: {},
-                            lifespan: 1
-                          }))
-                      ];
-                    }, []),
-                    ...next_message_ids
-                      .filter(({ intent }) => typeof intent !== 'string')
-                      .map(({ intent: { value } }) => ({
-                        name: intents.get(value).name,
-                        parameters: {},
-                        lifespan: 1
-                      }))
-                  ],
-                  defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
-                    platform.toLowerCase()
-                  )
-                    ? { [platform.toLowerCase()]: true }
-                    : {},
-                  messages: [
-                    { message_type, payload },
-                    ...intermediateNodes
-                  ].map(message =>
-                    provider.create(message.message_type, message.payload)
-                  )
-                }
-              ]
-            })
-          );
-        } catch (err) {
-          console.error(`Failed to write ${basename}`);
-          console.error(err);
-        }
-        // If we have utterances, write a file for them
-        if (Array.isArray(utterances) && utterances.length) {
-          await fs.promises.writeFile(
-            `${path.slice(0, -5)}_usersays_en.json`,
-            JSON.stringify(
-              utterances
-                .map(utterance => {
-                  const data = [];
-                  const pairs = utterance.variables.reduce(
-                    (acc, vari) => ({
+        await fs.promises.writeFile(
+          filePath,
+          JSON.stringify({
+            ...templates.intent,
+            id: uuid(),
+            name: basename,
+            contexts: hasWelcomeIntent(key) ? [] : [intents.get(intent).name],
+            events: hasWelcomeIntent(key) ? [{ name: 'WELCOME' }] : [],
+            lastUpdate: Date.parse(updated_at.date),
+            responses: [
+              {
+                action: '',
+                speech: [],
+                parameters: [],
+                resetContexts: false,
+                // set affected contexts as the union of the intents going out of
+                // any intermediate nodes and those that go out of _this_ node
+                affectedContexts: [
+                  ...intermediateNodes.reduce((acc, { next_message_ids }) => {
+                    if (!next_message_ids.length) {
+                      return acc;
+                    }
+                    return [
                       ...acc,
-                      [vari.id]: [
-                        vari.start_index,
-                        vari.start_index + vari.name.length
-                      ]
-                    }),
-                    {}
-                  );
-                  let lastIndex = 0;
-                  // Append `data` by iterating over the variable's occurances
-                  for (const [id, [start, end]] of Object.entries(pairs)) {
-                    const previousBlock = [];
-                    if (start !== lastIndex) {
-                      previousBlock.push({
-                        text: utterance.text.slice(lastIndex, start),
-                        userDefined: false
-                      });
-                    }
-                    const { name } = utterance.variables.find(
-                      vari => vari.id === id
-                    );
-                    data.push(
-                      ...previousBlock.concat({
-                        text: name.slice(1, -1),
-                        meta: `@${name.substr(1, name.length - 2)}`,
-                        userDefined: true
-                      })
-                    );
-                    if (id !== Object.keys(pairs).pop()) {
-                      lastIndex = end;
-                    } else {
-                      data.push({
-                        text: utterance.text.slice(end),
-                        userDefined: false
-                      });
-                    }
-                  }
-                  return {
-                    id: uuid(),
-                    data: data.length
-                      ? data
-                      : [{ text: utterance.text, userDefined: false }],
-                    count: 0,
-                    isTemplate: false,
-                    updated: Date.parse(updated_at.date)
-                  };
-                })
-                .concat(
-                  // seed with welcome utterances in the case of welcome intent
-                  !hasWelcomeIntent(key)
-                    ? []
-                    : [
-                        {
-                          id: uuid(),
-                          data: [
-                            {
-                              text: 'hi',
-                              userDefined: false
-                            }
-                          ],
-                          isTemplate: false,
-                          count: 0,
-                          updated: 0
-                        },
-                        {
-                          id: uuid(),
-                          data: [
-                            {
-                              text: 'hello',
-                              userDefined: false
-                            }
-                          ],
-                          isTemplate: false,
-                          count: 0,
-                          updated: 0
-                        }
-                      ]
+                      ...next_message_ids
+                        .filter(({ intent }) => !!intent.value)
+                        .map(({ intent: { value } }) => ({
+                          name: intents.get(value).name,
+                          parameters: {},
+                          lifespan: 1
+                        }))
+                    ];
+                  }, []),
+                  ...next_message_ids
+                    .filter(({ intent }) => !!intent.value)
+                    .map(({ intent: { value } }) => ({
+                      name: intents.get(value).name,
+                      parameters: {},
+                      lifespan: 1
+                    }))
+                ],
+                defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                  platform.toLowerCase()
                 )
+                  ? { [platform.toLowerCase()]: true }
+                  : {},
+                messages: [{ message_type, payload }, ...intermediateNodes].map(
+                  message =>
+                    provider.create(message.message_type, message.payload)
+                )
+              }
+            ]
+          })
+        );
+        if (Array.isArray(utterances) && utterances.length) {
+          // write utterance file
+          await fs.promises.writeFile(
+            `${filePath.slice(0, -5)}_usersays_en.json`,
+            JSON.stringify(
+              utterances.map(utterance => {
+                const data = [];
+                const pairs = utterance.variables.reduce(
+                  (acc, vari) => ({
+                    ...acc,
+                    [vari.id]: [
+                      vari.start_index,
+                      vari.start_index + vari.name.length
+                    ]
+                  }),
+                  {}
+                );
+                let lastIndex = 0;
+                for (const [id, [start, end]] of Object.entries(pairs)) {
+                  const previousBlock = [];
+                  if (start !== lastIndex) {
+                    previousBlock.push({
+                      text: utterance.text.slice(lastIndex, start),
+                      userDefined: false
+                    });
+                  }
+                  const { name, entity } = utterance.variables.find(
+                    vari => vari.id === id
+                  );
+                  data.push(
+                    ...previousBlock.concat({
+                      text: name.slice(1, -1),
+                      meta: `@${entity}`,
+                      userDefined: true
+                    })
+                  );
+                  if (id !== Object.keys(pairs).pop()) {
+                    lastIndex = end;
+                  } else {
+                    data.push({
+                      text: utterance.text.slice(end),
+                      userDefined: false
+                    });
+                  }
+                }
+                return {
+                  id: uuid(),
+                  data: data.length
+                    ? data
+                    : [{ text: utterance.text, userDefined: false }],
+                  count: 0,
+                  isTemplate: false,
+                  updated: Date.parse(updated_at.date)
+                };
+              })
             )
           );
         }
@@ -231,10 +193,10 @@ try {
       semaphore.release();
     }
   })();
-  // Write entity files in one-to-one correspondence with original project
+  // write entity files in one-to-one correspondence with original project
   for (const entity of await client.getEntities()) {
     await fs.promises.writeFile(
-      path.join(ENTITY_PATH, `${entity.name}.json`),
+      `${ENTITY_PATH}/${entity.name}.json`,
       JSON.stringify({
         ...templates.entity,
         id: uuid(),
@@ -242,46 +204,63 @@ try {
       })
     );
     await fs.promises.writeFile(
-      path.join(ENTITY_PATH, `${entity.name}_entries_en.json`),
+      `${ENTITY_PATH}/${entity.name}_entries_en.json`,
       JSON.stringify(entity.data)
     );
   }
-  // Copy template files into output directory
   for (const filename of await fs.promises.readdir(
     path.join(__dirname, 'templates')
   )) {
-    if (filename.startsWith('intent') || filename.startsWith('entity')) {
-      continue;
+    const pathToContent = path.join(__dirname, 'templates', filename);
+    const stats = await fs.promises.stat(pathToContent);
+    // if this content of the templates directory is not itself a directory,
+    // possibly copy the file over into the output directory
+    if (!stats.isDirectory()) {
+      if (filename.startsWith('intent') || filename.startsWith('entity')) {
+        continue;
+      }
+      await copyFileToOutput(pathToContent);
+    } else {
+      // assume these are the templates for the default intents; copy them
+      // into the intents directory
+      for (const file of await fs.promises.readdir(pathToContent)) {
+        await copyFileToOutput(path.join(pathToContent, file), {
+          isIntentFile: true
+        });
+      }
     }
-    await fs.promises.copyFile(
-      path.join(__dirname, 'templates', filename),
-      path.join(__dirname, 'output', filename)
-    );
   }
-  console.log(
-    `Completed. Please compress ${path.sep}${path.basename(
-      OUTPUT_PATH
-    )} and import the result in Dialogflow.`
-  );
+  console.log(`Done. Compress ${path.sep}${path.basename(OUTPUT_PATH)}.`);
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();
   }
-  console.error(err.message);
+  console.error(err.stack);
   process.exit(1);
 }
 
-// Gets the message with this id from the board
+// copies file to its destination in the output directory
+async function copyFileToOutput(pathToFile, options = { isIntentFile: false }) {
+  const pathToOutput = path.join(
+    __dirname,
+    'output',
+    options.isIntentFile ? 'intents' : '',
+    path.basename(pathToFile)
+  );
+  return await fs.promises.copyFile(pathToFile, pathToOutput);
+}
+
+// gets the message with this id from the board
 function getMessage(id) {
   return board.messages.find(m => m.message_id === id);
 }
 
-// Determines if `message` is the root
+// determines if given message is the root
 function messageIsRoot(message) {
   return board.root_messages.includes(message.message_id);
 }
 
-// Determines if `id` is the node adjacent to root with max number of connections
+// determines if given id is the node adjacent to root with max number of connections
 function hasWelcomeIntent(id) {
   const messages = intentMap.size
     ? board.messages.filter(message => intentMap.has(message.message_id))
@@ -292,4 +271,10 @@ function hasWelcomeIntent(id) {
       a.previous_message_ids.filter(messageIsRoot).length
   );
   return id === message_id;
+}
+
+// determines if root node does not contain connections with intents
+function isMissingWelcomeIntent(messages) {
+  const [{ next_message_ids }] = messages.filter(messageIsRoot);
+  return next_message_ids.every(message => !message.intent);
 }
