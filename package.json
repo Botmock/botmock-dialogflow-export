@@ -1,15 +1,10 @@
 {
   "name": "botmock-dialogflow-export",
   "version": "1.0.0",
-  "description": "import Botmock projects in Dialogflow",
-  "main": "index.js",
-  "module": "index.js",
+  "description": "import botmock projects in dialogflow",
   "scripts": {
     "test": "jest",
-    "start": "node --no-warnings -r esm index.js"
-  },
-  "esm": {
-    "await": true
+    "start": "ts-node index.ts"
   },
   "keywords": [
     "botmock",
@@ -17,8 +12,17 @@
     "nodejs"
   ],
   "prettier": {
-    "singleQuote": true,
+    "trailingComma": "es5",
+    "tabWidth": 2,
     "printWidth": 80
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "globals": {
+      "ts-jest": {
+        "tsConfig": "tsconfig.json"
+      }
+    }
   },
   "repository": {
     "type": "git",
@@ -26,17 +30,21 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@botmock-api/utils": "0.5.2",
+    "@botmock-api/utils": "1.1.0",
     "arg": "4.1.0",
     "async-sema": "2.2.0",
     "botmock": "^1.2.0",
     "camelcase": "5.3.1",
     "dotenv": "7.0.0",
-    "esm": "3.2.22",
     "mkdirp": "^0.5.1",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "jest": "24.7.1"
+    "@types/jest": "24.0.15",
+    "@types/node": "12.0.8",
+    "jest": "24.8.0",
+    "ts-jest": "24.0.2",
+    "ts-node": "8.3.0",
+    "typescript": "3.5.2"
   }
 }
