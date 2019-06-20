@@ -46,13 +46,14 @@ let semaphore;
 try {
   // limit write concurrency
   semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
+  // create instance of the class that maps the board payload to dialogflow format
   const provider = new Provider(platform);
   (async () => {
     // set a welcome-like intent if no intent from the root is defined
-    if (!intentMap.size) {
+    if (!intentMap.size || isMissingWelcomeIntent(board.messages)) {
       const { next_message_ids } = board.messages.find(messageIsRoot);
       const [{ message_id: firstNodeId }] = next_message_ids;
-      // add uuid to the map's value for use in the write loop below
+      // console.log(firstNodeId);
       intentMap.set(firstNodeId, [uuid()]);
     }
     // write intent and utterances files for each combination of (message, intent)
@@ -238,7 +239,7 @@ try {
   process.exit(1);
 }
 
-// copies file to its destination in output
+// copies file to its destination in the output directory
 async function copyFileToOutput(pathToFile, options = { isIntentFile: false }) {
   const pathToOutput = path.join(
     __dirname,
@@ -270,4 +271,10 @@ function hasWelcomeIntent(id) {
       a.previous_message_ids.filter(messageIsRoot).length
   );
   return id === message_id;
+}
+
+// determines if root node does not contain connections with intents
+function isMissingWelcomeIntent(messages) {
+  const [{ next_message_ids }] = messages.filter(messageIsRoot);
+  return next_message_ids.every(message => !message.intent);
 }
