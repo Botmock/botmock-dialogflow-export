@@ -48,11 +48,11 @@ try {
   semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
   const provider = new Provider(platform);
   (async () => {
-    // if there are no intents, set a welcome-like one
+    // set a welcome-like intent if no intent from the root is defined
     if (!intentMap.size) {
       const { next_message_ids } = board.messages.find(messageIsRoot);
       const [{ message_id: firstNodeId }] = next_message_ids;
-      // add uuid to the map's value to prevent bypassing the body of the loop below
+      // add uuid to the map's value for use in the write loop below
       intentMap.set(firstNodeId, [uuid()]);
     }
     // write intent and utterances files for each combination of (message, intent)
@@ -72,10 +72,10 @@ try {
         };
         const basename = `${name}_${camelcase(payload.nodeName)}`;
         const filePath = `${INTENT_PATH}/${basename}.json`;
+        // group together the nodes that do not create intents
         const intermediateNodes = collectIntermediateNodes(
           next_message_ids
         ).map(getMessage);
-        // Write the intent file
         await fs.promises.writeFile(
           filePath,
           JSON.stringify({
@@ -91,8 +91,8 @@ try {
                 speech: [],
                 parameters: [],
                 resetContexts: false,
-                // Output contexts are the union of the intents emanated from
-                // any intermediate nodes and those that emanate from _this_ node
+                // set affected contexts as the union of the intents going out of
+                // any intermediate nodes and those that go out of _this_ node
                 affectedContexts: [
                   ...intermediateNodes.reduce((acc, { next_message_ids }) => {
                     if (!next_message_ids.length) {
@@ -130,8 +130,8 @@ try {
             ]
           })
         );
-        // If we have utterances, write a file for them
         if (Array.isArray(utterances) && utterances.length) {
+          // write utterance file
           await fs.promises.writeFile(
             `${filePath.slice(0, -5)}_usersays_en.json`,
             JSON.stringify(
@@ -148,7 +148,6 @@ try {
                   {}
                 );
                 let lastIndex = 0;
-                // Append `data` by iterating over the variable's occurances
                 for (const [id, [start, end]] of Object.entries(pairs)) {
                   const previousBlock = [];
                   if (start !== lastIndex) {
@@ -193,7 +192,7 @@ try {
       semaphore.release();
     }
   })();
-  // Write entity files in one-to-one correspondence with original project
+  // write entity files in one-to-one correspondence with original project
   for (const entity of await client.getEntities()) {
     await fs.promises.writeFile(
       `${ENTITY_PATH}/${entity.name}.json`,
@@ -208,13 +207,12 @@ try {
       JSON.stringify(entity.data)
     );
   }
-  // Copy template files into output directory
   for (const filename of await fs.promises.readdir(
     path.join(__dirname, 'templates')
   )) {
     const pathToContent = path.join(__dirname, 'templates', filename);
     const stats = await fs.promises.stat(pathToContent);
-    // if this content of the templates directory is not itself a directory
+    // if this content of the templates directory is not itself a directory,
     // possibly copy the file over into the output directory
     if (!stats.isDirectory()) {
       if (filename.startsWith('intent') || filename.startsWith('entity')) {
@@ -240,7 +238,7 @@ try {
   process.exit(1);
 }
 
-// copy a file to its destination in output
+// copies file to its destination in output
 async function copyFileToOutput(pathToFile, options = { isIntentFile: false }) {
   const pathToOutput = path.join(
     __dirname,
@@ -251,17 +249,17 @@ async function copyFileToOutput(pathToFile, options = { isIntentFile: false }) {
   return await fs.promises.copyFile(pathToFile, pathToOutput);
 }
 
-// Gets the message with this id from the board
+// gets the message with this id from the board
 function getMessage(id) {
   return board.messages.find(m => m.message_id === id);
 }
 
-// Determines if `message` is the root
+// determines if `message` is the root
 function messageIsRoot(message) {
   return board.root_messages.includes(message.message_id);
 }
 
-// Determines if `id` is the node adjacent to root with max number of connections
+// determines if `id` is the node adjacent to root with max number of connections
 function hasWelcomeIntent(id) {
   const messages = intentMap.size
     ? board.messages.filter(message => intentMap.has(message.message_id))
