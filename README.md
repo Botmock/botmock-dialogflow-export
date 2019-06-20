@@ -9,14 +9,14 @@ Import [Botmock](https://botmock.com) projects in Dialogflow.
 Clone this repository and install dependencies:
 
 ```shell
-git clone git@github.com:Botmock/REPO_NAME.git
+git clone git@github.com:Botmock/botmock-dialogflow-export.git
 
-cd REPO_NAME
+cd botmock-dialogflow-export
 
 npm i
 ```
 
-Create `.env` in the newly made directory and fill in values for the following:
+Create `.env` in the newly-made directory and fill in values for the following:
 
 ```shell
 BOTMOCK_TOKEN="@YOUR-BOTMOCK-TOKEN"
