@@ -1,13 +1,17 @@
-import EventEmitter from 'events';
-import Botmock from 'botmock';
+import EventEmitter from "events";
+import Botmock from "botmock";
 
 export class SDKWrapper extends EventEmitter {
+  client: any;
+  emit: any;
+  args: string[];
+
   constructor({ isInDebug, hostname }) {
     super();
     this.client = new Botmock({
       api_token: process.env.BOTMOCK_TOKEN,
       debug: isInDebug,
-      url: hostname
+      url: hostname,
     });
     this.args = [process.env.BOTMOCK_TEAM_ID, process.env.BOTMOCK_PROJECT_ID];
   }
@@ -28,7 +32,7 @@ export class SDKWrapper extends EventEmitter {
       );
       return { platform, board, intents };
     } catch (err) {
-      this.emit('error', err);
+      this.emit("error", err);
     }
   }
 

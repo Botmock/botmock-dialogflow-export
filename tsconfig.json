@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "target": "es2017",
+    "incremental": true,
+    "sourceMap": true,
+    "esModuleInterop": true
+  },
+  "exclude": ["node_modules"]
+}
