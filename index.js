@@ -2,28 +2,27 @@
 import * as utils from '@botmock-api/utils';
 import camelcase from 'camelcase';
 import mkdirp from 'mkdirp';
-import chalk from 'chalk';
 import Sema from 'async-sema';
 import uuid from 'uuid/v4';
 import fs from 'fs';
 import os from 'os';
-import { join } from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import path from 'path';
+import util from 'util';
 import { Provider } from './lib/providers';
 import { SDKWrapper } from './lib/util/SDKWrapper';
-import { getArgs, templates, SUPPORTED_PLATFORMS } from './lib/util';
+import {
+  getArgs,
+  templates,
+  SUPPORTED_PLATFORMS,
+  ZIP_PATH,
+  OUTPUT_PATH,
+  INTENT_PATH,
+  ENTITY_PATH
+} from './lib/util';
 
-const mkdirpP = promisify(mkdirp);
-const execP = promisify(exec);
-const ZIP_PATH = join(process.cwd(), 'output.zip');
-const OUTPUT_PATH = join(process.cwd(), 'output');
-const INTENT_PATH = join(OUTPUT_PATH, 'intents');
-const ENTITY_PATH = join(OUTPUT_PATH, 'entities');
-
-// Create directories
-await mkdirpP(INTENT_PATH);
-await mkdirpP(ENTITY_PATH);
+// Create directories for intents and entities
+await util.promisify(mkdirp)(INTENT_PATH);
+await util.promisify(mkdirp)(ENTITY_PATH);
 
 // Boot up client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
@@ -37,17 +36,17 @@ if (platform === 'google-actions') {
   platform = 'google';
 }
 
-let semaphore;
 const intentMap = utils.createIntentMap(board.messages);
 const collectIntermediateNodes = utils.createNodeCollector(
   intentMap,
   getMessage
 );
 
+let semaphore;
 try {
+  // limit write concurrency
   semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
   const provider = new Provider(platform);
-  // Write intent and utterances files for each combination of message -> intent
   (async () => {
     // if there are no intents, set a welcome-like one
     if (!intentMap.size) {
@@ -56,6 +55,7 @@ try {
       // add uuid to the map's value to prevent bypassing the body of the loop below
       intentMap.set(firstNodeId, [uuid()]);
     }
+    // write intent and utterances files for each combination of (message, intent)
     for (const [key, intentIds] of intentMap.entries()) {
       await semaphore.acquire();
       const {
@@ -71,13 +71,13 @@ try {
           utterances: []
         };
         const basename = `${name}_${camelcase(payload.nodeName)}`;
-        const path = `${INTENT_PATH}/${basename}.json`;
+        const filePath = `${INTENT_PATH}/${basename}.json`;
         const intermediateNodes = collectIntermediateNodes(
           next_message_ids
         ).map(getMessage);
         // Write the intent file
         await fs.promises.writeFile(
-          path,
+          filePath,
           JSON.stringify({
             ...templates.intent,
             id: uuid(),
@@ -133,7 +133,7 @@ try {
         // If we have utterances, write a file for them
         if (Array.isArray(utterances) && utterances.length) {
           await fs.promises.writeFile(
-            `${path.slice(0, -5)}_usersays_en.json`,
+            `${filePath.slice(0, -5)}_usersays_en.json`,
             JSON.stringify(
               utterances.map(utterance => {
                 const data = [];
@@ -209,31 +209,46 @@ try {
     );
   }
   // Copy template files into output directory
-  for (const filename of await fs.promises.readdir(`${__dirname}/templates`)) {
-    if (filename.startsWith('intent') || filename.startsWith('entity')) {
-      continue;
+  for (const filename of await fs.promises.readdir(
+    path.join(__dirname, 'templates')
+  )) {
+    const pathToContent = path.join(__dirname, 'templates', filename);
+    const stats = await fs.promises.stat(pathToContent);
+    // if this content of the templates directory is not itself a directory
+    // possibly copy the file over into the output directory
+    if (!stats.isDirectory()) {
+      if (filename.startsWith('intent') || filename.startsWith('entity')) {
+        continue;
+      }
+      await copyFileToOutput(pathToContent);
+    } else {
+      // assume these are the templates for the default intents; copy them
+      // into the intents directory
+      for (const file of await fs.promises.readdir(pathToContent)) {
+        await copyFileToOutput(path.join(pathToContent, file), {
+          isIntentFile: true
+        });
+      }
     }
-    await fs.promises.copyFile(
-      `${__dirname}/templates/${filename}`,
-      `${__dirname}/output/${filename}`
-    );
   }
-  // Remove zip file if it exists; then zip and remove output dir
-  try {
-    await fs.promises.access(ZIP_PATH, fs.constants.F_OK);
-    await fs.promises.unlink(ZIP_PATH);
-  } catch (_) {
-  } finally {
-    await execP(`zip -r ${process.cwd()}/output.zip ${process.cwd()}/output`);
-    // await execP(`rm -rf ${process.cwd()}/output`);
-  }
-  console.log(chalk.bold('done'));
+  console.log(`Done. Compress ${path.sep}${path.basename(OUTPUT_PATH)}.`);
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     await semaphore.drain();
   }
   console.error(err.stack);
   process.exit(1);
+}
+
+// copy a file to its destination in output
+async function copyFileToOutput(pathToFile, options = { isIntentFile: false }) {
+  const pathToOutput = path.join(
+    __dirname,
+    'output',
+    options.isIntentFile ? 'intents' : '',
+    path.basename(pathToFile)
+  );
+  return await fs.promises.copyFile(pathToFile, pathToOutput);
 }
 
 // Gets the message with this id from the board
