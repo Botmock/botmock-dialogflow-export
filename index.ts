@@ -1,5 +1,5 @@
+import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
 import { config } from "dotenv";
-import * as utils from "@botmock-api/utils";
 import camelcase from "camelcase";
 import mkdirp from "mkdirp";
 import Sema from "async-sema";
@@ -72,8 +72,8 @@ try {
       platform = "google";
     }
 
-    const intentMap = utils.createIntentMap(board.messages);
-    const collectIntermediateNodes = utils.createNodeCollector(
+    const intentMap = createIntentMap(board.messages);
+    const collectIntermediateNodes = createMessageCollector(
       intentMap,
       getMessage
     );
@@ -111,7 +111,7 @@ try {
             next_message_ids
           ).map(getMessage);
           const getNameOfIntent = (value: string) => {
-            const { name: IntentName }: any = intents.get(value);
+            const { name: IntentName }: any = intents.get(value) || {};
             return IntentName;
           };
           await fs.promises.writeFile(
