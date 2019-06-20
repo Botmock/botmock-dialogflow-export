@@ -6,7 +6,8 @@
   "module": "index.js",
   "scripts": {
     "test": "jest",
-    "start": "node --no-warnings -r esm index.js"
+    "start": "node --no-warnings -r esm index.js",
+    "debug": "node --no-warnings inspect -r esm index.js"
   },
   "esm": {
     "await": true

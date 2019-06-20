@@ -31,13 +31,14 @@ npm start
 
 - Run `npm install`
 - Run `npm start`
-- Find your zipped project in `/output.zip`
 
 ### Importing to Dialogflow
 
-- Visit [your dashboard](console.dialogflow.com) and create a new agent
+- Compress the `output` directory
+- Visit [your dashboard](console.dialogflow.com) and create a new agent by clicking "Create new agent" in the top left dropdown.
+- Click the gear icon at the top of the left sidebar.
 - Choose the 'Export and Import' tab and choose 'Import From Zip'
-- Select `/output.zip`, typing 'IMPORT' in their form field and clicking 'IMPORT'
+- Choose your compressed `output` (e.g. `output.zip`), typing 'IMPORT' into the form field and clicking 'IMPORT'
 
 ## Glossary
 
