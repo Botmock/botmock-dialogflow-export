@@ -20,11 +20,11 @@ import {
   ENTITY_PATH
 } from './lib/util';
 
-// Create directories for intents and entities
+// create directories for intents and entities
 await util.promisify(mkdirp)(INTENT_PATH);
 await util.promisify(mkdirp)(ENTITY_PATH);
 
-// Boot up client with any args passed from command line
+// boot up client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
 client.on('error', err => {
   console.error(err);
@@ -254,12 +254,12 @@ function getMessage(id) {
   return board.messages.find(m => m.message_id === id);
 }
 
-// determines if `message` is the root
+// determines if given message is the root
 function messageIsRoot(message) {
   return board.root_messages.includes(message.message_id);
 }
 
-// determines if `id` is the node adjacent to root with max number of connections
+// determines if given id is the node adjacent to root with max number of connections
 function hasWelcomeIntent(id) {
   const messages = intentMap.size
     ? board.messages.filter(message => intentMap.has(message.message_id))
