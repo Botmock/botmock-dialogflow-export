@@ -6,16 +6,27 @@ Import [Botmock](https://botmock.com) projects in Dialogflow.
 
 ## Guide
 
-### Running the script
+Clone this repository and install dependencies:
 
-- Clone this repo by running `git clone git@github.com:Botmock/botmock-dialogflow-export.git`
-- Create a `.env` file in `/botmock-dialogflow-export` with the following variables (and your values filled in)
+```shell
+git clone git@github.com:Botmock/REPO_NAME.git
 
-```console
-BOTMOCK_TOKEN=""
-BOTMOCK_TEAM_ID=""
-BOTMOCK_PROJECT_ID=""
-BOTMOCK_BOARD_ID=""
+cd REPO_NAME
+
+npm i
+```
+
+Create `.env` in the newly made directory and fill in values for the following:
+
+```shell
+BOTMOCK_TOKEN="@YOUR-BOTMOCK-TOKEN"
+BOTMOCK_TEAM_ID="@YOUR-BOTMOCK-TEAM-ID"
+BOTMOCK_BOARD_ID="@YOUR-BOTMOCK-BOARD-ID"
+BOTMOCK_PROJECT_ID="@YOUR-BOTMOCK-PROJECT-ID"
+```
+
+```shell
+npm start
 ```
 
 - Run `npm install`
