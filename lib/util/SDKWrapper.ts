@@ -4,6 +4,7 @@ import Botmock from "botmock";
 export class SDKWrapper extends EventEmitter {
   client: any;
   emit: any;
+  on: any;
   args: string[];
 
   constructor({ isInDebug, hostname }) {

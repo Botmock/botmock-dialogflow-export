@@ -86,7 +86,6 @@ try {
       if (!intentMap.size || isMissingWelcomeIntent(board.messages)) {
         const { next_message_ids } = board.messages.find(messageIsRoot);
         const [{ message_id: firstNodeId }] = next_message_ids;
-        // console.log(firstNodeId);
         intentMap.set(firstNodeId, [uuid()]);
       }
       // write intent and utterances files for each combination of (message, intent)
@@ -232,18 +231,23 @@ try {
         semaphore.release();
       }
     })();
-    // write entity files in one-to-one correspondence with original project
+    // write entity files in one-to-one correspondence with project
     for (const entity of await client.getEntities()) {
+      const pathToEntityFile = path.join(ENTITY_PATH, `${entity.name}.json`);
       await fs.promises.writeFile(
-        `${ENTITY_PATH}/${entity.name}.json`,
+        pathToEntityFile,
         JSON.stringify({
           ...templates.entity,
           id: uuid(),
           name: entity.name,
         })
       );
+      const pathToEntityEntriesFile = path.join(
+        ENTITY_PATH,
+        `${entity.name}_entries_en.json`
+      );
       await fs.promises.writeFile(
-        `${ENTITY_PATH}/${entity.name}_entries_en.json`,
+        pathToEntityEntriesFile,
         JSON.stringify(entity.data)
       );
     }
@@ -273,7 +277,7 @@ try {
   console.log(`Done. Compress ${path.sep}${path.basename(OUTPUT_PATH)}.`);
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
-    // semaphore.drain();
+    semaphore.drain();
   }
   console.error(err.stack);
   process.exit(1);
