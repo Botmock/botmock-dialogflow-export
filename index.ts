@@ -1,5 +1,5 @@
+import "dotenv/config";
 import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
-import { config } from "dotenv";
 import camelcase from "camelcase";
 import mkdirp from "mkdirp";
 import Sema from "async-sema";
@@ -20,12 +20,9 @@ import {
   ENTITY_PATH,
 } from "./lib/util";
 
-// bring environment variables into scope
-config();
-
-// boot up client with any args passed from command line
+// boot up botmock client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
-// exit on error
+
 client.on("error", err => {
   console.error(err);
   process.exit(1);
