@@ -3,9 +3,6 @@ import path from "path";
 import arg from "arg";
 
 export const ZIP_PATH = path.join(process.cwd(), "output.zip");
-export const OUTPUT_PATH = path.join(process.cwd(), "output");
-export const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
-export const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
 
 // parse argument vector for flags
 export function getArgs(argv) {

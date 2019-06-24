@@ -10,19 +10,11 @@ import util from "util";
 import fs, { Stats } from "fs";
 import { Provider } from "./lib/providers";
 import { SDKWrapper } from "./lib/util/SDKWrapper";
-import {
-  getArgs,
-  templates,
-  SUPPORTED_PLATFORMS,
-  ZIP_PATH,
-  OUTPUT_PATH,
-  INTENT_PATH,
-  ENTITY_PATH,
-} from "./lib/util";
+import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
 // boot up botmock client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
-
+// handle sdk errors
 client.on("error", err => {
   console.error(err);
   process.exit(1);
@@ -30,6 +22,9 @@ client.on("error", err => {
 
 let semaphore;
 try {
+  const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
+  const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
+  const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
   (async () => {
     // create directories for intents and entities
     await util.promisify(mkdirp)(INTENT_PATH);
@@ -244,6 +239,20 @@ try {
         JSON.stringify(entity.data)
       );
     }
+    // copies file to its destination in the output directory
+    async function copyFileToOutput(
+      pathToFile,
+      options = { isIntentFile: false }
+    ) {
+      const pathToOutput = path.join(
+        __dirname,
+        "output",
+        options.isIntentFile ? "intents" : "",
+        path.basename(pathToFile)
+      );
+      return await fs.promises.copyFile(pathToFile, pathToOutput);
+    }
+    // copy templates over to the output destination
     for (const filename of await fs.promises.readdir(
       path.join(__dirname, "templates")
     )) {
@@ -291,15 +300,4 @@ try {
   }
   console.error(err.stack);
   process.exit(1);
-}
-
-// copies file to its destination in the output directory
-async function copyFileToOutput(pathToFile, options = { isIntentFile: false }) {
-  const pathToOutput = path.join(
-    __dirname,
-    "output",
-    options.isIntentFile ? "intents" : "",
-    path.basename(pathToFile)
-  );
-  return await fs.promises.copyFile(pathToFile, pathToOutput);
 }

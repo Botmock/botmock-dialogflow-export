@@ -6,17 +6,23 @@ export * from "./Generic";
 export class Provider {
   platform: any;
 
-  constructor(p) {
-    let mod;
+  constructor(platform) {
+    let mod: any;
+    // assign the platform's class to this provider instance
     try {
-      mod = require(`./${p.replace(/^\w/, p.substr(0, 1).toUpperCase())}`);
+      mod = require(`./${platform.replace(
+        /^\w/,
+        platform.substr(0, 1).toUpperCase()
+      )}`);
     } catch (_) {
       mod = require("./Generic");
     }
     this.platform = new mod();
   }
+
   create(type, data) {
     const platform = this.platform.constructor.name.toLowerCase();
+    // get the correct method on the correct class
     let method = Object.getOwnPropertyNames(
       Object.getPrototypeOf(this.platform)
     ).find(prop => type.includes(prop));
