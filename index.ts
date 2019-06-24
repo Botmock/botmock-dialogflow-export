@@ -4,10 +4,10 @@ import camelcase from "camelcase";
 import mkdirp from "mkdirp";
 import Sema from "async-sema";
 import uuid from "uuid/v4";
-import fs from "fs";
 import os from "os";
 import path from "path";
 import util from "util";
+import fs, { Stats } from "fs";
 import { Provider } from "./lib/providers";
 import { SDKWrapper } from "./lib/util/SDKWrapper";
 import {
@@ -248,7 +248,7 @@ try {
       path.join(__dirname, "templates")
     )) {
       const pathToContent = path.join(__dirname, "templates", filename);
-      const stats = await fs.promises.stat(pathToContent);
+      const stats: Stats = await fs.promises.stat(pathToContent);
       // if this content of the templates directory is not itself a directory,
       // possibly copy the file over into the output directory
       if (!stats.isDirectory()) {
@@ -269,7 +269,8 @@ try {
     let sum: number = 0;
     // explore contents of output path to find sum of all file sizes
     await (async function findInnerFileSizeSum(pathTo: string) {
-      const stat = await fs.promises.stat(pathTo);
+      const stat: Stats = await fs.promises.stat(pathTo);
+      // if this content is a directory, call again with its contents
       if (stat.isDirectory()) {
         for (const content of await fs.promises.readdir(pathTo)) {
           return findInnerFileSizeSum(path.join(pathTo, content));
