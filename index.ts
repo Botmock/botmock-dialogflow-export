@@ -31,16 +31,21 @@ client.on("error", err => {
 let semaphore;
 try {
   (async () => {
+    // create directories for intents and entities
+    await util.promisify(mkdirp)(INTENT_PATH);
+    await util.promisify(mkdirp)(ENTITY_PATH);
+    let { platform, board, intents } = await client.init();
+    if (platform === "google-actions") {
+      platform = "google";
+    }
     // gets the message with this id from the board
     function getMessage(id) {
       return board.messages.find(m => m.message_id === id);
     }
-
     // determines if given message is the root
     function messageIsRoot(message) {
       return board.root_messages.includes(message.message_id);
     }
-
     // determines if given id is the node adjacent to root with max number of connections
     function hasWelcomeIntent(id) {
       const messages = intentMap.size
@@ -53,23 +58,14 @@ try {
       );
       return id === message_id;
     }
-
     // determines if root node does not contain connections with intents
     function isMissingWelcomeIntent(messages) {
       const [{ next_message_ids }] = messages.filter(messageIsRoot);
       return next_message_ids.every(message => !message.intent);
     }
-
-    // create directories for intents and entities
-    await util.promisify(mkdirp)(INTENT_PATH);
-    await util.promisify(mkdirp)(ENTITY_PATH);
-
-    let { platform, board, intents } = await client.init();
-    if (platform === "google-actions") {
-      platform = "google";
-    }
-
+    // create map of message ids to ids of intents connected to them
     const intentMap = createIntentMap(board.messages);
+    // from next messages, collects all reachable nodes not connected by intents
     const collectIntermediateNodes = createMessageCollector(
       intentMap,
       getMessage
@@ -107,8 +103,8 @@ try {
             next_message_ids
           ).map(getMessage);
           const getNameOfIntent = (value: string) => {
-            const { name: IntentName }: any = intents.get(value) || {};
-            return IntentName;
+            const { name: intentName }: any = intents.get(value) || {};
+            return intentName;
           };
           await fs.promises.writeFile(
             filePath,
@@ -270,8 +266,24 @@ try {
         }
       }
     }
+    let sum: number = 0;
+    // explore contents of output path to find sum of all file sizes
+    await (async function findInnerFileSizeSum(pathTo: string) {
+      const stat = await fs.promises.stat(pathTo);
+      if (stat.isDirectory()) {
+        for (const content of await fs.promises.readdir(pathTo)) {
+          return findInnerFileSizeSum(path.join(pathTo, content));
+        }
+      } else if (stat.isFile()) {
+        const { size } = await fs.promises.stat(pathTo);
+        sum += size;
+      }
+    })(OUTPUT_PATH);
+    console.log(
+      `Completed writing to ${path.sep}${path.basename(OUTPUT_PATH)} (${sum /
+        1000}kB)`
+    );
   })();
-  console.log(`Done. Compress ${path.sep}${path.basename(OUTPUT_PATH)}.`);
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
     semaphore.drain();
