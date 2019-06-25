@@ -51,11 +51,10 @@ npm start
 
 ## glossary
 
-| **Botmock**    | **Dialogflow**  |
-| -------------- | --------------- |
-| message / node | intent          |
-| utterance      | training phrase |
-| variable       | parameter       |
+| **Botmock** | **Dialogflow**  |
+| ----------- | --------------- |
+| utterance   | training phrase |
+| variable    | parameter       |
 
 ## want to help?
 
