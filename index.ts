@@ -14,14 +14,11 @@ import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
 // boot up botmock client with any args passed from command line
 const client = new SDKWrapper(getArgs(process.argv));
-// handle sdk errors
-client.on("error", err => {
-  console.error(err);
-  process.exit(1);
-});
-
 let semaphore;
 try {
+  client.on("error", err => {
+    throw err;
+  });
   const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");

@@ -1,10 +1,18 @@
 # Botmock Dialogflow Export
 
-> requires node >= 10.16.x
-
 Import [Botmock](https://botmock.com) projects in Dialogflow.
 
-## Guide
+## prerequisites
+
+- [Node.js](https://nodejs.org/en/) >= 10.16.x
+
+```shell
+node --version
+```
+
+- [Dialogflow](https://console.dialogflow.com) account
+
+### guide
 
 Clone this repository and install dependencies:
 
@@ -25,6 +33,8 @@ BOTMOCK_BOARD_ID="@YOUR-BOTMOCK-BOARD-ID"
 BOTMOCK_PROJECT_ID="@YOUR-BOTMOCK-PROJECT-ID"
 ```
 
+Start the script:
+
 ```shell
 npm start
 ```
@@ -33,13 +43,13 @@ npm start
 - Run `npm start`
 - Find your zipped project in `/output.zip`
 
-### Importing to Dialogflow
+### importing to Dialogflow
 
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
 - Choose the 'Export and Import' tab and choose 'Import From Zip'
 - Select `/output.zip`, typing 'IMPORT' in their form field and clicking 'IMPORT'
 
-## Glossary
+## glossary
 
 | **Botmock**    | **Dialogflow**  |
 | -------------- | --------------- |
@@ -47,11 +57,11 @@ npm start
 | utterance      | training phrase |
 | variable       | parameter       |
 
-## Want to help?
+## want to help?
 
 Found bugs or have some ideas to improve this plugin? We'd love to to hear from you! You can start by submitting an issue at the [Issues](https://github.com/Botmock/botmock-dialogflow-export/issues) tab. If you want, feel free to submit a pull request and propose a change as well!
 
-### Submitting a Pull Request
+### submitting a Pull Request
 
 1. Adding a Pull Request
 2. Start with creating an issue if possible, the more information, the better!
@@ -61,6 +71,6 @@ Found bugs or have some ideas to improve this plugin? We'd love to to hear from 
 
 _NOTE: Make sure to leave any sensitive information out of an issue when reporting a bug with imagery or copying and pasting error data. We want to make sure all your info is safe!_
 
-## License
+## license
 
 Botmock Dialogflow Export is copyright © 2019 Botmock. It is free software, and may be redistributed under the terms specified in the LICENSE file.
