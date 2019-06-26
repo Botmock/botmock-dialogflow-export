@@ -34,7 +34,6 @@
     "arg": "4.1.0",
     "async-sema": "2.2.0",
     "botmock": "^1.2.0",
-    "camelcase": "5.3.1",
     "dotenv": "7.0.0",
     "fs-extra": "8.0.1",
     "mkdirp": "^0.5.1",

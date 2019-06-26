@@ -1,6 +1,5 @@
 import "dotenv/config";
 import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
-import camelcase from "camelcase";
 import { remove } from "fs-extra";
 import mkdirp from "mkdirp";
 import Sema from "async-sema";
