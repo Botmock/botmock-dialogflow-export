@@ -84,6 +84,7 @@ try {
         const {
           message_type,
           payload,
+          message_id,
           next_message_ids,
           previous_message_ids,
         } = getMessage(key);
@@ -93,7 +94,7 @@ try {
             updated_at: Date.now(),
             utterances: [],
           };
-          const basename = `${name}_${camelcase(payload.nodeName)}`;
+          const basename = `${payload.nodeName}(${message_id})_${name}`;
           const filePath = `${INTENT_PATH}/${basename}.json`;
           // group together the nodes that do not create intents
           const intermediateNodes = collectIntermediateNodes(
