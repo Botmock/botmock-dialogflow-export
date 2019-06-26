@@ -66,9 +66,9 @@ try {
       intentMap,
       getMessage
     );
-    // limit write concurrency
+    // create instance of semaphore class to control write concurrency
     semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
-    // create instance of the class that maps the board payload to dialogflow format
+    // create instance of class that maps the board payload to dialogflow format
     const provider = new Provider(platform);
     (async () => {
       // set a welcome-like intent if no intent from the root is defined
@@ -298,8 +298,11 @@ try {
   })();
 } catch (err) {
   if (semaphore && semaphore.nrWaiting() > 0) {
-    semaphore.drain();
+    semaphore.drain().then(() => {
+      process.exit(1);
+    });
+  } else {
+    console.error(err);
+    process.exit(1);
   }
-  console.error(err.stack);
-  process.exit(1);
 }
