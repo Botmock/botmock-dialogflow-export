@@ -58,7 +58,10 @@ try {
       return next_message_ids.every(message => !message.intent);
     }
     // create map of message ids to ids of intents connected to them
-    const intentMap = createIntentMap(board.messages);
+    const intentMap = createIntentMap(
+      board.messages,
+      Array.from(intents).map(([id, values]) => ({ id, ...values }))
+    );
     // from next messages, collects all reachable nodes not connected by intents
     const collectIntermediateNodes = createMessageCollector(
       intentMap,
