@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
 import camelcase from "camelcase";
+import { remove } from "fs-extra";
 import mkdirp from "mkdirp";
 import Sema from "async-sema";
 import uuid from "uuid/v4";
@@ -23,7 +24,8 @@ try {
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
   (async () => {
-    // create directories for intents and entities
+    // remove any preexisting output
+    await remove(OUTPUT_PATH);
     await util.promisify(mkdirp)(INTENT_PATH);
     await util.promisify(mkdirp)(ENTITY_PATH);
     let { platform, board, intents } = await client.init();
