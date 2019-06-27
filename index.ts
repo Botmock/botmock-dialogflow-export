@@ -149,12 +149,22 @@ try {
                   )
                     ? { [platform.toLowerCase()]: true }
                     : {},
-                  messages: [
-                    { message_type, payload },
-                    ...intermediateNodes,
-                  ].map(message =>
-                    provider.create(message.message_type, message.payload)
-                  ),
+                  messages: [{ message_type, payload }, ...intermediateNodes]
+                    .map(message =>
+                      provider.create(message.message_type, message.payload)
+                    )
+                    // dialogflow has a constraint that chat bubbles always must come before cards
+                    .sort((a, b) => a.type.length - b.type.length)
+                    // dialogflow also has a constraint around the responses for an intnet
+                    .reduce((acc, message) => {
+                      // let contentSum: number = 0;
+                      // switch (message.type) {
+                      //   case "suggestion_chips":
+                      //     break;
+                      //   case "simple_response"
+                      // }
+                      return [...acc];
+                    }, []),
                 },
               ],
             })
