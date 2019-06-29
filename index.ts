@@ -155,7 +155,7 @@ try {
                     )
                     // dialogflow has a constraint that chat bubbles always must come before cards
                     .sort((a, b) => a.type.length - b.type.length)
-                    // dialogflow also has a constraint around the responses for an intnet
+                    // dialogflow has a constraint around the combinations of responses
                     .reduce((acc, message) => {
                       // let contentSum: number = 0;
                       // switch (message.type) {
@@ -288,19 +288,22 @@ try {
       }
     }
     let sum: number = 0;
-    // explore contents of output path to find sum of all file sizes
-    await (async function findInnerFileSizeSum(pathTo: string) {
-      const stat: Stats = await fs.promises.stat(pathTo);
-      // if this content is a directory, call again with its contents
-      if (stat.isDirectory()) {
-        for (const content of await fs.promises.readdir(pathTo)) {
-          return findInnerFileSizeSum(path.join(pathTo, content));
+    // calculate uncompressed output file size
+    for (const content of await fs.promises.readdir(OUTPUT_PATH)) {
+      const pathTo = path.join(OUTPUT_PATH, content);
+      const stats = await fs.promises.stat(pathTo);
+      if (stats.isFile()) {
+        sum += stats.size;
+      } else if (stats.isDirectory()) {
+        // for each file in this directory, find its size and sum it
+        for await (const file of (await fs.promises.readdir(pathTo)).filter(
+          async (dirContent: any) =>
+            (await fs.promises.stat(path.join(pathTo, dirContent))).isFile()
+        )) {
+          sum += (await fs.promises.stat(path.join(pathTo, file))).size;
         }
-      } else if (stat.isFile()) {
-        const { size } = await fs.promises.stat(pathTo);
-        sum += size;
       }
-    })(OUTPUT_PATH);
+    }
     console.log(
       `Completed writing to ${path.sep}${path.basename(OUTPUT_PATH)} (${sum /
         1000}kB)`
