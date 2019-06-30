@@ -30,7 +30,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@botmock-api/utils": "1.4.0",
+    "@botmock-api/utils": "2.1.0",
     "arg": "4.1.0",
     "async-sema": "2.2.0",
     "botmock": "^1.2.0",
