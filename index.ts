@@ -23,7 +23,7 @@ const numericalNodeVersion = parseInt(
   10
 );
 
-if (numericalNodeVersion <= MIN_NODE_VERSION) {
+if (numericalNodeVersion < MIN_NODE_VERSION) {
   throw new Error("this script requires node.js version 10.16.0 or greater");
 }
 
