@@ -153,16 +153,11 @@ try {
                     .map(message =>
                       provider.create(message.message_type, message.payload)
                     )
-                    // dialogflow has a constraint that chat bubbles always must come before cards
+                    // sort to abide by dialogflow's rule that chat bubbles come before cards
                     .sort((a, b) => a.type.length - b.type.length)
-                    // dialogflow has a constraint around the combinations of responses
+                    // abide by dialogflow's response limiting
                     .reduce((acc, message) => {
-                      // let contentSum: number = 0;
-                      // switch (message.type) {
-                      //   case "suggestion_chips":
-                      //     break;
-                      //   case "simple_response"
-                      // }
+                      // console.log(message);
                       return [...acc];
                     }, []),
                 },
@@ -295,8 +290,8 @@ try {
       if (stats.isFile()) {
         sum += stats.size;
       } else if (stats.isDirectory()) {
-        // for each file in this directory, find its size and sum it
-        for await (const file of (await fs.promises.readdir(pathTo)).filter(
+        // for each file in this directory, find its size and add it to the total
+        for (const file of (await fs.promises.readdir(pathTo)).filter(
           async (dirContent: any) =>
             (await fs.promises.stat(path.join(pathTo, dirContent))).isFile()
         )) {
