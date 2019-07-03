@@ -8,17 +8,13 @@ import os from "os";
 import path from "path";
 import util from "util";
 import fs, { Stats } from "fs";
+import BoardExplorer from "./lib/util/BoardExplorer";
+import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
-import { SDKWrapper } from "./lib/util/SDKWrapper";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
-// boot up botmock client with any args passed from command line
-const client = new SDKWrapper(getArgs(process.argv));
 let semaphore;
 try {
-  client.on("error", err => {
-    throw err;
-  });
   const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
@@ -27,53 +23,39 @@ try {
     await remove(OUTPUT_PATH);
     await util.promisify(mkdirp)(INTENT_PATH);
     await util.promisify(mkdirp)(ENTITY_PATH);
-    let { platform, board, intents } = await client.init();
+    // fetch project data via the botmock api
+    const project: any = await getProjectData({
+      projectId: process.env.BOTMOCK_PROJECT_ID,
+      boardId: process.env.BOTMOCK_BOARD_ID,
+      teamId: process.env.BOTMOCK_TEAM_ID,
+      token: process.env.BOTMOCK_TOKEN,
+    });
+    // throw in the case of any errors returned from the api request
+    for (const { error } of project.errors) {
+      throw new Error(error);
+    }
+    let [intents, entities, board, { platform }] = project.data;
     if (platform === "google-actions") {
       platform = "google";
     }
-    // gets the message with this id from the board
-    function getMessage(id) {
-      return board.messages.find(m => m.message_id === id);
-    }
-    // determines if given message is the root
-    function messageIsRoot(message) {
-      return board.root_messages.includes(message.message_id);
-    }
-    // determines if given id is the node adjacent to root with max number of connections
-    function hasWelcomeIntent(id) {
-      const messages = intentMap.size
-        ? board.messages.filter(message => intentMap.has(message.message_id))
-        : board.messages;
-      const [{ message_id }] = messages.sort(
-        (a, b) =>
-          b.previous_message_ids.filter(messageIsRoot).length -
-          a.previous_message_ids.filter(messageIsRoot).length
-      );
-      return id === message_id;
-    }
-    // determines if root node does not contain connections with intents
-    function isMissingWelcomeIntent(messages) {
-      const [{ next_message_ids }] = messages.filter(messageIsRoot);
-      return next_message_ids.every(message => !message.intent);
-    }
     // create map of message ids to ids of intents connected to them
-    const intentMap = createIntentMap(
-      board.messages,
-      Array.from(intents).map(([id, values]) => ({ id, ...values }))
-    );
-    // from next messages, collects all reachable nodes not connected by intents
-    const collectIntermediateNodes = createMessageCollector(
-      intentMap,
-      getMessage
-    );
+    const intentMap = createIntentMap(board.messages, intents);
     // create instance of semaphore class to control write concurrency
     semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
     // create instance of class that maps the board payload to dialogflow format
-    const provider = new Provider(platform);
     (async () => {
+      const provider = new Provider(platform);
+      const explorer = new BoardExplorer({ board, intentMap });
+      // from next messages, collects all reachable nodes not connected by intents
+      const collectIntermediateNodes = createMessageCollector(
+        intentMap,
+        explorer.getMessageFromId.bind(explorer)
+      );
       // set a welcome-like intent if no intent from the root is defined
-      if (!intentMap.size || isMissingWelcomeIntent(board.messages)) {
-        const { next_message_ids } = board.messages.find(messageIsRoot);
+      if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
+        const { next_message_ids } = board.messages.find(
+          explorer.messageIsRoot.bind(explorer)
+        );
         const [{ message_id: firstNodeId }] = next_message_ids;
         intentMap.set(firstNodeId, [uuid()]);
       }
@@ -86,9 +68,11 @@ try {
           message_id,
           next_message_ids,
           previous_message_ids,
-        } = getMessage(key);
-        for (const intent of intentIds) {
-          const { name, updated_at, utterances }: any = intents.get(intent) || {
+        } = explorer.getMessageFromId(key);
+        for (const intentId of intentIds) {
+          const { name, updated_at, utterances }: any = intents.find(
+            i => i.id === intentId
+          ) || {
             name: "welcome",
             updated_at: Date.now(),
             utterances: [],
@@ -98,9 +82,10 @@ try {
           // group together the nodes that do not create intents
           const intermediateNodes = collectIntermediateNodes(
             next_message_ids
-          ).map(getMessage);
+          ).map(explorer.getMessageFromId.bind(explorer));
           const getNameOfIntent = (value: string) => {
-            const { name: intentName }: any = intents.get(value) || {};
+            const { name: intentName }: any =
+              intents.find(i => i.id === intentId) || {};
             return intentName;
           };
           await fs.promises.writeFile(
@@ -109,8 +94,12 @@ try {
               ...templates.intent,
               id: uuid(),
               name: basename,
-              contexts: hasWelcomeIntent(key) ? [] : [getNameOfIntent(intent)],
-              events: hasWelcomeIntent(key) ? [{ name: "WELCOME" }] : [],
+              contexts: explorer.hasWelcomeIntent(key)
+                ? []
+                : [getNameOfIntent(intentId)],
+              events: explorer.hasWelcomeIntent(key)
+                ? [{ name: "WELCOME" }]
+                : [],
               lastUpdate: Date.parse(updated_at.date),
               responses: [
                 {
@@ -227,7 +216,7 @@ try {
       }
     })();
     // write entity files in one-to-one correspondence with project
-    for (const entity of await client.getEntities()) {
+    for (const entity of entities) {
       const pathToEntityFile = path.join(ENTITY_PATH, `${entity.name}.json`);
       await fs.promises.writeFile(
         pathToEntityFile,

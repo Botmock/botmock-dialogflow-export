@@ -31,12 +31,14 @@
   "license": "MIT",
   "dependencies": {
     "@botmock-api/utils": "2.1.0",
+    "@types/node-fetch": "2.3.7",
     "arg": "4.1.0",
     "async-sema": "2.2.0",
     "botmock": "^1.2.0",
     "dotenv": "7.0.0",
     "fs-extra": "8.0.1",
     "mkdirp": "^0.5.1",
+    "node-fetch": "2.6.0",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
