@@ -65,6 +65,11 @@ try {
         intentMap,
         explorer.getMessageFromId.bind(explorer)
       );
+      // get the name of the intent from its id
+      const getNameOfIntent = (id: string) => {
+        const { name: intentName }: any = intents.find(i => i.id === id) || {};
+        return intentName;
+      };
       // set a welcome-like intent if no intent from the root is defined
       if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
         const { next_message_ids } = board.messages.find(
@@ -97,11 +102,6 @@ try {
           const intermediateNodes = collectIntermediateNodes(
             next_message_ids
           ).map(explorer.getMessageFromId.bind(explorer));
-          const getNameOfIntent = (value: string) => {
-            const { name: intentName }: any =
-              intents.find(i => i.id === intentId) || {};
-            return intentName;
-          };
           await fs.promises.writeFile(
             filePath,
             JSON.stringify({
@@ -157,10 +157,10 @@ try {
                       provider.create(message.message_type, message.payload)
                     )
                     // sort to abide by dialogflow's rule that chat bubbles come before cards
-                    .sort((a, b) => a.type.length - b.type.length)
+                    .sort((a, b) => a.type - b.type)
                     // abide by dialogflow's response limiting
                     .reduce((acc, message) => {
-                      // console.log(message);
+                      console.log(message);
                       return [...acc];
                     }, []),
                 },
