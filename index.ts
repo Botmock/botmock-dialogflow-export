@@ -208,13 +208,16 @@ try {
                         userDefined: false,
                       });
                     }
-                    const { name, entity } = utterance.variables.find(
+                    const { name, entity: entityId } = utterance.variables.find(
                       vari => vari.id === id
+                    );
+                    const { name: entityName } = entities.find(
+                      en => en.id === entityId
                     );
                     data.push(
                       ...previousBlock.concat({
                         text: name.slice(1, -1),
-                        meta: `@${entity}`,
+                        meta: `@${entityName}`,
                         userDefined: true,
                       })
                     );
