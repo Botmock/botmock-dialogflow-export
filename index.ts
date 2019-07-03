@@ -169,12 +169,11 @@ try {
                     )
                     // ensure chat bubbles come before cards to abide by dialogflow's
                     // rule
-                    .sort((a, b) => a.type - b.type)
-                    // remove any message that would exceed dialogflow's reponse limits
-                    .reduce((acc, message) => {
-                      // console.log(message);
-                      return [...acc];
-                    }, []),
+                    .sort((a, b) => a.type - b.type),
+                  // remove any message that would exceed dialogflow's reponse limits
+                  // .reduce((acc, message) => {
+                  //   return [...acc];
+                  // }, []),
                 },
               ],
             })
