@@ -13,6 +13,20 @@ import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
+const MIN_NODE_VERSION = 101600;
+const numericalNodeVersion = parseInt(
+  process.version
+    .slice(1)
+    .split(".")
+    .map(seq => seq.padStart(2, "0"))
+    .join(""),
+  10
+);
+
+if (numericalNodeVersion <= MIN_NODE_VERSION) {
+  throw new Error("this script requires node.js version 10.16.0 or greater");
+}
+
 let semaphore;
 try {
   const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
