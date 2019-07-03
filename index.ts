@@ -103,10 +103,13 @@ try {
           };
           const basename = `${payload.nodeName}(${message_id})_${name}`;
           const filePath = `${INTENT_PATH}/${basename}.json`;
-          // group together the nodes that do not create intents
+          // collect all messages reachable from this message that do not
+          // themselves have an outgoing intent
           const intermediateNodes = collectIntermediateNodes(
             next_message_ids
           ).map(explorer.getMessageFromId.bind(explorer));
+          // write the actual intent file with fields provided by the location
+          // in the project flow
           await fs.promises.writeFile(
             filePath,
             JSON.stringify({
@@ -127,7 +130,7 @@ try {
                   parameters: [],
                   resetContexts: false,
                   // set affected contexts as the union of the intents going out of
-                  // any intermediate nodes and those that go out of _this_ node
+                  // any intermediate nodes and those that go out of this node
                   affectedContexts: [
                     ...intermediateNodes.reduce((acc, { next_message_ids }) => {
                       if (!next_message_ids.length) {
@@ -157,13 +160,16 @@ try {
                   )
                     ? { [platform.toLowerCase()]: true }
                     : {},
+                  // messages are a mapped union of this message and all
+                  // intermediate messages
                   messages: [{ message_type, payload }, ...intermediateNodes]
                     .map(message =>
                       provider.create(message.message_type, message.payload)
                     )
-                    // sort to abide by dialogflow's rule that chat bubbles come before cards
+                    // ensure chat bubbles come before cards to abide by dialogflow's
+                    // rule
                     .sort((a, b) => a.type - b.type)
-                    // abide by dialogflow's response limiting
+                    // remove any message that would exceed dialogflow's reponse limits
                     .reduce((acc, message) => {
                       console.log(message);
                       return [...acc];
@@ -239,21 +245,16 @@ try {
     })();
     // write an entity file for each entity in the project
     for (const entity of entities) {
-      const pathToEntityFile = path.join(ENTITY_PATH, `${entity.name}.json`);
       await fs.promises.writeFile(
-        pathToEntityFile,
+        path.join(ENTITY_PATH, `${entity.name}.json`),
         JSON.stringify({
           ...templates.entity,
           id: uuid(),
           name: entity.name,
         })
       );
-      const pathToEntityEntriesFile = path.join(
-        ENTITY_PATH,
-        `${entity.name}_entries_en.json`
-      );
       await fs.promises.writeFile(
-        pathToEntityEntriesFile,
+        path.join(ENTITY_PATH, `${entity.name}_entries_en.json`),
         JSON.stringify(entity.data)
       );
     }
