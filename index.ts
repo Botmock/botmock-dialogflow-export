@@ -8,17 +8,32 @@ import os from "os";
 import path from "path";
 import util from "util";
 import fs, { Stats } from "fs";
+import BoardExplorer from "./lib/util/BoardExplorer";
+import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
-import { SDKWrapper } from "./lib/util/SDKWrapper";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
-// boot up botmock client with any args passed from command line
-const client = new SDKWrapper(getArgs(process.argv));
+const MIN_NODE_VERSION = 101600;
+const numericalNodeVersion = parseInt(
+  process.version
+    .slice(1)
+    .split(".")
+    .map(seq => seq.padStart(2, "0"))
+    .join(""),
+  10
+);
+
+if (numericalNodeVersion < MIN_NODE_VERSION) {
+  throw new Error("this script requires node.js version 10.16.0 or greater");
+}
+
+type ProjectResponse = {
+  data?: any[];
+  errors?: any[];
+};
+
 let semaphore;
 try {
-  client.on("error", err => {
-    throw err;
-  });
   const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
@@ -27,53 +42,44 @@ try {
     await remove(OUTPUT_PATH);
     await util.promisify(mkdirp)(INTENT_PATH);
     await util.promisify(mkdirp)(ENTITY_PATH);
-    let { platform, board, intents } = await client.init();
+    // fetch project data via the botmock api
+    const project: ProjectResponse = await getProjectData({
+      projectId: process.env.BOTMOCK_PROJECT_ID,
+      boardId: process.env.BOTMOCK_BOARD_ID,
+      teamId: process.env.BOTMOCK_TEAM_ID,
+      token: process.env.BOTMOCK_TOKEN,
+    });
+    // throw in the case of any errors returned from the api request
+    for (const { error } of project.errors) {
+      throw new Error(error);
+    }
+    let [intents, entities, board, { platform }] = project.data;
     if (platform === "google-actions") {
       platform = "google";
     }
-    // gets the message with this id from the board
-    function getMessage(id) {
-      return board.messages.find(m => m.message_id === id);
-    }
-    // determines if given message is the root
-    function messageIsRoot(message) {
-      return board.root_messages.includes(message.message_id);
-    }
-    // determines if given id is the node adjacent to root with max number of connections
-    function hasWelcomeIntent(id) {
-      const messages = intentMap.size
-        ? board.messages.filter(message => intentMap.has(message.message_id))
-        : board.messages;
-      const [{ message_id }] = messages.sort(
-        (a, b) =>
-          b.previous_message_ids.filter(messageIsRoot).length -
-          a.previous_message_ids.filter(messageIsRoot).length
-      );
-      return id === message_id;
-    }
-    // determines if root node does not contain connections with intents
-    function isMissingWelcomeIntent(messages) {
-      const [{ next_message_ids }] = messages.filter(messageIsRoot);
-      return next_message_ids.every(message => !message.intent);
-    }
     // create map of message ids to ids of intents connected to them
-    const intentMap = createIntentMap(
-      board.messages,
-      Array.from(intents).map(([id, values]) => ({ id, ...values }))
-    );
-    // from next messages, collects all reachable nodes not connected by intents
-    const collectIntermediateNodes = createMessageCollector(
-      intentMap,
-      getMessage
-    );
+    const intentMap = createIntentMap(board.messages, intents);
     // create instance of semaphore class to control write concurrency
     semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
     // create instance of class that maps the board payload to dialogflow format
-    const provider = new Provider(platform);
     (async () => {
+      const provider = new Provider(platform);
+      const explorer = new BoardExplorer({ board, intentMap });
+      // from next messages, collects all reachable nodes not connected by intents
+      const collectIntermediateNodes = createMessageCollector(
+        intentMap,
+        explorer.getMessageFromId.bind(explorer)
+      );
+      // get the name of given intent from its id
+      const getNameOfIntent = (id: string) => {
+        const { name: intentName }: any = intents.find(i => i.id === id) || {};
+        return intentName;
+      };
       // set a welcome-like intent if no intent from the root is defined
-      if (!intentMap.size || isMissingWelcomeIntent(board.messages)) {
-        const { next_message_ids } = board.messages.find(messageIsRoot);
+      if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
+        const { next_message_ids } = board.messages.find(
+          explorer.messageIsRoot.bind(explorer)
+        );
         const [{ message_id: firstNodeId }] = next_message_ids;
         intentMap.set(firstNodeId, [uuid()]);
       }
@@ -86,31 +92,37 @@ try {
           message_id,
           next_message_ids,
           previous_message_ids,
-        } = getMessage(key);
-        for (const intent of intentIds) {
-          const { name, updated_at, utterances }: any = intents.get(intent) || {
+        } = explorer.getMessageFromId(key);
+        for (const intentId of intentIds) {
+          // find the intent data for this intent id
+          const { name, updated_at, utterances }: any = intents.find(
+            i => i.id === intentId
+          ) || {
             name: "welcome",
             updated_at: Date.now(),
             utterances: [],
           };
           const basename = `${payload.nodeName}(${message_id})_${name}`;
           const filePath = `${INTENT_PATH}/${basename}.json`;
-          // group together the nodes that do not create intents
+          // collect all messages reachable from this message that do not
+          // themselves have an outgoing intent
           const intermediateNodes = collectIntermediateNodes(
             next_message_ids
-          ).map(getMessage);
-          const getNameOfIntent = (value: string) => {
-            const { name: intentName }: any = intents.get(value) || {};
-            return intentName;
-          };
+          ).map(explorer.getMessageFromId.bind(explorer));
+          // write the actual intent file with fields provided by the location
+          // in the project flow
           await fs.promises.writeFile(
             filePath,
             JSON.stringify({
               ...templates.intent,
               id: uuid(),
               name: basename,
-              contexts: hasWelcomeIntent(key) ? [] : [getNameOfIntent(intent)],
-              events: hasWelcomeIntent(key) ? [{ name: "WELCOME" }] : [],
+              contexts: explorer.hasWelcomeIntent(key)
+                ? []
+                : [getNameOfIntent(intentId)],
+              events: explorer.hasWelcomeIntent(key)
+                ? [{ name: "WELCOME" }]
+                : [],
               lastUpdate: Date.parse(updated_at.date),
               responses: [
                 {
@@ -119,7 +131,7 @@ try {
                   parameters: [],
                   resetContexts: false,
                   // set affected contexts as the union of the intents going out of
-                  // any intermediate nodes and those that go out of _this_ node
+                  // any intermediate nodes and those that go out of this node
                   affectedContexts: [
                     ...intermediateNodes.reduce((acc, { next_message_ids }) => {
                       if (!next_message_ids.length) {
@@ -149,20 +161,18 @@ try {
                   )
                     ? { [platform.toLowerCase()]: true }
                     : {},
+                  // messages are a mapped union of this message and all
+                  // intermediate messages
                   messages: [{ message_type, payload }, ...intermediateNodes]
                     .map(message =>
                       provider.create(message.message_type, message.payload)
                     )
-                    // dialogflow has a constraint that chat bubbles always must come before cards
-                    .sort((a, b) => a.type.length - b.type.length)
-                    // dialogflow has a constraint around the combinations of responses
+                    // ensure chat bubbles come before cards to abide by dialogflow's
+                    // rule
+                    .sort((a, b) => a.type - b.type)
+                    // remove any message that would exceed dialogflow's reponse limits
                     .reduce((acc, message) => {
-                      // let contentSum: number = 0;
-                      // switch (message.type) {
-                      //   case "suggestion_chips":
-                      //     break;
-                      //   case "simple_response"
-                      // }
+                      // console.log(message);
                       return [...acc];
                     }, []),
                 },
@@ -176,6 +186,8 @@ try {
               JSON.stringify(
                 utterances.map(utterance => {
                   const data = [];
+                  // reduce variables into lookup table of (start, end)
+                  // indices for that variable id
                   const pairs: any[] = utterance.variables.reduce(
                     (acc, vari) => ({
                       ...acc,
@@ -187,6 +199,7 @@ try {
                     {}
                   );
                   let lastIndex = 0;
+                  // save slices of text based on pair data
                   for (const [id, [start, end]] of Object.entries(pairs)) {
                     const previousBlock = [];
                     if (start !== lastIndex) {
@@ -195,13 +208,16 @@ try {
                         userDefined: false,
                       });
                     }
-                    const { name, entity } = utterance.variables.find(
+                    const { name, entity: entityId } = utterance.variables.find(
                       vari => vari.id === id
+                    );
+                    const { name: entityName } = entities.find(
+                      en => en.id === entityId
                     );
                     data.push(
                       ...previousBlock.concat({
                         text: name.slice(1, -1),
-                        meta: `@${entity}`,
+                        meta: `@${entityName}`,
                         userDefined: true,
                       })
                     );
@@ -231,38 +247,20 @@ try {
         semaphore.release();
       }
     })();
-    // write entity files in one-to-one correspondence with project
-    for (const entity of await client.getEntities()) {
-      const pathToEntityFile = path.join(ENTITY_PATH, `${entity.name}.json`);
+    // write an entity file for each entity in the project
+    for (const entity of entities) {
       await fs.promises.writeFile(
-        pathToEntityFile,
+        path.join(ENTITY_PATH, `${entity.name}.json`),
         JSON.stringify({
           ...templates.entity,
           id: uuid(),
           name: entity.name,
         })
       );
-      const pathToEntityEntriesFile = path.join(
-        ENTITY_PATH,
-        `${entity.name}_entries_en.json`
-      );
       await fs.promises.writeFile(
-        pathToEntityEntriesFile,
+        path.join(ENTITY_PATH, `${entity.name}_entries_en.json`),
         JSON.stringify(entity.data)
       );
-    }
-    // copies file to its destination in the output directory
-    async function copyFileToOutput(
-      pathToFile,
-      options = { isIntentFile: false }
-    ) {
-      const pathToOutput = path.join(
-        __dirname,
-        "output",
-        options.isIntentFile ? "intents" : "",
-        path.basename(pathToFile)
-      );
-      return await fs.promises.copyFile(pathToFile, pathToOutput);
     }
     // copy templates over to the output destination
     for (const filename of await fs.promises.readdir(
@@ -295,8 +293,8 @@ try {
       if (stats.isFile()) {
         sum += stats.size;
       } else if (stats.isDirectory()) {
-        // for each file in this directory, find its size and sum it
-        for await (const file of (await fs.promises.readdir(pathTo)).filter(
+        // for each file in this directory, find its size and add it to the total
+        for (const file of (await fs.promises.readdir(pathTo)).filter(
           async (dirContent: any) =>
             (await fs.promises.stat(path.join(pathTo, dirContent))).isFile()
         )) {
@@ -318,4 +316,15 @@ try {
     console.error(err);
     process.exit(1);
   }
+}
+
+// copies file to its destination in the output directory
+async function copyFileToOutput(pathToFile, options = { isIntentFile: false }) {
+  const pathToOutput = path.join(
+    __dirname,
+    "output",
+    options.isIntentFile ? "intents" : "",
+    path.basename(pathToFile)
+  );
+  return await fs.promises.copyFile(pathToFile, pathToOutput);
 }
