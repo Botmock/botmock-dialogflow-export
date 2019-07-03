@@ -1,4 +1,4 @@
-// import { execSync } from "child_process"
+// import { execSync } from "child_process";
 
 test.todo("creates output directory");
 test.todo("produces correct number of intent files");

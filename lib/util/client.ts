@@ -20,15 +20,21 @@ export async function getProjectData({
   token,
 }: ProjectVariables) {
   const baseUrl = `${BOTMOCK_API_URL}/teams/${teamId}/projects/${projectId}`;
+  // map promise responses to consumable data or errors
   const data = await Promise.all(
     [INTENTS, ENTITIES, `boards/${boardId}`, PROJECT].map(async path => {
-      const res = await (await fetch(`${baseUrl}/${path}`, {
+      const res = await fetch(`${baseUrl}/${path}`, {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
-      })).json();
-      return res.hasOwnProperty("board") ? res.board : res;
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return json.hasOwnProperty("board") ? json.board : json;
+      } else {
+        return { error: `failed to fetch ${path}` };
+      }
     })
   );
   return {

@@ -70,7 +70,7 @@ try {
         intentMap,
         explorer.getMessageFromId.bind(explorer)
       );
-      // get the name of the intent from its id
+      // get the name of given intent from its id
       const getNameOfIntent = (id: string) => {
         const { name: intentName }: any = intents.find(i => i.id === id) || {};
         return intentName;
@@ -94,6 +94,7 @@ try {
           previous_message_ids,
         } = explorer.getMessageFromId(key);
         for (const intentId of intentIds) {
+          // find the intent data for this intent id
           const { name, updated_at, utterances }: any = intents.find(
             i => i.id === intentId
           ) || {
@@ -171,7 +172,7 @@ try {
                     .sort((a, b) => a.type - b.type)
                     // remove any message that would exceed dialogflow's reponse limits
                     .reduce((acc, message) => {
-                      console.log(message);
+                      // console.log(message);
                       return [...acc];
                     }, []),
                 },
