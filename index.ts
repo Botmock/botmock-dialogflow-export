@@ -161,19 +161,43 @@ try {
                   )
                     ? { [platform.toLowerCase()]: true }
                     : {},
-                  // messages are a mapped union of this message and all
-                  // intermediate messages
+                  // messages are a mapped union of this message and all intermediate messages
                   messages: [{ message_type, payload }, ...intermediateNodes]
+                    .reduce((acc, message) => {
+                      const messageIsOverLimit = (limit: number) => {
+                        return (
+                          acc.filter(
+                            ({ message_type }) =>
+                              message_type === message.message_type
+                          ).length >= limit
+                        );
+                      };
+                      // do not include any overloading message in the next iteration
+                      switch (message.message_type) {
+                        case "text":
+                          if (messageIsOverLimit(2)) {
+                            console.warn(
+                              `truncating ${message.message_type} response`
+                            );
+                            return acc;
+                          }
+                        case "suggestion_chips":
+                          if (messageIsOverLimit(1)) {
+                            console.warn(
+                              `truncating ${message.message_type} response`
+                            );
+                            return acc;
+                          }
+                      }
+                      return [...acc, message];
+                    }, [])
+                    // ensure chat bubbles come before cards to abide by dialogflow's rule
+                    .sort(
+                      (a, b) => a.message_type.length - b.message_type.length
+                    )
                     .map(message =>
                       provider.create(message.message_type, message.payload)
-                    )
-                    // ensure chat bubbles come before cards to abide by dialogflow's
-                    // rule
-                    .sort((a, b) => a.type - b.type),
-                  // remove any message that would exceed dialogflow's reponse limits
-                  // .reduce((acc, message) => {
-                  //   return [...acc];
-                  // }, []),
+                    ),
                 },
               ],
             })
