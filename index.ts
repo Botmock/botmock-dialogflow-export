@@ -38,9 +38,10 @@ type Intent = {
   utterances: { text: string; variables: any[] }[];
 };
 
+export const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
+
 let semaphore;
 try {
-  const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
   (async () => {
@@ -78,7 +79,8 @@ try {
       );
       // get the name of given intent from its id
       const getNameOfIntent = (id: string): string | void => {
-        const { name: intentName }: any = intents.find(i => i.id === id) || {};
+        const { name: intentName }: Intent =
+          intents.find(i => i.id === id) || {};
         return intentName;
       };
       // set a welcome-like intent if no intent from the root is defined
@@ -90,7 +92,7 @@ try {
         intentMap.set(firstNodeId, [uuid()]);
       }
       // write intent and utterances files for each combination of (message, intent)
-      for (const [key, intentIds] of intentMap.entries()) {
+      for (const [id, intentIds] of intentMap.entries()) {
         await semaphore.acquire();
         const DEFAULT_INTENT = {
           name: "welcome",
@@ -103,10 +105,29 @@ try {
           message_id,
           next_message_ids,
           previous_message_ids,
-        } = explorer.getMessageFromId(key);
+        } = explorer.getMessageFromId(id);
+        // gets an array containing strings of the required input context for
+        // an intent id
+        const getImmediateRequiredContext = (intentId: string): any => {
+          const incidentIntentBearingMessage = previous_message_ids.find(
+            message => {
+              const m: any = explorer.getMessageFromId.call(
+                explorer,
+                message.message_id
+              );
+              return (
+                m.next_message_ids.length &&
+                m.next_message_ids.find(
+                  message => message.intent && message.intent.value === intentId
+                )
+              );
+            }
+          );
+          return [];
+        };
         for (const intentId of intentIds) {
           const { name, updated_at, utterances }: Partial<Intent> =
-            intents.find(i => i.id === intentId) || DEFAULT_INTENT;
+            intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
           const basename = `${payload.nodeName}(${message_id})_${name}`;
           const filePath = `${INTENT_PATH}/${basename}.json`;
           // collect all messages reachable from this message that do not
@@ -114,6 +135,13 @@ try {
           const intermediateNodes = collectIntermediateNodes(
             next_message_ids
           ).map(explorer.getMessageFromId.bind(explorer));
+          const createOutputContextFromMessage = ({
+            intent: { value },
+          }: any): any => ({
+            name: getNameOfIntent(value),
+            parameters: {},
+            lifespan: 1,
+          });
           // write the actual intent file with fields provided by the location
           // in the project flow
           await fs.promises.writeFile(
@@ -122,8 +150,10 @@ try {
               ...templates.intent,
               id: uuid(),
               name: basename,
-              contexts: explorer.hasWelcomeIntent(key) ? [] : [],
-              events: explorer.hasWelcomeIntent(key)
+              contexts: explorer.hasWelcomeIntent(id)
+                ? []
+                : getImmediateRequiredContext(intentId),
+              events: explorer.hasWelcomeIntent(id)
                 ? [{ name: "WELCOME" }]
                 : [],
               lastUpdate: Date.parse(updated_at.date),
@@ -144,20 +174,12 @@ try {
                         ...acc,
                         ...next_message_ids
                           .filter(({ intent }) => !!intent.value)
-                          .map(({ intent: { value } }) => ({
-                            name: getNameOfIntent(value),
-                            parameters: {},
-                            lifespan: 1,
-                          })),
+                          .map(createOutputContextFromMessage),
                       ];
                     }, []),
                     ...next_message_ids
                       .filter(({ intent }) => !!intent.value)
-                      .map(({ intent: { value } }) => ({
-                        name: getNameOfIntent(value),
-                        parameters: {},
-                        lifespan: 1,
-                      })),
+                      .map(createOutputContextFromMessage),
                   ],
                   defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
                     platform.toLowerCase()
@@ -167,25 +189,23 @@ try {
                   // messages are a mapped union of this message and all intermediate messages
                   messages: [{ message_type, payload }, ...intermediateNodes]
                     .reduce((acc, message) => {
-                      const messageIsOverLimit = (limit: number) => {
-                        return (
-                          acc.filter(
-                            ({ message_type }) =>
-                              message_type === message.message_type
-                          ).length >= limit
-                        );
-                      };
+                      const messageIsOverLimit = (limit: number) =>
+                        acc.filter(
+                          ({ message_type }) =>
+                            message_type === message.message_type
+                        ).length >= limit;
                       // do not include any overloading message in the next iteration
+                      const LIMIT = 5;
                       switch (message.message_type) {
                         case "text":
-                          if (messageIsOverLimit(2)) {
+                          if (messageIsOverLimit(LIMIT)) {
                             console.warn(
                               `truncating ${message.message_type} response`
                             );
                             return acc;
                           }
                         case "suggestion_chips":
-                          if (messageIsOverLimit(1)) {
+                          if (messageIsOverLimit(LIMIT)) {
                             console.warn(
                               `truncating ${message.message_type} response`
                             );
