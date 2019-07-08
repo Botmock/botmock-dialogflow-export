@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { OUTPUT_PATH } from "../";
@@ -11,6 +12,14 @@ test("creates output directory", done => {
   }).not.toThrow();
 });
 
+test("creates correct number of top level files and directories", async done => {
+  await promisify(exec)("npm start");
+  const output = await fs.promises.readdir(OUTPUT_PATH);
+  expect(output.slice(1)).toHaveLength(4);
+  done();
+});
+
+test.todo("formats generated JSON");
 test.todo("includes welcome intent in output directory");
 test.todo("produces correct number of intent files");
 test.todo("produces correct number of utterance files");
