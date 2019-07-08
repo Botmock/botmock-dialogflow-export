@@ -25,15 +25,15 @@ export async function getProjectData({
     [INTENTS, ENTITIES, `boards/${boardId}`, PROJECT].map(async path => {
       const res = await fetch(`${baseUrl}/${path}`, {
         headers: {
-          Accept: "application/json",
           Authorization: `Bearer ${token}`,
+          Accept: "application/json",
         },
       });
       if (res.ok) {
         const json = await res.json();
         return json.hasOwnProperty("board") ? json.board : json;
       } else {
-        return { error: `failed to fetch ${path}` };
+        throw new Error(`${res.status} response on Botmock API fetch request`);
       }
     })
   );
