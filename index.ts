@@ -69,10 +69,6 @@ try {
     }
     // create map of message ids to ids of intents connected to them
     const intentMap = createIntentMap(board.messages, intents);
-    // create instance of semaphore class to control write concurrency
-    semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
-    // create instance of class that maps the board payload to dialogflow format
-    const provider = new Provider(platform);
     const explorer = new BoardExplorer({ board, intentMap });
     // from next messages, collects all reachable nodes not connected by intents
     const collectIntermediateNodes = createMessageCollector(
@@ -92,7 +88,11 @@ try {
       const [{ message_id: firstNodeId }] = next_message_ids;
       intentMap.set(firstNodeId, [uuid()]);
     }
-    // write intent and utterances files for each combination of (message, intent)
+    // create instance of semaphore class to control write concurrency
+    semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
+    // create instance of class that maps the board payload to dialogflow format
+    const provider = new Provider(platform);
+    // for each combination of (message, intent) write intent and utterances files
     for (const [id, intentIds] of intentMap.entries()) {
       await semaphore.acquire();
       const DEFAULT_INTENT = {
