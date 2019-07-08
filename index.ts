@@ -25,7 +25,7 @@ type Intent = {
 };
 
 type InputContext = string | void[];
-type OutputContext = {};
+type OutputContext = { name: string | void; parameters: {}; lifespan: number };
 
 export const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
 
@@ -107,8 +107,7 @@ try {
         next_message_ids,
         previous_message_ids,
       } = explorer.getMessageFromId(id);
-      // gets an array containing strings of the required input context for
-      // an intent id
+      // ..
       const getImmediateRequiredContext = (intentId: string): InputContext => {
         const incidentIntentBearingMessage = previous_message_ids.find(
           message => {
@@ -138,7 +137,7 @@ try {
         ).map(explorer.getMessageFromId.bind(explorer));
         const createOutputContextFromMessage = ({
           intent: { value },
-        }: any): any => ({
+        }: any): OutputContext => ({
           name: getNameOfIntent(value),
           parameters: {},
           lifespan: 1,
@@ -185,31 +184,25 @@ try {
                 )
                   ? { [platform.toLowerCase()]: true }
                   : {},
-                // messages are a mapped union of this message and all intermediate messages
+                // set messages as the union of this message and all intermediate messages
                 messages: [{ message_type, payload }, ...intermediateNodes]
                   .reduce((acc, message) => {
-                    const messageIsOverLimit = (limit: number) =>
+                    const findLimitForType = (type: string): number => {
+                      return 5;
+                    };
+                    const messageIsOverLimit = (limit: number): boolean =>
                       acc.filter(
                         ({ message_type }) =>
                           message_type === message.message_type
                       ).length >= limit;
-                    // do not include any overloading message in the next iteration
-                    const LIMIT = 5;
-                    switch (message.message_type) {
-                      case "text":
-                        if (messageIsOverLimit(LIMIT)) {
-                          console.warn(
-                            `truncating ${message.message_type} response`
-                          );
-                          return acc;
-                        }
-                      case "suggestion_chips":
-                        if (messageIsOverLimit(LIMIT)) {
-                          console.warn(
-                            `truncating ${message.message_type} response`
-                          );
-                          return acc;
-                        }
+                    // if adding one more of this message would cause import to fail, omit it
+                    if (
+                      messageIsOverLimit(findLimitForType(message.message_type))
+                    ) {
+                      console.warn(
+                        `truncating ${message.message_type} response`
+                      );
+                      return acc;
                     }
                     return [...acc, message];
                   }, [])
