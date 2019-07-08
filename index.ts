@@ -32,6 +32,12 @@ type ProjectResponse = {
   errors?: any[];
 };
 
+type Intent = {
+  name: string;
+  updated_at: { date: string };
+  utterances: { text: string; variables: any[] }[];
+};
+
 let semaphore;
 try {
   const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
@@ -71,7 +77,7 @@ try {
         explorer.getMessageFromId.bind(explorer)
       );
       // get the name of given intent from its id
-      const getNameOfIntent = (id: string) => {
+      const getNameOfIntent = (id: string): string | void => {
         const { name: intentName }: any = intents.find(i => i.id === id) || {};
         return intentName;
       };
@@ -86,6 +92,11 @@ try {
       // write intent and utterances files for each combination of (message, intent)
       for (const [key, intentIds] of intentMap.entries()) {
         await semaphore.acquire();
+        const DEFAULT_INTENT = {
+          name: "welcome",
+          updated_at: Date.now(),
+          utterances: [{ text: "hi", variables: [] }],
+        };
         const {
           message_type,
           payload,
@@ -94,14 +105,8 @@ try {
           previous_message_ids,
         } = explorer.getMessageFromId(key);
         for (const intentId of intentIds) {
-          // find the intent data for this intent id
-          const { name, updated_at, utterances }: any = intents.find(
-            i => i.id === intentId
-          ) || {
-            name: "welcome",
-            updated_at: Date.now(),
-            utterances: [],
-          };
+          const { name, updated_at, utterances }: Partial<Intent> =
+            intents.find(i => i.id === intentId) || DEFAULT_INTENT;
           const basename = `${payload.nodeName}(${message_id})_${name}`;
           const filePath = `${INTENT_PATH}/${basename}.json`;
           // collect all messages reachable from this message that do not
@@ -117,9 +122,7 @@ try {
               ...templates.intent,
               id: uuid(),
               name: basename,
-              contexts: explorer.hasWelcomeIntent(key)
-                ? []
-                : [getNameOfIntent(intentId)],
+              contexts: explorer.hasWelcomeIntent(key) ? [] : [],
               events: explorer.hasWelcomeIntent(key)
                 ? [{ name: "WELCOME" }]
                 : [],
