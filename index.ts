@@ -13,20 +13,6 @@ import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
-const MIN_NODE_VERSION = 101600;
-const numericalNodeVersion = parseInt(
-  process.version
-    .slice(1)
-    .split(".")
-    .map(seq => seq.padStart(2, "0"))
-    .join(""),
-  10
-);
-
-if (numericalNodeVersion < MIN_NODE_VERSION) {
-  throw new Error("this script requires node.js version 10.16.0 or greater");
-}
-
 type ProjectResponse = {
   data?: any[];
   errors?: any[];
@@ -38,7 +24,24 @@ type Intent = {
   utterances: { text: string; variables: any[] }[];
 };
 
+type InputContext = string | void[];
+type OutputContext = {};
+
 export const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
+
+const MIN_NODE_VERSION = 101600;
+const numericalNodeVersion = parseInt(
+  process.version
+    .slice(1)
+    .split(".")
+    .map(seq => seq.padStart(2, "0"))
+    .join(""),
+  10
+);
+
+if (numericalNodeVersion < MIN_NODE_VERSION) {
+  throw new Error("requires node.js version 10.16.0 or greater");
+}
 
 let semaphore;
 try {
@@ -69,230 +72,223 @@ try {
     // create instance of semaphore class to control write concurrency
     semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
     // create instance of class that maps the board payload to dialogflow format
-    (async () => {
-      const provider = new Provider(platform);
-      const explorer = new BoardExplorer({ board, intentMap });
-      // from next messages, collects all reachable nodes not connected by intents
-      const collectIntermediateNodes = createMessageCollector(
-        intentMap,
-        explorer.getMessageFromId.bind(explorer)
+    const provider = new Provider(platform);
+    const explorer = new BoardExplorer({ board, intentMap });
+    // from next messages, collects all reachable nodes not connected by intents
+    const collectIntermediateNodes = createMessageCollector(
+      intentMap,
+      explorer.getMessageFromId.bind(explorer)
+    );
+    // get the name of given intent from its id
+    const getNameOfIntent = (id: string): string | void => {
+      const { name: intentName }: Intent = intents.find(i => i.id === id) || {};
+      return intentName;
+    };
+    // set a welcome-like intent if no intent from the root is defined
+    if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
+      const { next_message_ids } = board.messages.find(
+        explorer.messageIsRoot.bind(explorer)
       );
-      // get the name of given intent from its id
-      const getNameOfIntent = (id: string): string | void => {
-        const { name: intentName }: Intent =
-          intents.find(i => i.id === id) || {};
-        return intentName;
+      const [{ message_id: firstNodeId }] = next_message_ids;
+      intentMap.set(firstNodeId, [uuid()]);
+    }
+    // write intent and utterances files for each combination of (message, intent)
+    for (const [id, intentIds] of intentMap.entries()) {
+      await semaphore.acquire();
+      const DEFAULT_INTENT = {
+        name: "welcome",
+        updated_at: Date.now(),
+        utterances: [{ text: "hi", variables: [] }],
       };
-      // set a welcome-like intent if no intent from the root is defined
-      if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
-        const { next_message_ids } = board.messages.find(
-          explorer.messageIsRoot.bind(explorer)
-        );
-        const [{ message_id: firstNodeId }] = next_message_ids;
-        intentMap.set(firstNodeId, [uuid()]);
-      }
-      // write intent and utterances files for each combination of (message, intent)
-      for (const [id, intentIds] of intentMap.entries()) {
-        await semaphore.acquire();
-        const DEFAULT_INTENT = {
-          name: "welcome",
-          updated_at: Date.now(),
-          utterances: [{ text: "hi", variables: [] }],
-        };
-        const {
-          message_type,
-          payload,
-          message_id,
-          next_message_ids,
-          previous_message_ids,
-        } = explorer.getMessageFromId(id);
-        // gets an array containing strings of the required input context for
-        // an intent id
-        const getImmediateRequiredContext = (intentId: string): any => {
-          const incidentIntentBearingMessage = previous_message_ids.find(
-            message => {
-              const m: any = explorer.getMessageFromId.call(
-                explorer,
-                message.message_id
-              );
-              return (
-                m.next_message_ids.length &&
-                m.next_message_ids.find(
-                  message => message.intent && message.intent.value === intentId
-                )
-              );
-            }
-          );
-          return [];
-        };
-        for (const intentId of intentIds) {
-          const { name, updated_at, utterances }: Partial<Intent> =
-            intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
-          const basename = `${payload.nodeName}(${message_id})_${name}`;
-          const filePath = `${INTENT_PATH}/${basename}.json`;
-          // collect all messages reachable from this message that do not
-          // themselves have an outgoing intent
-          const intermediateNodes = collectIntermediateNodes(
-            next_message_ids
-          ).map(explorer.getMessageFromId.bind(explorer));
-          const createOutputContextFromMessage = ({
-            intent: { value },
-          }: any): any => ({
-            name: getNameOfIntent(value),
-            parameters: {},
-            lifespan: 1,
-          });
-          // write the actual intent file with fields provided by the location
-          // in the project flow
-          await fs.promises.writeFile(
-            filePath,
-            JSON.stringify({
-              ...templates.intent,
-              id: uuid(),
-              name: basename,
-              contexts: explorer.hasWelcomeIntent(id)
-                ? []
-                : getImmediateRequiredContext(intentId),
-              events: explorer.hasWelcomeIntent(id)
-                ? [{ name: "WELCOME" }]
-                : [],
-              lastUpdate: Date.parse(updated_at.date),
-              responses: [
-                {
-                  action: "",
-                  speech: [],
-                  parameters: [],
-                  resetContexts: false,
-                  // set affected contexts as the union of the intents going out of
-                  // any intermediate nodes and those that go out of this node
-                  affectedContexts: [
-                    ...intermediateNodes.reduce((acc, { next_message_ids }) => {
-                      if (!next_message_ids.length) {
-                        return acc;
-                      }
-                      return [
-                        ...acc,
-                        ...next_message_ids
-                          .filter(({ intent }) => !!intent.value)
-                          .map(createOutputContextFromMessage),
-                      ];
-                    }, []),
-                    ...next_message_ids
-                      .filter(({ intent }) => !!intent.value)
-                      .map(createOutputContextFromMessage),
-                  ],
-                  defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
-                    platform.toLowerCase()
-                  )
-                    ? { [platform.toLowerCase()]: true }
-                    : {},
-                  // messages are a mapped union of this message and all intermediate messages
-                  messages: [{ message_type, payload }, ...intermediateNodes]
-                    .reduce((acc, message) => {
-                      const messageIsOverLimit = (limit: number) =>
-                        acc.filter(
-                          ({ message_type }) =>
-                            message_type === message.message_type
-                        ).length >= limit;
-                      // do not include any overloading message in the next iteration
-                      const LIMIT = 5;
-                      switch (message.message_type) {
-                        case "text":
-                          if (messageIsOverLimit(LIMIT)) {
-                            console.warn(
-                              `truncating ${message.message_type} response`
-                            );
-                            return acc;
-                          }
-                        case "suggestion_chips":
-                          if (messageIsOverLimit(LIMIT)) {
-                            console.warn(
-                              `truncating ${message.message_type} response`
-                            );
-                            return acc;
-                          }
-                      }
-                      return [...acc, message];
-                    }, [])
-                    // ensure chat bubbles come before cards to abide by dialogflow's rule
-                    .sort(
-                      (a, b) => a.message_type.length - b.message_type.length
-                    )
-                    .map(message =>
-                      provider.create(message.message_type, message.payload)
-                    ),
-                },
-              ],
-            })
-          );
-          if (Array.isArray(utterances) && utterances.length) {
-            // write utterance file
-            await fs.promises.writeFile(
-              `${filePath.slice(0, -5)}_usersays_en.json`,
-              JSON.stringify(
-                utterances.map(utterance => {
-                  const data = [];
-                  // reduce variables into lookup table of (start, end)
-                  // indices for that variable id
-                  const pairs: any[] = utterance.variables.reduce(
-                    (acc, vari) => ({
-                      ...acc,
-                      [vari.id]: [
-                        vari.start_index,
-                        vari.start_index + vari.name.length,
-                      ],
-                    }),
-                    {}
-                  );
-                  let lastIndex = 0;
-                  // save slices of text based on pair data
-                  for (const [id, [start, end]] of Object.entries(pairs)) {
-                    const previousBlock = [];
-                    if (start !== lastIndex) {
-                      previousBlock.push({
-                        text: utterance.text.slice(lastIndex, start),
-                        userDefined: false,
-                      });
-                    }
-                    const { name, entity: entityId } = utterance.variables.find(
-                      vari => vari.id === id
-                    );
-                    const { name: entityName } = entities.find(
-                      en => en.id === entityId
-                    );
-                    data.push(
-                      ...previousBlock.concat({
-                        text: name.slice(1, -1),
-                        meta: `@${entityName}`,
-                        userDefined: true,
-                      })
-                    );
-                    if (id !== Object.keys(pairs).pop()) {
-                      lastIndex = end;
-                    } else {
-                      data.push({
-                        text: utterance.text.slice(end),
-                        userDefined: false,
-                      });
-                    }
-                  }
-                  return {
-                    id: uuid(),
-                    data: data.length
-                      ? data
-                      : [{ text: utterance.text, userDefined: false }],
-                    count: 0,
-                    isTemplate: false,
-                    updated: Date.parse(updated_at.date),
-                  };
-                })
+      const {
+        message_type,
+        payload,
+        message_id,
+        next_message_ids,
+        previous_message_ids,
+      } = explorer.getMessageFromId(id);
+      // gets an array containing strings of the required input context for
+      // an intent id
+      const getImmediateRequiredContext = (intentId: string): InputContext => {
+        const incidentIntentBearingMessage = previous_message_ids.find(
+          message => {
+            const m: any = explorer.getMessageFromId.call(
+              explorer,
+              message.message_id
+            );
+            return (
+              m.next_message_ids.length &&
+              m.next_message_ids.find(
+                message => message.intent && message.intent.value === intentId
               )
             );
           }
+        );
+        return [];
+      };
+      for (const intentId of intentIds) {
+        const { name, updated_at, utterances }: Partial<Intent> =
+          intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
+        const basename = `${payload.nodeName}(${message_id})_${name}`;
+        const filePath = `${INTENT_PATH}/${basename}.json`;
+        // collect all messages reachable from this message that do not
+        // themselves have an outgoing intent
+        const intermediateNodes = collectIntermediateNodes(
+          next_message_ids
+        ).map(explorer.getMessageFromId.bind(explorer));
+        const createOutputContextFromMessage = ({
+          intent: { value },
+        }: any): any => ({
+          name: getNameOfIntent(value),
+          parameters: {},
+          lifespan: 1,
+        });
+        // write the actual intent file with fields provided by the location
+        // in the project flow
+        await fs.promises.writeFile(
+          filePath,
+          JSON.stringify({
+            ...templates.intent,
+            id: uuid(),
+            name: basename,
+            contexts: explorer.hasWelcomeIntent(id)
+              ? []
+              : getImmediateRequiredContext(intentId),
+            events: explorer.hasWelcomeIntent(id) ? [{ name: "WELCOME" }] : [],
+            lastUpdate: Date.parse(updated_at.date),
+            responses: [
+              {
+                action: "",
+                speech: [],
+                parameters: [],
+                resetContexts: false,
+                // set affected contexts as the union of the intents going out of
+                // any intermediate nodes and those that go out of this node
+                affectedContexts: [
+                  ...intermediateNodes.reduce((acc, { next_message_ids }) => {
+                    if (!next_message_ids.length) {
+                      return acc;
+                    }
+                    return [
+                      ...acc,
+                      ...next_message_ids
+                        .filter(({ intent }) => !!intent.value)
+                        .map(createOutputContextFromMessage),
+                    ];
+                  }, []),
+                  ...next_message_ids
+                    .filter(({ intent }) => !!intent.value)
+                    .map(createOutputContextFromMessage),
+                ],
+                defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                  platform.toLowerCase()
+                )
+                  ? { [platform.toLowerCase()]: true }
+                  : {},
+                // messages are a mapped union of this message and all intermediate messages
+                messages: [{ message_type, payload }, ...intermediateNodes]
+                  .reduce((acc, message) => {
+                    const messageIsOverLimit = (limit: number) =>
+                      acc.filter(
+                        ({ message_type }) =>
+                          message_type === message.message_type
+                      ).length >= limit;
+                    // do not include any overloading message in the next iteration
+                    const LIMIT = 5;
+                    switch (message.message_type) {
+                      case "text":
+                        if (messageIsOverLimit(LIMIT)) {
+                          console.warn(
+                            `truncating ${message.message_type} response`
+                          );
+                          return acc;
+                        }
+                      case "suggestion_chips":
+                        if (messageIsOverLimit(LIMIT)) {
+                          console.warn(
+                            `truncating ${message.message_type} response`
+                          );
+                          return acc;
+                        }
+                    }
+                    return [...acc, message];
+                  }, [])
+                  // ensure chat bubbles come before cards to abide by dialogflow's rule
+                  .sort((a, b) => a.message_type.length - b.message_type.length)
+                  .map(message =>
+                    provider.create(message.message_type, message.payload)
+                  ),
+              },
+            ],
+          })
+        );
+        if (Array.isArray(utterances) && utterances.length) {
+          // write utterance file
+          await fs.promises.writeFile(
+            `${filePath.slice(0, -5)}_usersays_en.json`,
+            JSON.stringify(
+              utterances.map(utterance => {
+                const data = [];
+                // reduce variables into lookup table of (start, end)
+                // indices for that variable id
+                const pairs: any[] = utterance.variables.reduce(
+                  (acc, vari) => ({
+                    ...acc,
+                    [vari.id]: [
+                      vari.start_index,
+                      vari.start_index + vari.name.length,
+                    ],
+                  }),
+                  {}
+                );
+                let lastIndex = 0;
+                // save slices of text based on pair data
+                for (const [id, [start, end]] of Object.entries(pairs)) {
+                  const previousBlock = [];
+                  if (start !== lastIndex) {
+                    previousBlock.push({
+                      text: utterance.text.slice(lastIndex, start),
+                      userDefined: false,
+                    });
+                  }
+                  const { name, entity: entityId } = utterance.variables.find(
+                    vari => vari.id === id
+                  );
+                  const { name: entityName } = entities.find(
+                    en => en.id === entityId
+                  );
+                  data.push(
+                    ...previousBlock.concat({
+                      text: name.slice(1, -1),
+                      meta: `@${entityName}`,
+                      userDefined: true,
+                    })
+                  );
+                  if (id !== Object.keys(pairs).pop()) {
+                    lastIndex = end;
+                  } else {
+                    data.push({
+                      text: utterance.text.slice(end),
+                      userDefined: false,
+                    });
+                  }
+                }
+                return {
+                  id: uuid(),
+                  data: data.length
+                    ? data
+                    : [{ text: utterance.text, userDefined: false }],
+                  count: 0,
+                  isTemplate: false,
+                  updated: Date.parse(updated_at.date),
+                };
+              })
+            )
+          );
         }
-        semaphore.release();
       }
-    })();
+      semaphore.release();
+    }
     // write an entity file for each entity in the project
     for (const entity of entities) {
       await fs.promises.writeFile(
