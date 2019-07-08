@@ -142,78 +142,86 @@ try {
           parameters: {},
           lifespan: 1,
         });
-        // write the actual intent file with fields provided by the location
-        // in the project flow
         await fs.promises.writeFile(
           filePath,
-          JSON.stringify({
-            ...templates.intent,
-            id: uuid(),
-            name: basename,
-            contexts: explorer.hasWelcomeIntent(id)
-              ? []
-              : getImmediateRequiredContext(intentId),
-            events: explorer.hasWelcomeIntent(id) ? [{ name: "WELCOME" }] : [],
-            lastUpdate: Date.parse(updated_at.date),
-            responses: [
-              {
-                action: "",
-                speech: [],
-                parameters: [],
-                resetContexts: false,
-                // set affected contexts as the union of the intents going out of
-                // any intermediate nodes and those that go out of this node
-                affectedContexts: [
-                  ...intermediateNodes.reduce((acc, { next_message_ids }) => {
-                    if (!next_message_ids.length) {
-                      return acc;
-                    }
-                    return [
-                      ...acc,
-                      ...next_message_ids
-                        .filter(({ intent }) => !!intent.value)
-                        .map(createOutputContextFromMessage),
-                    ];
-                  }, []),
-                  ...next_message_ids
-                    .filter(({ intent }) => !!intent.value)
-                    .map(createOutputContextFromMessage),
-                ],
-                defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
-                  platform.toLowerCase()
-                )
-                  ? { [platform.toLowerCase()]: true }
-                  : {},
-                // set messages as the union of this message and all intermediate messages
-                messages: [{ message_type, payload }, ...intermediateNodes]
-                  .reduce((acc, message) => {
-                    const findLimitForType = (type: string): number => {
-                      return 5;
-                    };
-                    const messageIsOverLimit = (limit: number): boolean =>
-                      acc.filter(
-                        ({ message_type }) =>
-                          message_type === message.message_type
-                      ).length >= limit;
-                    // if adding one more of this message would cause import to fail, omit it
-                    if (
-                      messageIsOverLimit(findLimitForType(message.message_type))
-                    ) {
-                      console.warn(
-                        `truncating ${message.message_type} response`
-                      );
-                      return acc;
-                    }
-                    return [...acc, message];
-                  }, [])
-                  // ensure chat bubbles come before cards to abide by dialogflow's rule
-                  .sort((a, b) => a.message_type.length - b.message_type.length)
-                  .map(message =>
-                    provider.create(message.message_type, message.payload)
-                  ),
-              },
-            ],
-          })
+          JSON.stringify(
+            {
+              ...templates.intent,
+              id: uuid(),
+              name: basename,
+              contexts: explorer.hasWelcomeIntent(id)
+                ? []
+                : getImmediateRequiredContext(intentId),
+              events: explorer.hasWelcomeIntent(id)
+                ? [{ name: "WELCOME" }]
+                : [],
+              lastUpdate: Date.parse(updated_at.date),
+              responses: [
+                {
+                  action: "",
+                  speech: [],
+                  parameters: [],
+                  resetContexts: false,
+                  // set affected contexts as the union of the intents going out of
+                  // any intermediate nodes and those that go out of this node
+                  affectedContexts: [
+                    ...intermediateNodes.reduce((acc, { next_message_ids }) => {
+                      if (!next_message_ids.length) {
+                        return acc;
+                      }
+                      return [
+                        ...acc,
+                        ...next_message_ids
+                          .filter(({ intent }) => !!intent.value)
+                          .map(createOutputContextFromMessage),
+                      ];
+                    }, []),
+                    ...next_message_ids
+                      .filter(({ intent }) => !!intent.value)
+                      .map(createOutputContextFromMessage),
+                  ],
+                  defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                    platform.toLowerCase()
+                  )
+                    ? { [platform.toLowerCase()]: true }
+                    : {},
+                  // set messages as the union of this message and all intermediate messages
+                  messages: [{ message_type, payload }, ...intermediateNodes]
+                    .reduce((acc, message) => {
+                      const findLimitForType = (type: string): number => {
+                        return 5;
+                      };
+                      const messageIsOverLimit = (limit: number): boolean =>
+                        acc.filter(
+                          ({ message_type }) =>
+                            message_type === message.message_type
+                        ).length >= limit;
+                      // if adding one more of this message would cause import to fail, omit it
+                      if (
+                        messageIsOverLimit(
+                          findLimitForType(message.message_type)
+                        )
+                      ) {
+                        console.warn(
+                          `truncating ${message.message_type} response`
+                        );
+                        return acc;
+                      }
+                      return [...acc, message];
+                    }, [])
+                    // ensure chat bubbles come before cards to abide by dialogflow's rule
+                    .sort(
+                      (a, b) => a.message_type.length - b.message_type.length
+                    )
+                    .map(message =>
+                      provider.create(message.message_type, message.payload)
+                    ),
+                },
+              ],
+            },
+            null,
+            2
+          )
         );
         if (Array.isArray(utterances) && utterances.length) {
           // write utterance file
@@ -275,7 +283,9 @@ try {
                   isTemplate: false,
                   updated: Date.parse(updated_at.date),
                 };
-              })
+              }),
+              null,
+              2
             )
           );
         }
