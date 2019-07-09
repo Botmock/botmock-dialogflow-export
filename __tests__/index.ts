@@ -15,6 +15,7 @@ test("creates output directory", done => {
 test("creates correct number of top level files and directories", async done => {
   await promisify(exec)("npm start");
   const output = await fs.promises.readdir(OUTPUT_PATH);
+  // omit dotfile
   expect(output.slice(1)).toHaveLength(4);
   done();
 });

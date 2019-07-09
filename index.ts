@@ -24,7 +24,9 @@ type Intent = {
   utterances: { text: string; variables: any[] }[];
 };
 
-type InputContext = string | void[];
+type Message = any;
+
+type InputContext = string[];
 type OutputContext = { name: string | void; parameters: {}; lifespan: number };
 
 export const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
@@ -47,8 +49,12 @@ let semaphore;
 try {
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
+  const DEFAULT_INTENT = {
+    name: "welcome",
+    updated_at: Date.now(),
+    utterances: [{ text: "hi", variables: [] }],
+  };
   (async () => {
-    // remove any preexisting output
     await remove(OUTPUT_PATH);
     await util.promisify(mkdirp)(INTENT_PATH);
     await util.promisify(mkdirp)(ENTITY_PATH);
@@ -76,10 +82,36 @@ try {
       explorer.getMessageFromId.bind(explorer)
     );
     // get the name of given intent from its id
-    const getNameOfIntent = (id: string): string | void => {
+    const getNameOfIntent = (id: string): string => {
       const { name: intentName }: Intent = intents.find(i => i.id === id) || {};
       return intentName;
     };
+    const getImmediateRequiredContext = (messageId: string): InputContext => {
+      const { previous_message_ids } = explorer.getMessageFromId(messageId);
+      // if a pmi is included in the set of keys on the intent map, it follows
+      // from at least one intent; return the first such intent
+      const key = Array.from(intentMap.keys()).find(id => {
+        return (
+          typeof previous_message_ids.find(
+            ({ message_id }) => message_id === id
+          ) !== "undefined"
+        );
+      });
+      if (key) {
+        const intentName = getNameOfIntent(intentMap.get(key)[0]);
+        if (typeof intentName !== "undefined") {
+          return [intentName];
+        }
+      }
+      return [];
+    };
+    const createOutputContextFromMessage = (
+      message: Message
+    ): OutputContext => ({
+      name: getNameOfIntent(message.intent.value),
+      parameters: {},
+      lifespan: 1,
+    });
     // set a welcome-like intent if no intent from the root is defined
     if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
       const { next_message_ids } = board.messages.find(
@@ -89,59 +121,30 @@ try {
       intentMap.set(firstNodeId, [uuid()]);
     }
     // create instance of semaphore class to control write concurrency
-    semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
+    semaphore = new Sema(os.cpus().length, { capacity: intentMap.size || 1 });
     // create instance of class that maps the board payload to dialogflow format
     const provider = new Provider(platform);
-    // for each combination of (message, intent) write intent and utterances files
-    for (const [id, intentIds] of intentMap.entries()) {
+    // for each message..
+    for (const [messageId, intentIds] of intentMap.entries()) {
       await semaphore.acquire();
-      const DEFAULT_INTENT = {
-        name: "welcome",
-        updated_at: Date.now(),
-        utterances: [{ text: "hi", variables: [] }],
-      };
       const {
         message_type,
         payload,
         message_id,
         next_message_ids,
         previous_message_ids,
-      } = explorer.getMessageFromId(id);
-      // ..
-      const getImmediateRequiredContext = (intentId: string): InputContext => {
-        const incidentIntentBearingMessage = previous_message_ids.find(
-          message => {
-            const m: any = explorer.getMessageFromId.call(
-              explorer,
-              message.message_id
-            );
-            return (
-              m.next_message_ids.length &&
-              m.next_message_ids.find(
-                message => message.intent && message.intent.value === intentId
-              )
-            );
-          }
-        );
-        return [];
-      };
+      } = explorer.getMessageFromId(messageId);
+      // ..iterate over each intent id and write necessary intent and utterance files
       for (const intentId of intentIds) {
         const { name, updated_at, utterances }: Partial<Intent> =
           intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
         const basename = `${payload.nodeName}(${message_id})_${name}`;
         const filePath = `${INTENT_PATH}/${basename}.json`;
-        // collect all messages reachable from this message that do not
-        // themselves have an outgoing intent
+        // collect all messages reachable from this message that do not themselves
+        // have an outgoing intent
         const intermediateNodes = collectIntermediateNodes(
           next_message_ids
         ).map(explorer.getMessageFromId.bind(explorer));
-        const createOutputContextFromMessage = ({
-          intent: { value },
-        }: any): OutputContext => ({
-          name: getNameOfIntent(value),
-          parameters: {},
-          lifespan: 1,
-        });
         await fs.promises.writeFile(
           filePath,
           JSON.stringify(
@@ -149,10 +152,10 @@ try {
               ...templates.intent,
               id: uuid(),
               name: basename,
-              contexts: explorer.hasWelcomeIntent(id)
+              contexts: explorer.hasWelcomeIntent(messageId)
                 ? []
-                : getImmediateRequiredContext(intentId),
-              events: explorer.hasWelcomeIntent(id)
+                : getImmediateRequiredContext(messageId),
+              events: explorer.hasWelcomeIntent(messageId)
                 ? [{ name: "WELCOME" }]
                 : [],
               lastUpdate: Date.parse(updated_at.date),
@@ -189,7 +192,7 @@ try {
                   messages: [{ message_type, payload }, ...intermediateNodes]
                     .reduce((acc, message) => {
                       const findLimitForType = (type: string): number => {
-                        return 5;
+                        return +Infinity;
                       };
                       const messageIsOverLimit = (limit: number): boolean =>
                         acc.filter(
