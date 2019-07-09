@@ -13,10 +13,10 @@ import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
-type ProjectResponse = {
+type ProjectResponse = Readonly<{
   data?: any[];
   errors?: any[];
-};
+}>;
 
 type Intent = {
   name: string;

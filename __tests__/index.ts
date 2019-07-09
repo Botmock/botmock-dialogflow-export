@@ -6,14 +6,14 @@ import { OUTPUT_PATH } from "../";
 
 test("creates output directory", done => {
   expect(async () => {
-    await promisify(exec)("npm start");
+    promisify(exec)("npm start");
     await fs.promises.access(OUTPUT_PATH, fs.constants.R_OK);
     done();
   }).not.toThrow();
 });
 
 test("creates correct number of top level files and directories", async done => {
-  await promisify(exec)("npm start");
+  promisify(exec)("npm start");
   const output = await fs.promises.readdir(OUTPUT_PATH);
   // omit dotfile
   expect(output.slice(1)).toHaveLength(4);
