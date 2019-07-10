@@ -220,7 +220,7 @@ try {
             },
             null,
             2
-          )
+          ) + os.EOL
         );
         if (Array.isArray(utterances) && utterances.length) {
           // write utterance file
@@ -285,7 +285,7 @@ try {
               }),
               null,
               2
-            )
+            ) + os.EOL
           );
         }
       }
@@ -299,11 +299,11 @@ try {
           ...templates.entity,
           id: uuid(),
           name: entity.name,
-        })
+        }) + os.EOL
       );
       await fs.promises.writeFile(
         path.join(ENTITY_PATH, `${entity.name}_entries_en.json`),
-        JSON.stringify(entity.data)
+        JSON.stringify(entity.data) + os.EOL
       );
     }
     // copy templates over to the output destination
