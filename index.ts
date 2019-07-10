@@ -13,6 +13,24 @@ import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
+type ProjectResponse = Readonly<{
+  data?: any[];
+  errors?: any[];
+}>;
+
+type Intent = {
+  name: string;
+  updated_at: { date: string };
+  utterances: { text: string; variables: any[] }[];
+};
+
+type Message = any;
+
+type InputContext = string[];
+type OutputContext = { name: string | void; parameters: {}; lifespan: number };
+
+export const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
+
 const MIN_NODE_VERSION = 101600;
 const numericalNodeVersion = parseInt(
   process.version
@@ -24,28 +42,19 @@ const numericalNodeVersion = parseInt(
 );
 
 if (numericalNodeVersion < MIN_NODE_VERSION) {
-  throw new Error("this script requires node.js version 10.16.0 or greater");
+  throw new Error("requires node.js version 10.16.0 or greater");
 }
-
-type ProjectResponse = {
-  data?: any[];
-  errors?: any[];
-};
-
-type Intent = {
-  name: string;
-  updated_at: { date: string };
-  utterances: { text: string; variables: any[] }[];
-};
-
-export const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
 
 let semaphore;
 try {
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
+  const DEFAULT_INTENT = {
+    name: "welcome",
+    updated_at: Date.now(),
+    utterances: [{ text: "hi", variables: [] }],
+  };
   (async () => {
-    // remove any preexisting output
     await remove(OUTPUT_PATH);
     await util.promisify(mkdirp)(INTENT_PATH);
     await util.promisify(mkdirp)(ENTITY_PATH);
@@ -56,104 +65,93 @@ try {
       teamId: process.env.BOTMOCK_TEAM_ID,
       token: process.env.BOTMOCK_TOKEN,
     });
-    // throw in the case of any errors returned from the api request
-    for (const { error } of project.errors) {
-      throw new Error(error);
-    }
     let [intents, entities, board, { platform }] = project.data;
     if (platform === "google-actions") {
       platform = "google";
     }
     // create map of message ids to ids of intents connected to them
     const intentMap = createIntentMap(board.messages, intents);
-    // create instance of semaphore class to control write concurrency
-    semaphore = new Sema(os.cpus().length, { capacity: intentMap.size });
-    // create instance of class that maps the board payload to dialogflow format
-    (async () => {
-      const provider = new Provider(platform);
-      const explorer = new BoardExplorer({ board, intentMap });
-      // from next messages, collects all reachable nodes not connected by intents
-      const collectIntermediateNodes = createMessageCollector(
-        intentMap,
-        explorer.getMessageFromId.bind(explorer)
-      );
-      // get the name of given intent from its id
-      const getNameOfIntent = (id: string): string | void => {
-        const { name: intentName }: Intent =
-          intents.find(i => i.id === id) || {};
-        return intentName;
-      };
-      // set a welcome-like intent if no intent from the root is defined
-      if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
-        const { next_message_ids } = board.messages.find(
-          explorer.messageIsRoot.bind(explorer)
+    const explorer = new BoardExplorer({ board, intentMap });
+    // from next messages, collects all reachable nodes not connected by intents
+    const collectIntermediateNodes = createMessageCollector(
+      intentMap,
+      explorer.getMessageFromId.bind(explorer)
+    );
+    // get the name of given intent from its id
+    const getNameOfIntent = (id: string): string => {
+      const { name: intentName }: Intent = intents.find(i => i.id === id) || {};
+      return intentName;
+    };
+    const getRequiredContext = (messageId: string): InputContext => {
+      const { previous_message_ids } = explorer.getMessageFromId(messageId);
+      // if a pmi is included in the set of keys on the intent map, it follows
+      // from at least one intent; return the first such intent
+      const key = Array.from(intentMap.keys()).find(id => {
+        return (
+          typeof previous_message_ids.find(
+            ({ message_id }) => message_id === id
+          ) !== "undefined"
         );
-        const [{ message_id: firstNodeId }] = next_message_ids;
-        intentMap.set(firstNodeId, [uuid()]);
+      });
+      if (key) {
+        const intentName = getNameOfIntent(intentMap.get(key)[0]);
+        if (typeof intentName !== "undefined") {
+          return [intentName];
+        }
       }
-      // write intent and utterances files for each combination of (message, intent)
-      for (const [id, intentIds] of intentMap.entries()) {
-        await semaphore.acquire();
-        const DEFAULT_INTENT = {
-          name: "welcome",
-          updated_at: Date.now(),
-          utterances: [{ text: "hi", variables: [] }],
-        };
-        const {
-          message_type,
-          payload,
-          message_id,
-          next_message_ids,
-          previous_message_ids,
-        } = explorer.getMessageFromId(id);
-        // gets an array containing strings of the required input context for
-        // an intent id
-        const getImmediateRequiredContext = (intentId: string): any => {
-          const incidentIntentBearingMessage = previous_message_ids.find(
-            message => {
-              const m: any = explorer.getMessageFromId.call(
-                explorer,
-                message.message_id
-              );
-              return (
-                m.next_message_ids.length &&
-                m.next_message_ids.find(
-                  message => message.intent && message.intent.value === intentId
-                )
-              );
-            }
-          );
-          return [];
-        };
-        for (const intentId of intentIds) {
-          const { name, updated_at, utterances }: Partial<Intent> =
-            intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
-          const basename = `${payload.nodeName}(${message_id})_${name}`;
-          const filePath = `${INTENT_PATH}/${basename}.json`;
-          // collect all messages reachable from this message that do not
-          // themselves have an outgoing intent
-          const intermediateNodes = collectIntermediateNodes(
-            next_message_ids
-          ).map(explorer.getMessageFromId.bind(explorer));
-          const createOutputContextFromMessage = ({
-            intent: { value },
-          }: any): any => ({
-            name: getNameOfIntent(value),
-            parameters: {},
-            lifespan: 1,
-          });
-          // write the actual intent file with fields provided by the location
-          // in the project flow
-          await fs.promises.writeFile(
-            filePath,
-            JSON.stringify({
+      return [];
+    };
+    const createOutputContextFromMessage = (
+      message: Message
+    ): OutputContext => ({
+      name: getNameOfIntent(message.intent.value),
+      parameters: {},
+      lifespan: 1,
+    });
+    // set a welcome-like intent if no intent from the root is defined
+    if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
+      const { next_message_ids } = board.messages.find(
+        explorer.messageIsRoot.bind(explorer)
+      );
+      const [{ message_id: firstNodeId }] = next_message_ids;
+      intentMap.set(firstNodeId, [uuid()]);
+    }
+    // create instance of semaphore class to control write concurrency
+    semaphore = new Sema(os.cpus().length, { capacity: intentMap.size || 1 });
+    // create instance of class that maps the board payload to dialogflow format
+    const provider = new Provider(platform);
+    // for each message..
+    for (const [messageId, intentIds] of intentMap.entries()) {
+      await semaphore.acquire();
+      const {
+        message_type,
+        payload,
+        message_id,
+        next_message_ids,
+        previous_message_ids,
+      } = explorer.getMessageFromId(messageId);
+      // ..iterate over each intent id and write necessary intent and utterance files
+      for (const intentId of intentIds) {
+        const { name, updated_at, utterances }: Partial<Intent> =
+          intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
+        const basename = `${payload.nodeName}(${message_id})_${name}`;
+        const filePath = path.join(INTENT_PATH, `${basename}.json`);
+        // collect all messages reachable from this message that do not themselves
+        // have an outgoing intent
+        const intermediateNodes = collectIntermediateNodes(
+          next_message_ids
+        ).map(explorer.getMessageFromId.bind(explorer));
+        await fs.promises.writeFile(
+          filePath,
+          JSON.stringify(
+            {
               ...templates.intent,
               id: uuid(),
               name: basename,
-              contexts: explorer.hasWelcomeIntent(id)
+              contexts: explorer.hasWelcomeIntent(messageId)
                 ? []
-                : getImmediateRequiredContext(intentId),
-              events: explorer.hasWelcomeIntent(id)
+                : getRequiredContext(messageId),
+              events: explorer.hasWelcomeIntent(messageId)
                 ? [{ name: "WELCOME" }]
                 : [],
               lastUpdate: Date.parse(updated_at.date),
@@ -186,31 +184,27 @@ try {
                   )
                     ? { [platform.toLowerCase()]: true }
                     : {},
-                  // messages are a mapped union of this message and all intermediate messages
+                  // set messages as the union of this message and all intermediate messages
                   messages: [{ message_type, payload }, ...intermediateNodes]
                     .reduce((acc, message) => {
-                      const messageIsOverLimit = (limit: number) =>
+                      const findLimitForType = (type: string): number => {
+                        return +Infinity;
+                      };
+                      const messageIsOverLimit = (limit: number): boolean =>
                         acc.filter(
                           ({ message_type }) =>
                             message_type === message.message_type
                         ).length >= limit;
-                      // do not include any overloading message in the next iteration
-                      const LIMIT = 5;
-                      switch (message.message_type) {
-                        case "text":
-                          if (messageIsOverLimit(LIMIT)) {
-                            console.warn(
-                              `truncating ${message.message_type} response`
-                            );
-                            return acc;
-                          }
-                        case "suggestion_chips":
-                          if (messageIsOverLimit(LIMIT)) {
-                            console.warn(
-                              `truncating ${message.message_type} response`
-                            );
-                            return acc;
-                          }
+                      // if adding one more of this message would cause import to fail, omit it
+                      if (
+                        messageIsOverLimit(
+                          findLimitForType(message.message_type)
+                        )
+                      ) {
+                        console.warn(
+                          `truncating ${message.message_type} response`
+                        );
+                        return acc;
                       }
                       return [...acc, message];
                     }, [])
@@ -223,76 +217,80 @@ try {
                     ),
                 },
               ],
-            })
-          );
-          if (Array.isArray(utterances) && utterances.length) {
-            // write utterance file
-            await fs.promises.writeFile(
-              `${filePath.slice(0, -5)}_usersays_en.json`,
-              JSON.stringify(
-                utterances.map(utterance => {
-                  const data = [];
-                  // reduce variables into lookup table of (start, end)
-                  // indices for that variable id
-                  const pairs: any[] = utterance.variables.reduce(
-                    (acc, vari) => ({
-                      ...acc,
-                      [vari.id]: [
-                        vari.start_index,
-                        vari.start_index + vari.name.length,
-                      ],
-                    }),
-                    {}
-                  );
-                  let lastIndex = 0;
-                  // save slices of text based on pair data
-                  for (const [id, [start, end]] of Object.entries(pairs)) {
-                    const previousBlock = [];
-                    if (start !== lastIndex) {
-                      previousBlock.push({
-                        text: utterance.text.slice(lastIndex, start),
-                        userDefined: false,
-                      });
-                    }
-                    const { name, entity: entityId } = utterance.variables.find(
-                      vari => vari.id === id
-                    );
-                    const { name: entityName } = entities.find(
-                      en => en.id === entityId
-                    );
-                    data.push(
-                      ...previousBlock.concat({
-                        text: name.slice(1, -1),
-                        meta: `@${entityName}`,
-                        userDefined: true,
-                      })
-                    );
-                    if (id !== Object.keys(pairs).pop()) {
-                      lastIndex = end;
-                    } else {
-                      data.push({
-                        text: utterance.text.slice(end),
-                        userDefined: false,
-                      });
-                    }
+            },
+            null,
+            2
+          )
+        );
+        if (Array.isArray(utterances) && utterances.length) {
+          // write utterance file
+          await fs.promises.writeFile(
+            `${filePath.slice(0, -5)}_usersays_en.json`,
+            JSON.stringify(
+              utterances.map(utterance => {
+                const data = [];
+                // reduce variables into lookup table of (start, end)
+                // indices for that variable id
+                const pairs: any[] = utterance.variables.reduce(
+                  (acc, vari) => ({
+                    ...acc,
+                    [vari.id]: [
+                      vari.start_index,
+                      vari.start_index + vari.name.length,
+                    ],
+                  }),
+                  {}
+                );
+                let lastIndex = 0;
+                // save slices of text based on pair data
+                for (const [id, [start, end]] of Object.entries(pairs)) {
+                  const previousBlock = [];
+                  if (start !== lastIndex) {
+                    previousBlock.push({
+                      text: utterance.text.slice(lastIndex, start),
+                      userDefined: false,
+                    });
                   }
-                  return {
-                    id: uuid(),
-                    data: data.length
-                      ? data
-                      : [{ text: utterance.text, userDefined: false }],
-                    count: 0,
-                    isTemplate: false,
-                    updated: Date.parse(updated_at.date),
-                  };
-                })
-              )
-            );
-          }
+                  const { name, entity: entityId } = utterance.variables.find(
+                    vari => vari.id === id
+                  );
+                  const { name: entityName } = entities.find(
+                    en => en.id === entityId
+                  );
+                  data.push(
+                    ...previousBlock.concat({
+                      text: name.slice(1, -1),
+                      meta: `@${entityName}`,
+                      userDefined: true,
+                    })
+                  );
+                  if (id !== Object.keys(pairs).pop()) {
+                    lastIndex = end;
+                  } else {
+                    data.push({
+                      text: utterance.text.slice(end),
+                      userDefined: false,
+                    });
+                  }
+                }
+                return {
+                  id: uuid(),
+                  data: data.length
+                    ? data
+                    : [{ text: utterance.text, userDefined: false }],
+                  count: 0,
+                  isTemplate: false,
+                  updated: Date.parse(updated_at.date),
+                };
+              }),
+              null,
+              2
+            )
+          );
         }
-        semaphore.release();
       }
-    })();
+      semaphore.release();
+    }
     // write an entity file for each entity in the project
     for (const entity of entities) {
       await fs.promises.writeFile(
