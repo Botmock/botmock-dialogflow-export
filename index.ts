@@ -84,8 +84,8 @@ try {
     };
     const getRequiredContext = (messageId: string): InputContext => {
       const { previous_message_ids } = explorer.getMessageFromId(messageId);
-      // if a pmi is included in the set of keys on the intent map, it follows
-      // from at least one intent; return the first such intent
+      // if a previous message id is included in the set of keys on the intent
+      // map, it follows from at least one intent; return the first such intent
       const key = Array.from(intentMap.keys()).find(id => {
         return (
           typeof previous_message_ids.find(
