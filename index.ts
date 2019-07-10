@@ -65,10 +65,6 @@ try {
       teamId: process.env.BOTMOCK_TEAM_ID,
       token: process.env.BOTMOCK_TOKEN,
     });
-    // throw in the case of any errors returned from the api request
-    for (const { error } of project.errors) {
-      throw new Error(error);
-    }
     let [intents, entities, board, { platform }] = project.data;
     if (platform === "google-actions") {
       platform = "google";
@@ -86,7 +82,7 @@ try {
       const { name: intentName }: Intent = intents.find(i => i.id === id) || {};
       return intentName;
     };
-    const getImmediateRequiredContext = (messageId: string): InputContext => {
+    const getRequiredContext = (messageId: string): InputContext => {
       const { previous_message_ids } = explorer.getMessageFromId(messageId);
       // if a pmi is included in the set of keys on the intent map, it follows
       // from at least one intent; return the first such intent
@@ -139,7 +135,7 @@ try {
         const { name, updated_at, utterances }: Partial<Intent> =
           intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
         const basename = `${payload.nodeName}(${message_id})_${name}`;
-        const filePath = `${INTENT_PATH}/${basename}.json`;
+        const filePath = path.join(INTENT_PATH, `${basename}.json`);
         // collect all messages reachable from this message that do not themselves
         // have an outgoing intent
         const intermediateNodes = collectIntermediateNodes(
@@ -154,7 +150,7 @@ try {
               name: basename,
               contexts: explorer.hasWelcomeIntent(messageId)
                 ? []
-                : getImmediateRequiredContext(messageId),
+                : getRequiredContext(messageId),
               events: explorer.hasWelcomeIntent(messageId)
                 ? [{ name: "WELCOME" }]
                 : [],
