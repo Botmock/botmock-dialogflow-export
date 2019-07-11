@@ -33,6 +33,8 @@ BOTMOCK_BOARD_ID=@YOUR-BOTMOCK-BOARD-ID
 BOTMOCK_PROJECT_ID=@YOUR-BOTMOCK-PROJECT-ID
 ```
 
+Note that you may also set `INTENT_NAME_DELIMITER` to control the way intent files are named.
+
 Start the script:
 
 ```shell
