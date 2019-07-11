@@ -93,30 +93,24 @@ try {
     // an array of strings
     const getRequiredContext = (immediateMessageId: string): InputContext => {
       let context: string[] = [];
+      // keep adding to context by searching previous messages for message ids
+      // that follow from intents until more than one such previous message exists
       (function unwindFromMessageId(id: string): void {
-        const { previous_message_ids } = explorer.getMessageFromId(
-          immediateMessageId
-        );
-        for (const { message_id } of previous_message_ids) {
-          if (!intentMap.get(message_id)) {
-            // unwindFromMessageId(message_id);
-            return;
+        const { previous_message_ids } = explorer.getMessageFromId(id);
+        for (const { message_id: previousId } of previous_message_ids) {
+          if (!intentMap.get(previousId)) {
+            unwindFromMessageId(previousId);
+          } else {
+            const [firstIntent, ...otherIntents] = intentMap.get(previousId);
+            if (otherIntents.length) {
+              return;
+            }
+            const name = getNameOfIntent(firstIntent);
+            if (typeof name !== "undefined") {
+              context.push(name);
+            }
           }
         }
-        // if (
-        //   Array.from(intentMap.keys()).find(id => {
-        //     return (
-        //       typeof previous_message_ids.find(
-        //         ({ message_id }) => immediateMessageId === id
-        //       ) !== "undefined"
-        //     );
-        //   })
-        // ) {
-        //   const intentName = getNameOfIntent(intentMap.get(id)[0]);
-        //   if (typeof intentName !== "undefined") {
-        //     context.push(intentName);
-        //   }
-        // }
       })(immediateMessageId);
       return context;
     };
