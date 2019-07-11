@@ -55,6 +55,7 @@ if (numericalNodeVersion < MIN_NODE_VERSION) {
 
 let semaphore: void | Sema;
 try {
+  const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "|";
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
   const DEFAULT_INTENT = {
@@ -73,7 +74,12 @@ try {
       teamId: process.env.BOTMOCK_TEAM_ID,
       token: process.env.BOTMOCK_TOKEN,
     });
-    let [intents, entities, board, { platform }] = project.data;
+    let [
+      intents,
+      entities,
+      board,
+      { platform, name: projectName },
+    ] = project.data;
     if (platform === "google-actions") {
       platform = "google";
     }
@@ -85,7 +91,8 @@ try {
     );
     // get the name of an intent from its id
     const getNameOfIntent = (id: string): string => {
-      const { name: intentName }: Intent = intents.find(i => i.id === id) || {};
+      const { name: intentName }: Intent =
+        intents.find(intent => intent.id === id) || {};
       return intentName;
     };
     // find the context that is implied by a given message id that follows from
@@ -114,6 +121,32 @@ try {
       })(immediateMessageId);
       return context;
     };
+    const uniqueNameMap = new Map<string, number>();
+    // construct intent file name based on project name and input context
+    const getIntentFileBasename = (
+      contexts: InputContext,
+      messageName: string
+    ): string => {
+      let str =
+        projectName +
+        (contexts.length ? INTENT_NAME_DELIMITER : "") +
+        contexts.join(INTENT_NAME_DELIMITER) +
+        INTENT_NAME_DELIMITER +
+        messageName;
+      if (uniqueNameMap.get(messageName)) {
+        const i = str.lastIndexOf(INTENT_NAME_DELIMITER);
+        str =
+          str.slice(0, i) +
+          INTENT_NAME_DELIMITER +
+          messageName +
+          uniqueNameMap.get(messageName);
+        uniqueNameMap.set(messageName, uniqueNameMap.get(messageName) + 1);
+      } else {
+        uniqueNameMap.set(messageName, 1);
+      }
+      return str.toLowerCase();
+    };
+    // map a message to proper output context object
     const createOutputContextFromMessage = (
       message: Message
     ): OutputContext => ({
@@ -150,7 +183,7 @@ try {
           const { name, updated_at, utterances }: Partial<Intent> =
             intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
           const contexts = getRequiredContext(messageId);
-          const basename = `${payload.nodeName}(${message_id})_${name}`;
+          const basename = getIntentFileBasename(contexts, payload.nodeName);
           const filePath = path.join(INTENT_PATH, `${basename}.json`);
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
@@ -248,11 +281,11 @@ try {
                   // reduce variables into lookup table of (start, end)
                   // indices for that variable id
                   const pairs: any[] = utterance.variables.reduce(
-                    (acc, vari) => ({
+                    (acc, variable) => ({
                       ...acc,
-                      [vari.id]: [
-                        vari.start_index,
-                        vari.start_index + vari.name.length,
+                      [variable.id]: [
+                        variable.start_index,
+                        variable.start_index + variable.name.length,
                       ],
                     }),
                     {}
@@ -268,7 +301,7 @@ try {
                       });
                     }
                     const { name, entity: entityId } = utterance.variables.find(
-                      vari => vari.id === id
+                      variable => variable.id === id
                     );
                     const { name: entityName } = entities.find(
                       en => en.id === entityId

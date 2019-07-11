@@ -1,5 +1,5 @@
 import fs from "fs";
-import os from "os";
+// import os from "os";
 import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
