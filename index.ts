@@ -99,15 +99,15 @@ try {
     // an intent by unwinding its intent history and returning this history as
     // an array of strings
     const getRequiredContext = (immediateMessageId: string): InputContext => {
-      let context: string[] = [];
+      const context: string[] = [];
       // keep adding to context by searching previous messages for message ids
       // that follow from intents until more than one such previous message exists
-      (function unwindFromMessageId(id: string): void {
+      (function unwindFromMessageId(id: string, stack: string[] = []): void {
         const { previous_message_ids } = explorer.getMessageFromId(id);
         for (const { message_id: previousId } of previous_message_ids) {
-          if (!intentMap.get(previousId)) {
-            unwindFromMessageId(previousId);
-          } else {
+          if (!intentMap.get(previousId) && !stack.includes(previousId)) {
+            unwindFromMessageId(previousId, [...stack, previousId]);
+          } else if (intentMap.get(previousId)) {
             const [firstIntent, ...otherIntents] = intentMap.get(previousId);
             if (otherIntents.length) {
               return;
@@ -303,16 +303,18 @@ try {
                     const { name, entity: entityId } = utterance.variables.find(
                       variable => variable.id === id
                     );
-                    const { name: entityName } = entities.find(
-                      en => en.id === entityId
+                    const entity = entities.find(
+                      entity => entity.id === entityId
                     );
-                    data.push(
-                      ...previousBlock.concat({
-                        text: name.slice(1, -1),
-                        meta: `@${entityName}`,
-                        userDefined: true,
-                      })
-                    );
+                    if (typeof entity !== "undefined") {
+                      data.push(
+                        ...previousBlock.concat({
+                          text: name.slice(1, -1),
+                          meta: `@${entity.name}`,
+                          userDefined: true,
+                        })
+                      );
+                    }
                     if (id !== Object.keys(pairs).pop()) {
                       lastIndex = end;
                     } else {

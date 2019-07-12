@@ -1,5 +1,3 @@
-// import { Intent } from "../../";
-
 export default class BoardExplorer {
   board: any;
   intentMap: any;
