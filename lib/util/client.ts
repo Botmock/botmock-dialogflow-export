@@ -19,6 +19,7 @@ export async function getProjectData({
   teamId,
   token,
 }: ProjectVariables) {
+  console.info("fetching project data.");
   const baseUrl = `${BOTMOCK_API_URL}/teams/${teamId}/projects/${projectId}`;
   // map promise responses to consumable data or errors
   const data = await Promise.all(
@@ -31,6 +32,7 @@ export async function getProjectData({
       });
       if (res.ok) {
         const json = await res.json();
+        console.info(`${path.match(/[a-z]{6,8}/gi) || "project"} fetched.`);
         return json.hasOwnProperty("board") ? json.board : json;
       } else {
         throw new Error(`${res.status} response on Botmock API fetch request`);

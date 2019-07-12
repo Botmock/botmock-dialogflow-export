@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
 import { remove } from "fs-extra";
+import { Sema } from "async-sema";
 import mkdirp from "mkdirp";
-import Sema from "async-sema";
 import uuid from "uuid/v4";
 import os from "os";
 import path from "path";
@@ -24,7 +24,11 @@ type Intent = {
   utterances: { text: string; variables: any[] }[];
 };
 
-type Message = any;
+type Message = {
+  message_type: string;
+  intent: { value: string };
+  payload: any;
+};
 
 type InputContext = string[];
 type OutputContext = { name: string | void; parameters: {}; lifespan: number };
@@ -45,8 +49,13 @@ if (numericalNodeVersion < MIN_NODE_VERSION) {
   throw new Error("requires node.js version 10.16.0 or greater");
 }
 
-let semaphore;
+// async function writeIntentFile(intent: Intent): Promise<void> {}
+
+// async function writeUtterancesFile(intent: Intent): Promise<void> {}
+
+let semaphore: void | Sema;
 try {
+  const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
   const DEFAULT_INTENT = {
@@ -65,42 +74,79 @@ try {
       teamId: process.env.BOTMOCK_TEAM_ID,
       token: process.env.BOTMOCK_TOKEN,
     });
-    let [intents, entities, board, { platform }] = project.data;
+    let [
+      intents,
+      entities,
+      board,
+      { platform, name: projectName },
+    ] = project.data;
     if (platform === "google-actions") {
       platform = "google";
     }
-    // create map of message ids to ids of intents connected to them
     const intentMap = createIntentMap(board.messages, intents);
     const explorer = new BoardExplorer({ board, intentMap });
-    // from next messages, collects all reachable nodes not connected by intents
-    const collectIntermediateNodes = createMessageCollector(
+    const collectIntermediateMessages: any = createMessageCollector(
       intentMap,
       explorer.getMessageFromId.bind(explorer)
     );
-    // get the name of given intent from its id
+    // get the name of an intent from its id
     const getNameOfIntent = (id: string): string => {
-      const { name: intentName }: Intent = intents.find(i => i.id === id) || {};
+      const { name: intentName }: Intent =
+        intents.find(intent => intent.id === id) || {};
       return intentName;
     };
-    const getRequiredContext = (messageId: string): InputContext => {
-      const { previous_message_ids } = explorer.getMessageFromId(messageId);
-      // if a pmi is included in the set of keys on the intent map, it follows
-      // from at least one intent; return the first such intent
-      const key = Array.from(intentMap.keys()).find(id => {
-        return (
-          typeof previous_message_ids.find(
-            ({ message_id }) => message_id === id
-          ) !== "undefined"
-        );
-      });
-      if (key) {
-        const intentName = getNameOfIntent(intentMap.get(key)[0]);
-        if (typeof intentName !== "undefined") {
-          return [intentName];
+    // find the context that is implied by a given message id that follows from
+    // an intent by unwinding its intent history and returning this history as
+    // an array of strings
+    const getRequiredContext = (immediateMessageId: string): InputContext => {
+      const context: string[] = [];
+      // keep adding to context by searching previous messages for message ids
+      // that follow from intents until more than one such previous message exists
+      (function unwindFromMessageId(id: string, stack: string[] = []): void {
+        const { previous_message_ids } = explorer.getMessageFromId(id);
+        for (const { message_id: previousId } of previous_message_ids) {
+          if (!intentMap.get(previousId) && !stack.includes(previousId)) {
+            unwindFromMessageId(previousId, [...stack, previousId]);
+          } else if (intentMap.get(previousId)) {
+            const [firstIntent, ...otherIntents] = intentMap.get(previousId);
+            if (otherIntents.length) {
+              return;
+            }
+            const name = getNameOfIntent(firstIntent);
+            if (typeof name !== "undefined") {
+              context.push(name);
+            }
+          }
         }
-      }
-      return [];
+      })(immediateMessageId);
+      return context;
     };
+    const uniqueNameMap = new Map<string, number>();
+    // construct intent file name based on project name and input context
+    const getIntentFileBasename = (
+      contexts: InputContext,
+      messageName: string
+    ): string => {
+      let str =
+        projectName +
+        (contexts.length ? INTENT_NAME_DELIMITER : "") +
+        contexts.join(INTENT_NAME_DELIMITER) +
+        INTENT_NAME_DELIMITER +
+        messageName;
+      if (uniqueNameMap.get(messageName)) {
+        const i = str.lastIndexOf(INTENT_NAME_DELIMITER);
+        str =
+          str.slice(0, i) +
+          INTENT_NAME_DELIMITER +
+          messageName +
+          uniqueNameMap.get(messageName);
+        uniqueNameMap.set(messageName, uniqueNameMap.get(messageName) + 1);
+      } else {
+        uniqueNameMap.set(messageName, 1);
+      }
+      return str.toLowerCase();
+    };
+    // map a message to proper output context object
     const createOutputContextFromMessage = (
       message: Message
     ): OutputContext => ({
@@ -122,7 +168,6 @@ try {
     const provider = new Provider(platform);
     // for each message..
     for (const [messageId, intentIds] of intentMap.entries()) {
-      await semaphore.acquire();
       const {
         message_type,
         payload,
@@ -132,164 +177,177 @@ try {
       } = explorer.getMessageFromId(messageId);
       // ..iterate over each intent id and write necessary intent and utterance files
       for (const intentId of intentIds) {
-        const { name, updated_at, utterances }: Partial<Intent> =
-          intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
-        const basename = `${payload.nodeName}(${message_id})_${name}`;
-        const filePath = path.join(INTENT_PATH, `${basename}.json`);
-        // collect all messages reachable from this message that do not themselves
-        // have an outgoing intent
-        const intermediateNodes = collectIntermediateNodes(
-          next_message_ids
-        ).map(explorer.getMessageFromId.bind(explorer));
-        await fs.promises.writeFile(
-          filePath,
-          JSON.stringify(
-            {
-              ...templates.intent,
-              id: uuid(),
-              name: basename,
-              contexts: explorer.hasWelcomeIntent(messageId)
-                ? []
-                : getRequiredContext(messageId),
-              events: explorer.hasWelcomeIntent(messageId)
-                ? [{ name: "WELCOME" }]
-                : [],
-              lastUpdate: Date.parse(updated_at.date),
-              responses: [
-                {
-                  action: "",
-                  speech: [],
-                  parameters: [],
-                  resetContexts: false,
-                  // set affected contexts as the union of the intents going out of
-                  // any intermediate nodes and those that go out of this node
-                  affectedContexts: [
-                    ...intermediateNodes.reduce((acc, { next_message_ids }) => {
-                      if (!next_message_ids.length) {
-                        return acc;
-                      }
-                      return [
-                        ...acc,
-                        ...next_message_ids
-                          .filter(({ intent }) => !!intent.value)
-                          .map(createOutputContextFromMessage),
-                      ];
-                    }, []),
-                    ...next_message_ids
-                      .filter(({ intent }) => !!intent.value)
-                      .map(createOutputContextFromMessage),
-                  ],
-                  defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
-                    platform.toLowerCase()
-                  )
-                    ? { [platform.toLowerCase()]: true }
-                    : {},
-                  // set messages as the union of this message and all intermediate messages
-                  messages: [{ message_type, payload }, ...intermediateNodes]
-                    .reduce((acc, message) => {
-                      const findLimitForType = (type: string): number => {
-                        return +Infinity;
-                      };
-                      const messageIsOverLimit = (limit: number): boolean =>
-                        acc.filter(
-                          ({ message_type }) =>
-                            message_type === message.message_type
-                        ).length >= limit;
-                      // if adding one more of this message would cause import to fail, omit it
-                      if (
-                        messageIsOverLimit(
-                          findLimitForType(message.message_type)
-                        )
-                      ) {
-                        console.warn(
-                          `truncating ${message.message_type} response`
-                        );
-                        return acc;
-                      }
-                      return [...acc, message];
-                    }, [])
-                    // ensure chat bubbles come before cards to abide by dialogflow's rule
-                    .sort(
-                      (a, b) => a.message_type.length - b.message_type.length
-                    )
-                    .map(message =>
-                      provider.create(message.message_type, message.payload)
-                    ),
-                },
-              ],
-            },
-            null,
-            2
-          )
-        );
-        if (Array.isArray(utterances) && utterances.length) {
-          // write utterance file
+        await semaphore.acquire();
+        try {
+          // console.info(semaphore.nrWaiting());
+          const { name, updated_at, utterances }: Partial<Intent> =
+            intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
+          const contexts = getRequiredContext(messageId);
+          const basename = getIntentFileBasename(contexts, payload.nodeName);
+          const filePath = path.join(INTENT_PATH, `${basename}.json`);
+          const intermediateMessages = collectIntermediateMessages(
+            next_message_ids
+          ).map(explorer.getMessageFromId.bind(explorer));
           await fs.promises.writeFile(
-            `${filePath.slice(0, -5)}_usersays_en.json`,
+            filePath,
             JSON.stringify(
-              utterances.map(utterance => {
-                const data = [];
-                // reduce variables into lookup table of (start, end)
-                // indices for that variable id
-                const pairs: any[] = utterance.variables.reduce(
-                  (acc, vari) => ({
-                    ...acc,
-                    [vari.id]: [
-                      vari.start_index,
-                      vari.start_index + vari.name.length,
+              {
+                ...templates.intent,
+                id: uuid(),
+                name: basename,
+                contexts,
+                events: explorer.hasWelcomeIntent(messageId)
+                  ? [{ name: "WELCOME" }]
+                  : [],
+                lastUpdate: Date.parse(updated_at.date),
+                responses: [
+                  {
+                    action: "",
+                    speech: [],
+                    parameters: [],
+                    resetContexts: false,
+                    affectedContexts: [
+                      ...intermediateMessages.reduce(
+                        (acc, { next_message_ids }) => {
+                          if (!next_message_ids.length) {
+                            return acc;
+                          }
+                          return [
+                            ...acc,
+                            ...next_message_ids
+                              .filter(({ intent }) => !!intent.value)
+                              .map(createOutputContextFromMessage),
+                          ];
+                        },
+                        []
+                      ),
+                      ...next_message_ids
+                        .filter(({ intent }) => !!intent.value)
+                        .map(createOutputContextFromMessage),
                     ],
-                  }),
-                  {}
-                );
-                let lastIndex = 0;
-                // save slices of text based on pair data
-                for (const [id, [start, end]] of Object.entries(pairs)) {
-                  const previousBlock = [];
-                  if (start !== lastIndex) {
-                    previousBlock.push({
-                      text: utterance.text.slice(lastIndex, start),
-                      userDefined: false,
-                    });
-                  }
-                  const { name, entity: entityId } = utterance.variables.find(
-                    vari => vari.id === id
-                  );
-                  const { name: entityName } = entities.find(
-                    en => en.id === entityId
-                  );
-                  data.push(
-                    ...previousBlock.concat({
-                      text: name.slice(1, -1),
-                      meta: `@${entityName}`,
-                      userDefined: true,
-                    })
-                  );
-                  if (id !== Object.keys(pairs).pop()) {
-                    lastIndex = end;
-                  } else {
-                    data.push({
-                      text: utterance.text.slice(end),
-                      userDefined: false,
-                    });
-                  }
-                }
-                return {
-                  id: uuid(),
-                  data: data.length
-                    ? data
-                    : [{ text: utterance.text, userDefined: false }],
-                  count: 0,
-                  isTemplate: false,
-                  updated: Date.parse(updated_at.date),
-                };
-              }),
+                    defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                      platform.toLowerCase()
+                    )
+                      ? { [platform.toLowerCase()]: true }
+                      : {},
+                    // set messages as the union of this message and all intermediate messages
+                    messages: [
+                      { message_type, payload },
+                      ...intermediateMessages,
+                    ]
+                      .reduce((acc, message) => {
+                        const findLimitForType = (type: string): number => {
+                          return +Infinity;
+                        };
+                        const messageIsOverLimit = (limit: number): boolean =>
+                          acc.filter(
+                            ({ message_type }) =>
+                              message_type === message.message_type
+                          ).length >= limit;
+                        // if adding one more of this message would cause import to fail, omit it
+                        if (
+                          messageIsOverLimit(
+                            findLimitForType(message.message_type)
+                          )
+                        ) {
+                          console.warn(
+                            `truncating ${message.message_type} response`
+                          );
+                          return acc;
+                        }
+                        return [...acc, message];
+                      }, [])
+                      // ensure chat bubbles come before cards to abide by dialogflow's rule
+                      .sort(
+                        (a, b) => a.message_type.length - b.message_type.length
+                      )
+                      .map(message =>
+                        provider.create(message.message_type, message.payload)
+                      ),
+                  },
+                ],
+              },
               null,
               2
-            )
+            ) + os.EOL
           );
+          if (Array.isArray(utterances) && utterances.length) {
+            // write utterance file
+            await fs.promises.writeFile(
+              `${filePath.slice(0, -5)}_usersays_en.json`,
+              JSON.stringify(
+                utterances.map(utterance => {
+                  const data = [];
+                  // reduce variables into lookup table of (start, end)
+                  // indices for that variable id
+                  const pairs: any[] = utterance.variables.reduce(
+                    (acc, variable) => ({
+                      ...acc,
+                      [variable.id]: [
+                        variable.start_index,
+                        variable.start_index + variable.name.length,
+                      ],
+                    }),
+                    {}
+                  );
+                  let lastIndex = 0;
+                  // save slices of text based on pair data
+                  for (const [id, [start, end]] of Object.entries(pairs)) {
+                    const previousBlock = [];
+                    if (start !== lastIndex) {
+                      previousBlock.push({
+                        text: utterance.text.slice(lastIndex, start),
+                        userDefined: false,
+                      });
+                    }
+                    const { name, entity: entityId } = utterance.variables.find(
+                      variable => variable.id === id
+                    );
+                    const entity = entities.find(
+                      entity => entity.id === entityId
+                    );
+                    if (typeof entity !== "undefined") {
+                      data.push(
+                        ...previousBlock.concat({
+                          text: name.slice(1, -1),
+                          meta: `@${entity.name}`,
+                          userDefined: true,
+                        })
+                      );
+                    }
+                    if (id !== Object.keys(pairs).pop()) {
+                      lastIndex = end;
+                    } else {
+                      data.push({
+                        text: utterance.text.slice(end),
+                        userDefined: false,
+                      });
+                    }
+                  }
+                  return {
+                    id: uuid(),
+                    data: data.length
+                      ? data
+                      : [{ text: utterance.text, userDefined: false }],
+                    count: 0,
+                    isTemplate: false,
+                    updated: Date.parse(updated_at.date),
+                  };
+                }),
+                null,
+                2
+              ) + os.EOL
+            );
+          }
+        } catch (err) {
+          if (semaphore.nrWaiting()) {
+            await semaphore.drain();
+          }
+          throw err;
+        } finally {
+          semaphore.release();
         }
       }
-      semaphore.release();
     }
     // write an entity file for each entity in the project
     for (const entity of entities) {
@@ -299,11 +357,11 @@ try {
           ...templates.entity,
           id: uuid(),
           name: entity.name,
-        })
+        }) + os.EOL
       );
       await fs.promises.writeFile(
         path.join(ENTITY_PATH, `${entity.name}_entries_en.json`),
-        JSON.stringify(entity.data)
+        JSON.stringify(entity.data) + os.EOL
       );
     }
     // copy templates over to the output destination
@@ -346,20 +404,15 @@ try {
         }
       }
     }
-    console.log(
-      `Completed writing to ${path.sep}${path.basename(OUTPUT_PATH)} (${sum /
-        1000}kB)`
+    console.info(
+      `done.${os.EOL}wrote ${sum / 1000}kB to ${__dirname}${
+        path.sep
+      }${path.basename(OUTPUT_PATH)}.`
     );
   })();
 } catch (err) {
-  if (semaphore && semaphore.nrWaiting() > 0) {
-    semaphore.drain().then(() => {
-      process.exit(1);
-    });
-  } else {
-    console.error(err);
-    process.exit(1);
-  }
+  console.error(err);
+  process.exit(1);
 }
 
 // copies file to its destination in the output directory

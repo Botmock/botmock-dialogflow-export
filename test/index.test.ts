@@ -1,4 +1,5 @@
 import fs from "fs";
+// import os from "os";
 import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -16,8 +17,12 @@ test("creates output directory", done => {
 test("creates correct number of top level files and directories", async done => {
   promisify(exec)("npm start");
   const output = await fs.promises.readdir(OUTPUT_PATH);
-  // omit dotfile
-  expect(output.slice(1)).toHaveLength(4);
+  expect(
+    output
+      .toString()
+      .split(",")
+      .filter(str => !str.match(/\.DS+/))
+  ).toHaveLength(4);
   done();
 });
 

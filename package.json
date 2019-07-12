@@ -34,7 +34,7 @@
     "@botmock-api/utils": "2.1.0",
     "@types/node-fetch": "2.3.7",
     "arg": "4.1.0",
-    "async-sema": "2.2.0",
+    "async-sema": "3.0.0",
     "botmock": "^1.2.0",
     "dotenv": "8.0.0",
     "fs-extra": "8.1.0",
