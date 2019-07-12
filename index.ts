@@ -55,7 +55,7 @@ if (numericalNodeVersion < MIN_NODE_VERSION) {
 
 let semaphore: void | Sema;
 try {
-  const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "|";
+  const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
   const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
   const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
   const DEFAULT_INTENT = {
