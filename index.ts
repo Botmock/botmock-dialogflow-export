@@ -13,25 +13,28 @@ import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
-type ProjectResponse = Readonly<{
-  data?: any[];
-  errors?: any[];
-}>;
-
 type Intent = {
   name: string;
   updated_at: { date: string };
   utterances: { text: string; variables: any[] }[];
 };
 
-type Message = {
+type InputContext = string[];
+type OutputContext = { name: string | void; parameters: {}; lifespan: number };
+
+type ProjectResponse = Readonly<{
+  data?: any[];
+  errors?: any[];
+}>;
+
+export type Message = {
+  message_id: string;
+  next_message_ids: any[];
+  previous_message_ids: any[];
   message_type: string;
   intent: { value: string };
   payload: any;
 };
-
-type InputContext = string[];
-type OutputContext = { name: string | void; parameters: {}; lifespan: number };
 
 export const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
 

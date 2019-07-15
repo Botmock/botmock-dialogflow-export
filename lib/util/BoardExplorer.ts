@@ -1,6 +1,8 @@
+import { Message } from "../../";
+
 export default class BoardExplorer {
-  board: any;
-  intentMap: any;
+  private board: { messages: Message[]; root_messages: string[] };
+  private intentMap: Map<string, string[]>;
 
   constructor({ board, intentMap }: any) {
     this.board = board;

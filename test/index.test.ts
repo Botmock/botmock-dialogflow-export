@@ -26,6 +26,7 @@ test("creates correct number of top level files and directories", async done => 
   done();
 });
 
+test.todo("creates a welcome intent");
 test.todo("creates correct context");
 test.todo("formats generated JSON");
 test.todo("produces correct number of intent files");
