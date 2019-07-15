@@ -1,16 +1,21 @@
 import uuid from "uuid/v4";
+import path from "path";
 import os from "os";
 import fs from "fs";
+import { OUTPUT_PATH } from "../../";
 
-// const createOutputContextFromMessage = (
-//   message: Message
-// ): OutputContext => ({
-//   name: getNameOfIntent(message.intent.value),
-//   parameters: {},
-//   lifespan: 1,
-// });
-
-// export async function writeIntentFile(intent: Intent): Promise<void> {}
+// copies file to its destination in the output directory
+export async function copyFileToOutput(
+  pathToFile,
+  options = { isIntentFile: false }
+): Promise<void> {
+  const pathToOutput = path.join(
+    OUTPUT_PATH,
+    options.isIntentFile ? "intents" : "",
+    path.basename(pathToFile)
+  );
+  return await fs.promises.copyFile(pathToFile, pathToOutput);
+}
 
 export async function writeUtterancesFile(
   intentFilepath: string,

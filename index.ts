@@ -11,7 +11,7 @@ import fs, { Stats } from "fs";
 import BoardExplorer from "./lib/util/BoardExplorer";
 import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
-import { writeUtterancesFile } from "./lib/util/write";
+import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
 type Intent = {
@@ -154,6 +154,25 @@ try {
       parameters: {},
       lifespan: 1,
     });
+    const getAffectedContexts = (
+      intermediateMessages: Message[],
+      nextMessageIds: any[]
+    ): OutputContext[] => [
+      ...intermediateMessages.reduce((acc, { next_message_ids }) => {
+        if (!next_message_ids.length) {
+          return acc;
+        }
+        return [
+          ...acc,
+          ...next_message_ids
+            .filter(({ intent }) => !!intent.value)
+            .map(createOutputContextFromMessage),
+        ];
+      }, []),
+      ...nextMessageIds
+        .filter(({ intent }) => !!intent.value)
+        .map(createOutputContextFromMessage),
+    ];
     // set a welcome-like intent if no intent from the root is defined
     if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
       const { next_message_ids } = board.messages.find(
@@ -166,7 +185,7 @@ try {
     semaphore = new Sema(os.cpus().length, { capacity: intentMap.size || 1 });
     // create instance of class that maps the board payload to dialogflow format
     const provider = new Provider(platform);
-    // for each message..
+    // for each message in the intent map..
     for (const [messageId, intentIds] of intentMap.entries()) {
       const {
         message_type,
@@ -175,12 +194,12 @@ try {
         next_message_ids,
         previous_message_ids,
       } = explorer.getMessageFromId(messageId);
-      // ..iterate over each intent id and write necessary intent and utterance files
+      // ..iterate over each intent id on it and write intent and utterance files
       for (const intentId of intentIds) {
         await semaphore.acquire();
         try {
           // console.info(semaphore.nrWaiting());
-          const { updated_at, utterances }: Partial<Intent> =
+          const { updated_at, utterances, ...rest }: Partial<Intent> =
             intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
           const contexts = getRequiredContext(messageId);
           const basename = getIntentFileBasename(contexts, payload.nodeName);
@@ -188,6 +207,10 @@ try {
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
           ).map(explorer.getMessageFromId.bind(explorer));
+          const affectedContexts = getAffectedContexts(
+            intermediateMessages,
+            next_message_ids
+          );
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
           await fs.promises.writeFile(
             filePath,
@@ -207,25 +230,7 @@ try {
                     speech: [],
                     parameters: [],
                     resetContexts: false,
-                    affectedContexts: [
-                      ...intermediateMessages.reduce(
-                        (acc, { next_message_ids }) => {
-                          if (!next_message_ids.length) {
-                            return acc;
-                          }
-                          return [
-                            ...acc,
-                            ...next_message_ids
-                              .filter(({ intent }) => !!intent.value)
-                              .map(createOutputContextFromMessage),
-                          ];
-                        },
-                        []
-                      ),
-                      ...next_message_ids
-                        .filter(({ intent }) => !!intent.value)
-                        .map(createOutputContextFromMessage),
-                    ],
+                    affectedContexts,
                     defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
                       platform.toLowerCase()
                     )
@@ -245,7 +250,6 @@ try {
                             ({ message_type }) =>
                               message_type === message.message_type
                           ).length >= limit;
-                        // if adding one more of this message would cause import to fail, omit it
                         if (
                           messageIsOverLimit(
                             findLimitForType(message.message_type)
@@ -258,10 +262,6 @@ try {
                         }
                         return [...acc, message];
                       }, [])
-                      // ensure chat bubbles come before cards to abide by dialogflow's rule
-                      .sort(
-                        (a, b) => a.message_type.length - b.message_type.length
-                      )
                       .map(message =>
                         provider.create(message.message_type, message.payload)
                       ),
@@ -346,15 +346,4 @@ try {
 } catch (err) {
   console.error(err);
   process.exit(1);
-}
-
-// copies file to its destination in the output directory
-async function copyFileToOutput(pathToFile, options = { isIntentFile: false }) {
-  const pathToOutput = path.join(
-    __dirname,
-    "output",
-    options.isIntentFile ? "intents" : "",
-    path.basename(pathToFile)
-  );
-  return await fs.promises.copyFile(pathToFile, pathToOutput);
 }
