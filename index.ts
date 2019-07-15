@@ -37,7 +37,10 @@ export type Message = {
   payload: any;
 };
 
-export const OUTPUT_PATH = path.join(__dirname, process.argv[2] || "output");
+export const OUTPUT_PATH = path.join(
+  process.cwd(),
+  process.env.OUTPUT_DIR || "output"
+);
 
 const MIN_NODE_VERSION = 101600;
 const numericalNodeVersion = parseInt(
