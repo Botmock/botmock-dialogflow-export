@@ -1,6 +1,21 @@
 # Botmock Dialogflow Export
 
-Import [Botmock](https://botmock.com) projects in Dialogflow.
+Import [Botmock](https://botmock.com) projects in [Dialogflow](https://console.dialogflow.com/).
+
+This script produces a compressible directory able to be uploaded to Dialogflow.
+
+## ethos
+
+Currently, the script maps context to the ordering of intents in the Botmock flow to control
+conversation paths. In other words, in the flow, a message downstream of a particular intent will
+require that intent as input context in the created file. Similarly, output contexts are set by
+the intents on connectors that go out of particular messages.
+
+There are future plans to leverage followup intents to accomplish similar goals.
+
+Files are named by the formula: `${PROJECT_NAME}-${...INPUT_CONTEXT}-${MESSAGE_NAME}`.
+
+The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment variable.
 
 ## prerequisites
 
@@ -12,7 +27,7 @@ node --version
 
 - [Dialogflow](https://console.dialogflow.com) account
 
-### guide
+## guide
 
 Clone this repository and install dependencies:
 
@@ -33,7 +48,8 @@ BOTMOCK_BOARD_ID=@YOUR-BOTMOCK-BOARD-ID
 BOTMOCK_PROJECT_ID=@YOUR-BOTMOCK-PROJECT-ID
 ```
 
-Note that you may also set `INTENT_NAME_DELIMITER` to control the way intent files are named.
+Note that you may set `INTENT_NAME_DELIMITER` to control the way intent files are named,
+and `OUTPUT_DIR` to name the directory that holds the output.
 
 Start the script:
 
@@ -41,15 +57,15 @@ Start the script:
 npm start
 ```
 
-- Run `npm install`
-- Run `npm start`
-- Find your zipped project in `/output.zip`
+- Run `npm install`.
+- Run `npm start`.
+- Compress your output directory (`/output` by default).
 
 ### importing to Dialogflow
 
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
 - Choose the 'Export and Import' tab and choose 'Import From Zip'
-- Select `/output.zip`, typing 'IMPORT' in their form field and clicking 'IMPORT'
+- Select your compressed output, typing 'IMPORT' in their form field and clicking 'IMPORT'
 
 ## glossary
 
