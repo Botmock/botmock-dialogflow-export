@@ -14,7 +14,6 @@ the intents on connectors that go out of particular messages.
 There are future plans to leverage followup intents to accomplish similar goals.
 
 Files are named by the formula: `${PROJECT_NAME}-${...INPUT_CONTEXT}-${MESSAGE_NAME}`.
-
 The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment variable.
 
 ## prerequisites
@@ -47,9 +46,6 @@ BOTMOCK_TEAM_ID=@YOUR-BOTMOCK-TEAM-ID
 BOTMOCK_BOARD_ID=@YOUR-BOTMOCK-BOARD-ID
 BOTMOCK_PROJECT_ID=@YOUR-BOTMOCK-PROJECT-ID
 ```
-
-Note that you may set `INTENT_NAME_DELIMITER` to control the way intent files are named,
-and `OUTPUT_DIR` to name the directory that holds the output.
 
 Start the script:
 
