@@ -11,6 +11,7 @@ import fs, { Stats } from "fs";
 import BoardExplorer from "./lib/util/BoardExplorer";
 import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
+import { writeUtterancesFile } from "./lib/util/write";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
 
 type Intent = {
@@ -51,10 +52,6 @@ const numericalNodeVersion = parseInt(
 if (numericalNodeVersion < MIN_NODE_VERSION) {
   throw new Error("requires node.js version 10.16.0 or greater");
 }
-
-// async function writeIntentFile(intent: Intent): Promise<void> {}
-
-// async function writeUtterancesFile(intent: Intent): Promise<void> {}
 
 let semaphore: void | Sema;
 try {
@@ -183,7 +180,7 @@ try {
         await semaphore.acquire();
         try {
           // console.info(semaphore.nrWaiting());
-          const { name, updated_at, utterances }: Partial<Intent> =
+          const { updated_at, utterances }: Partial<Intent> =
             intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
           const contexts = getRequiredContext(messageId);
           const basename = getIntentFileBasename(contexts, payload.nodeName);
@@ -191,6 +188,7 @@ try {
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
           ).map(explorer.getMessageFromId.bind(explorer));
+          await writeUtterancesFile(filePath, utterances, updated_at, entities);
           await fs.promises.writeFile(
             filePath,
             JSON.stringify(
@@ -274,74 +272,6 @@ try {
               2
             ) + os.EOL
           );
-          if (Array.isArray(utterances) && utterances.length) {
-            // write utterance file
-            await fs.promises.writeFile(
-              `${filePath.slice(0, -5)}_usersays_en.json`,
-              JSON.stringify(
-                utterances.map(utterance => {
-                  const data = [];
-                  // reduce variables into lookup table of (start, end)
-                  // indices for that variable id
-                  const pairs: any[] = utterance.variables.reduce(
-                    (acc, variable) => ({
-                      ...acc,
-                      [variable.id]: [
-                        variable.start_index,
-                        variable.start_index + variable.name.length,
-                      ],
-                    }),
-                    {}
-                  );
-                  let lastIndex = 0;
-                  // save slices of text based on pair data
-                  for (const [id, [start, end]] of Object.entries(pairs)) {
-                    const previousBlock = [];
-                    if (start !== lastIndex) {
-                      previousBlock.push({
-                        text: utterance.text.slice(lastIndex, start),
-                        userDefined: false,
-                      });
-                    }
-                    const { name, entity: entityId } = utterance.variables.find(
-                      variable => variable.id === id
-                    );
-                    const entity = entities.find(
-                      entity => entity.id === entityId
-                    );
-                    if (typeof entity !== "undefined") {
-                      data.push(
-                        ...previousBlock.concat({
-                          text: name.slice(1, -1),
-                          meta: `@${entity.name}`,
-                          userDefined: true,
-                        })
-                      );
-                    }
-                    if (id !== Object.keys(pairs).pop()) {
-                      lastIndex = end;
-                    } else {
-                      data.push({
-                        text: utterance.text.slice(end),
-                        userDefined: false,
-                      });
-                    }
-                  }
-                  return {
-                    id: uuid(),
-                    data: data.length
-                      ? data
-                      : [{ text: utterance.text, userDefined: false }],
-                    count: 0,
-                    isTemplate: false,
-                    updated: Date.parse(updated_at.date),
-                  };
-                }),
-                null,
-                2
-              ) + os.EOL
-            );
-          }
         } catch (err) {
           if (semaphore.nrWaiting()) {
             await semaphore.drain();
