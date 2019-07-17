@@ -7,6 +7,7 @@ import uuid from "uuid/v4";
 import os from "os";
 import path from "path";
 import util from "util";
+import assert from "assert";
 import fs, { Stats } from "fs";
 import BoardExplorer from "./lib/util/BoardExplorer";
 import { getProjectData } from "./lib/util/client";
@@ -42,18 +43,19 @@ export const OUTPUT_PATH = path.join(
   process.env.OUTPUT_DIR || "output"
 );
 
-const MIN_NODE_VERSION = 101600;
-const numericalNodeVersion = parseInt(
-  process.version
-    .slice(1)
-    .split(".")
-    .map(seq => seq.padStart(2, "0"))
-    .join(""),
-  10
-);
-
-if (numericalNodeVersion < MIN_NODE_VERSION) {
-  throw new Error("requires node.js version 10.16.0 or greater");
+try {
+  const MIN_NODE_VERSION = 101600;
+  const numericalNodeVersion = parseInt(
+    process.version
+      .slice(1)
+      .split(".")
+      .map(seq => seq.padStart(2, "0"))
+      .join(""),
+    10
+  );
+  assert.strictEqual(numericalNodeVersion >= MIN_NODE_VERSION, true);
+} catch (_) {
+  throw "requires node.js version 10.16.0 or greater";
 }
 
 let semaphore: void | Sema;
@@ -116,7 +118,7 @@ try {
               return;
             }
             const name = getNameOfIntent(firstIntent);
-            if (typeof name !== "undefined") {
+            if (typeof name !== "undefined" && context.slice(-1)[0] !== name) {
               context.push(name);
             }
           }
