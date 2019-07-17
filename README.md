@@ -11,6 +11,8 @@ conversation paths. In other words, in the flow, a message downstream of a parti
 require that intent as input context in the created file. Similarly, output contexts are set by
 the intents on connectors that go out of particular messages.
 
+> Note that Dialogflow has a limit of **5** input contexts per intent. Projects should be structured to take account of this fact.
+
 There are future plans to leverage followup intents to accomplish similar goals.
 
 Files are named by the formula: `${PROJECT_NAME}-${...INPUT_CONTEXT}-${MESSAGE_NAME}`.
@@ -73,14 +75,6 @@ npm start
 ## want to help?
 
 Found bugs or have some ideas to improve this plugin? We'd love to to hear from you! You can start by submitting an issue at the [Issues](https://github.com/Botmock/botmock-dialogflow-export/issues) tab. If you want, feel free to submit a pull request and propose a change as well!
-
-### submitting a Pull Request
-
-1. Adding a Pull Request
-2. Start with creating an issue if possible, the more information, the better!
-3. Fork the Repository
-4. Make a new change under a branch based on master. Ideally, the branch should be based on the issue you made such as issue-530
-5. Send the Pull Request, followed by a brief description of the changes you've made. Reference the issue.
 
 _NOTE: Make sure to leave any sensitive information out of an issue when reporting a bug with imagery or copying and pasting error data. We want to make sure all your info is safe!_
 

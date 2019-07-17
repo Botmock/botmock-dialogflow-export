@@ -159,6 +159,7 @@ try {
       parameters: {},
       lifespan: 1,
     });
+    // determine output context
     const getAffectedContexts = (
       intermediateMessages: Message[],
       nextMessageIds: any[]
