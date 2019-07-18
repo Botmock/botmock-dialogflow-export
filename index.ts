@@ -95,32 +95,33 @@ try {
       explorer.getMessageFromId.bind(explorer)
     );
     // get the name of an intent from its id
-    const getNameOfIntent = (id: string): string => {
+    const getIntentName = (id: string): string => {
       const { name: intentName }: Intent =
         intents.find(intent => intent.id === id) || {};
       return intentName;
     };
-    // find the context that is implied by a given message id that follows from
-    // an intent by unwinding its intent history and returning this history as
-    // an array of strings
-    const getRequiredContext = (immediateMessageId: string): InputContext => {
+    // find the input context implied by a given message id
+    const getInputContextFromMessage = (
+      immediateMessageId: string
+    ): InputContext => {
       const context: string[] = [];
-      // keep adding to context by searching previous messages for message ids
-      // that follow from intents until more than one such previous message exists
-      (function unwindFromMessageId(id: string, stack: string[] = []): void {
-        const { previous_message_ids } = explorer.getMessageFromId(id);
-        for (const { message_id: previousId } of previous_message_ids) {
-          if (!intentMap.get(previousId) && !stack.includes(previousId)) {
-            unwindFromMessageId(previousId, [...stack, previousId]);
-          } else if (intentMap.get(previousId)) {
-            const [firstIntent, ...otherIntents] = intentMap.get(previousId);
-            if (otherIntents.length) {
-              return;
-            }
-            const name = getNameOfIntent(firstIntent);
-            if (typeof name !== "undefined" && context.slice(-1)[0] !== name) {
-              context.push(name);
-            }
+      (function unwindFromMessageId(messageId: string): void {
+        const { previous_message_ids } = explorer.getMessageFromId(messageId);
+        let messageFollowingIntent;
+        if (
+          (messageFollowingIntent = previous_message_ids.find(
+            ({ message_id }) => intentMap.get(message_id)
+          ))
+        ) {
+          const intentName = getIntentName(
+            intentMap.get(messageFollowingIntent.message_id)[0]
+          );
+          if (typeof intentName !== "undefined") {
+            context.push(intentName);
+          }
+        } else {
+          for (const { message_id } of previous_message_ids) {
+            unwindFromMessageId(messageId);
           }
         }
       })(immediateMessageId);
@@ -133,7 +134,7 @@ try {
       messageName: string
     ): string => {
       let str =
-        projectName +
+        projectName.slice(0, 10) +
         (contexts.length ? INTENT_NAME_DELIMITER : "") +
         contexts.join(INTENT_NAME_DELIMITER) +
         INTENT_NAME_DELIMITER +
@@ -155,7 +156,7 @@ try {
     const createOutputContextFromMessage = (
       message: Message
     ): OutputContext => ({
-      name: getNameOfIntent(message.intent.value),
+      name: getIntentName(message.intent.value),
       parameters: {},
       lifespan: 1,
     });
@@ -191,7 +192,7 @@ try {
     semaphore = new Sema(os.cpus().length, { capacity: intentMap.size || 1 });
     // create instance of class that maps the board payload to dialogflow format
     const provider = new Provider(platform);
-    // for each message in the intent map..
+    // iterate over each message that follows directly from a connector with an intent
     for (const [messageId, intentIds] of intentMap.entries()) {
       const {
         message_type,
@@ -200,14 +201,15 @@ try {
         next_message_ids,
         previous_message_ids,
       } = explorer.getMessageFromId(messageId);
-      // ..iterate over each intent id on it and write intent and utterance files
+      // iterate of intents connected to this message and write files
       for (const intentId of intentIds) {
         await semaphore.acquire();
         try {
-          // console.info(semaphore.nrWaiting());
-          const { updated_at, utterances, ...rest }: Partial<Intent> =
-            intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
-          const contexts = getRequiredContext(messageId);
+          const name = getIntentName(intentId);
+          const contexts = [
+            ...getInputContextFromMessage(messageId),
+            ...(typeof name !== "undefined" ? [name] : []),
+          ];
           const basename = getIntentFileBasename(contexts, payload.nodeName);
           const filePath = path.join(INTENT_PATH, `${basename}.json`);
           const intermediateMessages = collectIntermediateMessages(
@@ -217,6 +219,8 @@ try {
             intermediateMessages,
             next_message_ids
           );
+          const { utterances, updated_at }: Partial<Intent> =
+            intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
           await fs.promises.writeFile(
             filePath,
