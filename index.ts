@@ -164,7 +164,7 @@ try {
       parameters: {},
       lifespan: 1,
     });
-    // determine output context
+    // find output context from message sets
     const getAffectedContexts = (
       intermediateMessages: Message[],
       nextMessageIds: any[]
@@ -219,10 +219,14 @@ try {
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
           ).map(explorer.getMessageFromId.bind(explorer));
-          const affectedContexts = getAffectedContexts(
-            intermediateMessages,
-            next_message_ids
-          );
+          const affectedContexts = [
+            ...contexts.map(name => ({
+              name,
+              parameters: {},
+              lifespan: 1,
+            })),
+            ...getAffectedContexts(intermediateMessages, next_message_ids),
+          ];
           const { utterances, updated_at }: Partial<Intent> =
             intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
