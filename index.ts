@@ -105,6 +105,7 @@ try {
       immediateMessageId: string
     ): InputContext => {
       const context: string[] = [];
+      const seenIds: string[] = [];
       (function unwindFromMessageId(messageId: string): void {
         const { previous_message_ids } = explorer.getMessageFromId(messageId);
         let messageFollowingIntent;
@@ -121,7 +122,10 @@ try {
           }
         } else {
           for (const { message_id } of previous_message_ids) {
-            unwindFromMessageId(messageId);
+            if (!seenIds.includes(messageId)) {
+              seenIds.push(messageId);
+              unwindFromMessageId(messageId);
+            }
           }
         }
       })(immediateMessageId);
@@ -150,7 +154,7 @@ try {
       } else {
         uniqueNameMap.set(messageName, 1);
       }
-      return str.toLowerCase();
+      return str.toLowerCase().replace(/\s/gi, INTENT_NAME_DELIMITER);
     };
     // map a message to proper output context object
     const createOutputContextFromMessage = (
