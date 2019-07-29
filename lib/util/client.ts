@@ -35,7 +35,7 @@ export async function getProjectData({
         console.info(`${path.match(/[a-z]{6,8}/gi) || "project"} fetched.`);
         return json.hasOwnProperty("board") ? json.board : json;
       } else {
-        throw new Error(`${res.status} response on Botmock API fetch request`);
+        throw new Error(res.statusText);
       }
     })
   );
