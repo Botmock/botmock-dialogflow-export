@@ -209,7 +209,14 @@ try {
       for (const intentId of intentIds) {
         await semaphore.acquire();
         try {
-          const name = getIntentName(intentId);
+          let name = getIntentName(intentId);
+          if (typeof name === "undefined") {
+            const uniqueName = uuid();
+            console.warn(
+              `found unnamed intent. ${os.EOL}using name ${uniqueName}`
+            );
+            name = uniqueName;
+          }
           const contexts = [
             ...getInputContextFromMessage(messageId),
             ...(typeof name !== "undefined" ? [name] : []),
