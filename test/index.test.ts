@@ -1,28 +1,16 @@
+// import os from "os";
 import fs from "fs";
 import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { OUTPUT_PATH } from "../";
-// import * as fixtures from "../fixtures";
 
-test("creates output directory", done => {
+test("creates output directory", () => {
   expect(async () => {
+    console.log(process.cwd());
     promisify(exec)("npm start");
     await fs.promises.access(OUTPUT_PATH, fs.constants.R_OK);
-    done();
   }).not.toThrow();
-});
-
-test("creates correct number of top level files and directories", async done => {
-  promisify(exec)("npm start");
-  const output = await fs.promises.readdir(OUTPUT_PATH);
-  expect(
-    output
-      .toString()
-      .split(",")
-      .filter(str => !str.match(/\.DS+/))
-  ).toHaveLength(4);
-  done();
 });
 
 test.todo("creates a welcome intent");
