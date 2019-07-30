@@ -213,7 +213,7 @@ try {
           if (typeof name === "undefined") {
             const uniqueName = uuid();
             console.warn(
-              `found unnamed intent. ${os.EOL}using name ${uniqueName}`
+              `${os.EOL}found unnamed intent. ${os.EOL}using name ${uniqueName}${os.EOL}`
             );
             name = uniqueName;
           }
