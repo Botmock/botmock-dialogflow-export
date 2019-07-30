@@ -44,15 +44,15 @@ try {
 }
 
 let semaphore: void | Sema;
+const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
+const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
+const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
+const DEFAULT_INTENT = {
+  name: "welcome",
+  updated_at: Date.now(),
+  utterances: [{ text: "hi", variables: [] }],
+};
 try {
-  const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
-  const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
-  const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
-  const DEFAULT_INTENT = {
-    name: "welcome",
-    updated_at: Date.now(),
-    utterances: [{ text: "hi", variables: [] }],
-  };
   (async () => {
     // recreate output directories
     await remove(OUTPUT_PATH);
@@ -71,11 +71,14 @@ try {
       board,
       { platform, name: projectName },
     ] = project.data;
+    // google is the only platform name that does not map cleanly over
     if (platform === "google-actions") {
       platform = "google";
     }
+    // create mapping of message id, intent ids connected to it
     const intentMap = createIntentMap(board.messages, intents);
     const explorer = new BoardExplorer({ board, intentMap });
+    // create function that groups messages not connected by any intent
     const collectIntermediateMessages: any = createMessageCollector(
       intentMap,
       explorer.getMessageFromId.bind(explorer)
@@ -92,6 +95,7 @@ try {
     ): InputContext => {
       const context: string[] = [];
       const seenIds: string[] = [];
+      // recurse on a message id to fill in context
       (function unwindFromMessageId(messageId: string): void {
         const { previous_message_ids } = explorer.getMessageFromId(messageId);
         let messageFollowingIntent;
@@ -194,8 +198,10 @@ try {
       // iterate of intents connected to this message and write files
       for (const intentId of intentIds) {
         await semaphore.acquire();
+        // console.log(semaphore.nrWaiting());
         try {
           let name = getIntentName(intentId);
+          // if this intent is nameless, give it a name
           if (typeof name === "undefined") {
             const uniqueName = uuid();
             console.warn(
