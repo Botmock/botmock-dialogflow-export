@@ -10,39 +10,24 @@ import util from "util";
 import assert from "assert";
 import fs, { Stats } from "fs";
 import BoardExplorer from "./lib/util/BoardExplorer";
-import { getProjectData } from "./lib/util/client";
 import { Provider } from "./lib/providers";
+import { getProjectData } from "./lib/util/client";
 import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
 import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
-
-type Intent = {
-  name: string;
-  updated_at: { date: string };
-  utterances: { text: string; variables: any[] }[];
-};
-
-type InputContext = string[];
-type OutputContext = { name: string | void; parameters: {}; lifespan: number };
-
-type ProjectResponse = Readonly<{
-  data?: any[];
-  errors?: any[];
-}>;
-
-export type Message = {
-  message_id: string;
-  next_message_ids: any[];
-  previous_message_ids: any[];
-  message_type: string;
-  intent: { value: string };
-  payload: any;
-};
+import {
+  Intent,
+  InputContext,
+  OutputContext,
+  ProjectResponse,
+  Message,
+} from "./lib/types";
 
 export const OUTPUT_PATH = path.join(
   process.cwd(),
   process.env.OUTPUT_DIR || "output"
 );
 
+// check that the node version is above the minimum
 try {
   const MIN_NODE_VERSION = 101600;
   const numericalNodeVersion = parseInt(
@@ -69,6 +54,7 @@ try {
     utterances: [{ text: "hi", variables: [] }],
   };
   (async () => {
+    // recreate output directories
     await remove(OUTPUT_PATH);
     await util.promisify(mkdirp)(INTENT_PATH);
     await util.promisify(mkdirp)(ENTITY_PATH);
