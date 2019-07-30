@@ -244,7 +244,7 @@ try {
                 ...templates.intent,
                 id: uuid(),
                 name: basename,
-                contexts,
+                contexts: explorer.hasWelcomeIntent(message_id) ? [] : contexts,
                 events: explorer.hasWelcomeIntent(messageId)
                   ? [{ name: "WELCOME" }]
                   : [],
@@ -275,6 +275,8 @@ try {
                             ({ message_type }) =>
                               message_type === message.message_type
                           ).length >= limit;
+                        // if adding this messages to the responses would exceed
+                        // limits on importing, warn and truncate
                         if (
                           messageIsOverLimit(
                             findLimitForType(message.message_type)
