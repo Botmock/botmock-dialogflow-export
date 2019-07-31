@@ -174,7 +174,7 @@ try {
         .filter(({ intent }) => !!intent.value)
         .map(createOutputContextFromMessage),
     ];
-    // set a welcome-like intent if no intent from the root is defined
+    // if no intent from the root is defined set a welcome-like intent
     if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
       const { next_message_ids } = board.messages.find(
         explorer.messageIsRoot.bind(explorer)
@@ -184,9 +184,7 @@ try {
     }
     // create instance of semaphore class to control write concurrency
     semaphore = new Sema(os.cpus().length, { capacity: intentMap.size || 1 });
-    // create instance of class that maps the board payload to dialogflow format
     const provider = new Provider(platform);
-    // iterate over each message that follows directly from a connector with an intent
     for (const [messageId, intentIds] of intentMap.entries()) {
       const {
         message_type,
@@ -195,7 +193,9 @@ try {
         next_message_ids,
         previous_message_ids,
       } = explorer.getMessageFromId(messageId);
-      // iterate of intents connected to this message and write files
+      // iterate of intents connected to this message and write files;
+      // if intent is not unique, it should still be considered unique by its
+      // position in the flow
       for (const intentId of intentIds) {
         await semaphore.acquire();
         // console.log(semaphore.nrWaiting());
