@@ -13,7 +13,7 @@ import BoardExplorer from "./lib/util/BoardExplorer";
 import { Provider } from "./lib/providers";
 import { getProjectData } from "./lib/util/client";
 import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
-import { getArgs, templates, ZIP_PATH, SUPPORTED_PLATFORMS } from "./lib/util";
+import { getArgs, templates, supportedPlatforms } from "./lib/util";
 import {
   Intent,
   InputContext,
@@ -85,9 +85,8 @@ try {
     );
     // get the name of an intent from its id
     const getIntentName = (id: string): string => {
-      const { name: intentName }: Intent =
-        intents.find(intent => intent.id === id) || {};
-      return intentName;
+      const intent: Intent = intents.find(intent => intent.id === id) || {};
+      return intent.name || "";
     };
     // find the input context implied by a given message id
     const getInputContextFromMessage = (
@@ -159,19 +158,26 @@ try {
       intermediateMessages: Message[],
       nextMessageIds: any[]
     ): OutputContext[] => [
-      ...intermediateMessages.reduce((acc, { next_message_ids }) => {
+      ...intermediateMessages.reduce((acc, { next_message_ids = [] }) => {
         if (!next_message_ids.length) {
           return acc;
         }
         return [
           ...acc,
           ...next_message_ids
-            .filter(({ intent }) => !!intent.value)
+            .filter(
+              nextMessage =>
+                typeof nextMessage.intent !== "string" &&
+                nextMessage.intent.value
+            )
             .map(createOutputContextFromMessage),
         ];
       }, []),
       ...nextMessageIds
-        .filter(({ intent }) => !!intent.value)
+        .filter(
+          nextMessage =>
+            typeof nextMessage.intent !== "string" && nextMessage.intent.value
+        )
         .map(createOutputContextFromMessage),
     ];
     // if no intent from the root is defined set a welcome-like intent
@@ -193,9 +199,7 @@ try {
         next_message_ids,
         previous_message_ids,
       } = explorer.getMessageFromId(messageId);
-      // iterate of intents connected to this message and write files;
-      // if intent is not unique, it should still be considered unique by its
-      // position in the flow
+      // iterate of intents connected to this message and write files
       for (const intentId of intentIds) {
         await semaphore.acquire();
         // console.log(semaphore.nrWaiting());
@@ -215,6 +219,7 @@ try {
           ];
           const basename = getIntentFileBasename(contexts, payload.nodeName);
           const filePath = path.join(INTENT_PATH, `${basename}.json`);
+          // ..
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
           ).map(explorer.getMessageFromId.bind(explorer));
@@ -248,7 +253,7 @@ try {
                     parameters: [],
                     resetContexts: false,
                     affectedContexts,
-                    defaultResponsePlatforms: SUPPORTED_PLATFORMS.has(
+                    defaultResponsePlatforms: supportedPlatforms.has(
                       platform.toLowerCase()
                     )
                       ? { [platform.toLowerCase()]: true }

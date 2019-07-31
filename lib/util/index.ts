@@ -1,8 +1,13 @@
-import fs from "fs";
 import path from "path";
+import fs from "fs";
 import arg from "arg";
 
-export const ZIP_PATH = path.join(process.cwd(), "output.zip");
+export const supportedPlatforms = new Set([
+  "facebook",
+  "slack",
+  "skype",
+  "google",
+]);
 
 // parse argument vector for flags
 export function getArgs(argv) {
@@ -35,10 +40,3 @@ export const templates = {
   intent: JSON.parse(intentTemplateData),
   entity: JSON.parse(entityTemplateData),
 };
-
-export const SUPPORTED_PLATFORMS = new Set([
-  "facebook",
-  "slack",
-  "skype",
-  "google",
-]);
