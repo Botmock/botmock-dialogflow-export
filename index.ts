@@ -153,7 +153,8 @@ try {
       parameters: {},
       lifespan: 1,
     });
-    // find output context from message sets
+    // pair output context of those intermediate messages that create
+    // intents with those next messages that directly follow intents
     const getAffectedContexts = (
       intermediateMessages: Message[],
       nextMessageIds: any[]
@@ -165,11 +166,11 @@ try {
         return [
           ...acc,
           ...next_message_ids
-            .filter(
-              nextMessage =>
-                typeof nextMessage.intent !== "string" &&
-                nextMessage.intent.value
-            )
+            .filter(nextMessage => {
+              return !!intents.find(
+                intent => intent.id === nextMessage.intent.value
+              );
+            })
             .map(createOutputContextFromMessage),
         ];
       }, []),
@@ -219,7 +220,6 @@ try {
           ];
           const basename = getIntentFileBasename(contexts, payload.nodeName);
           const filePath = path.join(INTENT_PATH, `${basename}.json`);
-          // ..
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
           ).map(explorer.getMessageFromId.bind(explorer));
@@ -258,7 +258,6 @@ try {
                     )
                       ? { [platform.toLowerCase()]: true }
                       : {},
-                    // set messages as the union of this message and all intermediate messages
                     messages: [
                       { message_type, payload },
                       ...intermediateMessages,
