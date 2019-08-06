@@ -44,6 +44,7 @@ try {
 }
 
 let semaphore: void | Sema;
+let shouldUseDefaultWelcomeIntent = true;
 const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
 const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
 const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
@@ -200,6 +201,7 @@ try {
       );
       const [{ message_id: firstNodeId }] = next_message_ids;
       intentMap.set(firstNodeId, [uuid()]);
+      shouldUseDefaultWelcomeIntent = false;
     }
     // create instance of semaphore class to control write concurrency
     semaphore = new Sema(os.cpus().length, { capacity: intentMap.size || 1 });
@@ -355,7 +357,7 @@ try {
         // assume these are the templates for the default intents; copy them
         // into the intents directory
         for (const file of await fs.promises.readdir(pathToContent)) {
-          if (file.includes("Welcome")) {
+          if (!shouldUseDefaultWelcomeIntent && file.includes("Welcome")) {
             continue;
           }
           await copyFileToOutput(path.join(pathToContent, file), {
