@@ -47,13 +47,27 @@ let semaphore: void | Sema;
 const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
 const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
 const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
-const DEFAULT_INTENT = {
-  name: "welcome",
-  updated_at: Date.now(),
-  utterances: [{ text: "hi", variables: [] }],
-};
+
 try {
   (async () => {
+    const defaultIntent = {
+      name: "welcome",
+      updated_at: Date.now(),
+      // merge in utterances of default dialogflow welcome intent
+      utterances: JSON.parse(
+        await fs.promises.readFile(
+          path.join(
+            "templates",
+            "defaults",
+            "Default Welcome Intent_usersays_en.json"
+          ),
+          "utf8"
+        )
+      ).map((utterance: any) => {
+        const [{ text }] = utterance.data;
+        return { text, variables: [] };
+      }),
+    };
     // recreate output directories
     await remove(OUTPUT_PATH);
     await util.promisify(mkdirp)(INTENT_PATH);
@@ -232,7 +246,7 @@ try {
           ];
           const { utterances, updated_at }: Partial<Intent> =
             intents.find(intent => intent.id === connectedIntentId) ||
-            DEFAULT_INTENT;
+            defaultIntent;
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
           await fs.promises.writeFile(
             filePath,
@@ -341,6 +355,9 @@ try {
         // assume these are the templates for the default intents; copy them
         // into the intents directory
         for (const file of await fs.promises.readdir(pathToContent)) {
+          if (file.includes("Welcome")) {
+            continue;
+          }
           await copyFileToOutput(path.join(pathToContent, file), {
             isIntentFile: true,
           });
