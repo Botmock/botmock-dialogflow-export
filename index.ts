@@ -71,7 +71,6 @@ try {
       board,
       { platform, name: projectName },
     ] = project.data;
-    // google is the only platform name that does not map cleanly over
     if (platform === "google-actions") {
       platform = "google";
     }
@@ -166,11 +165,10 @@ try {
         return [
           ...acc,
           ...next_message_ids
-            .filter(nextMessage => {
-              return !!intents.find(
-                intent => intent.id === nextMessage.intent.value
-              );
-            })
+            .filter(
+              nextMessage =>
+                !!intents.find(intent => intent.id === nextMessage.intent.value)
+            )
             .map(createOutputContextFromMessage),
         ];
       }, []),
@@ -191,7 +189,9 @@ try {
     }
     // create instance of semaphore class to control write concurrency
     semaphore = new Sema(os.cpus().length, { capacity: intentMap.size || 1 });
+    // create instance of response writing class
     const provider = new Provider(platform);
+    // for each intent-message, iterate over intents connected to this message and write files
     for (const [messageId, intentIds] of intentMap.entries()) {
       const {
         message_type,
@@ -200,13 +200,10 @@ try {
         next_message_ids,
         previous_message_ids,
       } = explorer.getMessageFromId(messageId);
-      // iterate of intents connected to this message and write files
-      for (const intentId of intentIds) {
+      for (const connectedIntentId of intentIds) {
         await semaphore.acquire();
-        // console.log(semaphore.nrWaiting());
         try {
-          let name = getIntentName(intentId);
-          // if this intent is nameless, give it a name
+          let name = getIntentName(connectedIntentId);
           if (typeof name === "undefined") {
             const uniqueName = uuid();
             console.warn(
@@ -223,6 +220,8 @@ try {
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
           ).map(explorer.getMessageFromId.bind(explorer));
+          // affectedContexts should be the union of input contexts and any
+          // intents reachable from messages in the intermediate cluster
           const affectedContexts = [
             ...contexts.map(name => ({
               name,
@@ -232,7 +231,8 @@ try {
             ...getAffectedContexts(intermediateMessages, next_message_ids),
           ];
           const { utterances, updated_at }: Partial<Intent> =
-            intents.find(intent => intent.id === intentId) || DEFAULT_INTENT;
+            intents.find(intent => intent.id === connectedIntentId) ||
+            DEFAULT_INTENT;
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
           await fs.promises.writeFile(
             filePath,
@@ -309,15 +309,19 @@ try {
     for (const entity of entities) {
       await fs.promises.writeFile(
         path.join(ENTITY_PATH, `${entity.name}.json`),
-        JSON.stringify({
-          ...templates.entity,
-          id: uuid(),
-          name: entity.name,
-        }) + os.EOL
+        JSON.stringify(
+          {
+            ...templates.entity,
+            id: uuid(),
+            name: entity.name,
+          },
+          null,
+          2
+        ) + os.EOL
       );
       await fs.promises.writeFile(
         path.join(ENTITY_PATH, `${entity.name}_entries_en.json`),
-        JSON.stringify(entity.data) + os.EOL
+        JSON.stringify(entity.data, null, 2) + os.EOL
       );
     }
     // copy templates over to the output destination
