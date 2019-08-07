@@ -49,6 +49,24 @@ const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
 const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
 const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
 
+function replaceVariableSignInText(text: string): string {
+  let str = text;
+  const variableRegex = /%[a-zA-Z0-9]+%/g;
+  const matches = text.match(variableRegex);
+  // if this text contains at least one variable, replace all
+  if (!Object.is(matches, null)) {
+    for (const match of matches) {
+      const indexOfMatch = text.search(variableRegex);
+      str =
+        str.slice(0, indexOfMatch) +
+        "$" +
+        match.slice(1, match.length - 1) +
+        str.slice(indexOfMatch + match.length);
+    }
+  }
+  return str;
+}
+
 try {
   (async () => {
     const defaultIntent = {
@@ -278,29 +296,13 @@ try {
                       { message_type, payload },
                       ...intermediateMessages,
                     ]
-                      .reduce((acc, message) => {
-                        const findLimitForType = (type: string): number => {
-                          return +Infinity;
-                        };
-                        const messageIsOverLimit = (limit: number): boolean =>
-                          acc.filter(
-                            ({ message_type }) =>
-                              message_type === message.message_type
-                          ).length >= limit;
-                        // if adding this messages to the responses would exceed
-                        // limits on importing, warn and truncate
-                        if (
-                          messageIsOverLimit(
-                            findLimitForType(message.message_type)
-                          )
-                        ) {
-                          console.warn(
-                            `truncating ${message.message_type} response`
-                          );
-                          return acc;
-                        }
-                        return [...acc, message];
-                      }, [])
+                      .map(message => ({
+                        ...message,
+                        payload: {
+                          ...message.payload,
+                          text: replaceVariableSignInText(message.payload.text),
+                        },
+                      }))
                       .map(message =>
                         provider.create(message.message_type, message.payload)
                       ),
