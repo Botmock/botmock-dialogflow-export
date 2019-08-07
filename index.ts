@@ -12,7 +12,11 @@ import fs, { Stats } from "fs";
 import BoardExplorer from "./lib/util/BoardExplorer";
 import { Provider } from "./lib/providers";
 import { getProjectData } from "./lib/util/client";
-import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
+import {
+  writeUtterancesFile,
+  // writeIntentFile,
+  copyFileToOutput,
+} from "./lib/util/write";
 import { getArgs, templates, supportedPlatforms } from "./lib/util";
 import {
   Intent,
@@ -27,7 +31,6 @@ export const OUTPUT_PATH = path.join(
   process.env.OUTPUT_DIR || "output"
 );
 
-// check that the node version is above the minimum
 try {
   const MIN_NODE_VERSION = 101600;
   const numericalNodeVersion = parseInt(
@@ -38,6 +41,7 @@ try {
       .join(""),
     10
   );
+  // check that the node version is above the minimum
   assert.strictEqual(numericalNodeVersion >= MIN_NODE_VERSION, true);
 } catch (_) {
   throw "requires node.js version 10.16.0 or greater";
@@ -49,11 +53,32 @@ const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
 const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
 const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
 
+function getUniqueVariablesInUtterances(utterances: any[]): any[] {
+  return Object.keys(
+    utterances
+      .filter(utterance => !!utterance.variables.length)
+      .reduce(
+        (acc, utterance) => ({
+          ...acc,
+          ...utterance.variables.reduce(
+            (acc, variable) => ({
+              ...acc,
+              [variable.name.replace(/%/g, "")]: variable,
+            }),
+            {}
+          ),
+        }),
+        {}
+      )
+  );
+}
+
 function replaceVariableSignInText(text: string): string {
   let str = text;
   const variableRegex = /%[a-zA-Z0-9]+%/g;
   const matches = text.match(variableRegex);
   // if this text contains at least one variable, replace all
+  // occurrences of it with the correct output variable sign
   if (!Object.is(matches, null)) {
     for (const match of matches) {
       const indexOfMatch = text.search(variableRegex);
@@ -264,9 +289,10 @@ try {
             })),
             ...getAffectedContexts(intermediateMessages, next_message_ids),
           ];
-          const { utterances, updated_at }: Partial<Intent> =
+          const { utterances, updated_at, ...rest }: Partial<Intent> =
             intents.find(intent => intent.id === connectedIntentId) ||
             defaultIntent;
+          const uniqueVariables = getUniqueVariablesInUtterances(utterances);
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
           await fs.promises.writeFile(
             filePath,
@@ -282,9 +308,22 @@ try {
                 lastUpdate: Date.parse(updated_at.date),
                 responses: [
                   {
-                    action: "",
+                    action: uniqueVariables.length
+                      ? `action.${uniqueVariables[0]}`
+                      : "",
+                    parameters: uniqueVariables.map(name => ({
+                      id: uuid(),
+                      required: false,
+                      dataType: "@sys.any",
+                      name,
+                      value: `$${name}`,
+                      promptMessages: [],
+                      noMatchPromptMessages: [],
+                      noInputPromptMessages: [],
+                      outputDialogContexts: [],
+                      isList: false,
+                    })),
                     speech: [],
-                    parameters: [],
                     resetContexts: false,
                     affectedContexts,
                     defaultResponsePlatforms: supportedPlatforms.has(
