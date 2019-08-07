@@ -53,6 +53,8 @@ const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
 const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
 const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
 
+// find the unique variables referenced in an utterance by reducing
+// on the variables, with variable names as keys
 function getUniqueVariablesInUtterances(utterances: any[]): any[] {
   return Object.keys(
     utterances
