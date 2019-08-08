@@ -2,11 +2,25 @@
 
 Import [Botmock](https://botmock.com) projects in [Dialogflow](https://console.dialogflow.com/).
 
-This script produces a compressible directory able to be uploaded to Dialogflow.
+This script produces a compressible directory able to be restored from in Dialogflow.
 
 ## ethos
 
-Currently, the script maps context to the ordering of intents in the Botmock flow to control
+### general project structure
+
+You have a Botmock project that you would like to translate into a Dialogflow project.
+To accomplish this, we make certain assumptions about Botmock project structure:
+
+- If there is no intent from the root message in the Botmock flow, the script creates one and
+  merges into it all utterances from the default Dialogflow welcome intent.
+
+- Intents should be used on connectors whereever meaningful. Doing so helps the script break
+  up responses across different intent files so as to bypass the repsonse type limits Dialogflow
+  has in place.
+
+### intent files
+
+Currently, the script maps input context to the ordering of intents in the Botmock flow to control
 conversation paths. In other words, in the flow, a message downstream of a particular intent will
 require that intent as input context in the created file. Similarly, output contexts are set by
 the intents on connectors that go out of particular messages.
@@ -17,6 +31,8 @@ There are future plans to leverage followup intents to accomplish similar goals.
 
 Files are named by the formula: `${PROJECT_NAME}-${...INPUT_CONTEXT}-${MESSAGE_NAME}`.
 The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment variable.
+
+<!-- ### actions and parameters -->
 
 ## prerequisites
 
