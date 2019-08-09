@@ -75,7 +75,7 @@ function getUniqueVariablesInUtterances(utterances: any[]): any[] {
   );
 }
 
-function replaceVariableSignInText(text: string): string {
+function replaceVariableSignInText(text: string = ""): string {
   let str = text;
   const variableRegex = /%[a-zA-Z0-9]+%/g;
   const matches = text.match(variableRegex);
