@@ -13,11 +13,7 @@ import fs, { Stats } from "fs";
 import BoardExplorer from "./lib/util/BoardExplorer";
 import { Provider } from "./lib/providers";
 import { getProjectData } from "./lib/util/client";
-import {
-  writeUtterancesFile,
-  // writeIntentFile,
-  copyFileToOutput,
-} from "./lib/util/write";
+import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
 import { getArgs, templates, supportedPlatforms } from "./lib/util";
 import {
   Intent,
@@ -48,19 +44,18 @@ try {
   throw "requires node.js version 10.16.0 or greater";
 }
 
-// If the basename would exceed the character limit, slice the excess
-// length from the beginning, and replace up to the excess ammount
-// with random bytes
 function truncateBasename(name: string = ""): string {
   const CHARACTER_LIMIT = 100;
   const diff = CHARACTER_LIMIT - name.length;
+  // if the name length exceeds the limit, replace the number of characters
+  // by which the name exceeds the limit with random bytes to avoid file
+  // name collisions for similar paths
   if (Object.is(Math.sign(diff), -1)) {
     const absDiff = Math.abs(diff);
-    return (
-      name.slice(absDiff, absDiff) +
-      crypto.randomBytes(absDiff).toString("hex") +
-      name.slice(absDiff)
-    );
+    const randomBytes = crypto.randomBytes(CHARACTER_LIMIT).toString("hex");
+    return name
+      .slice(absDiff + Math.floor(CHARACTER_LIMIT / 2))
+      .padStart(CHARACTER_LIMIT, randomBytes);
   }
   return name;
 }
