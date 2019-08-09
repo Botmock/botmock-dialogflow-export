@@ -27,12 +27,14 @@ the intents on connectors that go out of particular messages.
 
 > Note that Dialogflow has a limit of **5** input contexts per intent. Projects should be structured to take account of this fact.
 
-There are future plans to leverage followup intents to accomplish similar goals.
-
 Files are named by the formula: `${PROJECT_NAME}-${...INPUT_CONTEXT}-${MESSAGE_NAME}`.
 The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment variable.
 
-<!-- ### actions and parameters -->
+> Note that Dialogflow has a limit of **100** characters in the name of any intent file. The script will begin to use random bytes in file names to prevent this limit from being exceeded.
+
+### actions and parameters
+
+**Mapping Actions and Parameters have known issues which will be address in subsequent pull requests**
 
 ## prerequisites
 

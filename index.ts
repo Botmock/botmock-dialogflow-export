@@ -8,15 +8,12 @@ import os from "os";
 import path from "path";
 import util from "util";
 import assert from "assert";
+import crypto from "crypto";
 import fs, { Stats } from "fs";
 import BoardExplorer from "./lib/util/BoardExplorer";
 import { Provider } from "./lib/providers";
 import { getProjectData } from "./lib/util/client";
-import {
-  writeUtterancesFile,
-  // writeIntentFile,
-  copyFileToOutput,
-} from "./lib/util/write";
+import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
 import { getArgs, templates, supportedPlatforms } from "./lib/util";
 import {
   Intent,
@@ -47,11 +44,21 @@ try {
   throw "requires node.js version 10.16.0 or greater";
 }
 
-let semaphore: void | Sema;
-let shouldUseDefaultWelcomeIntent = true;
-const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
-const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
-const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
+function truncateBasename(name: string = ""): string {
+  const CHARACTER_LIMIT = 100;
+  const diff = CHARACTER_LIMIT - name.length;
+  // if the name length exceeds the limit, replace the number of characters
+  // by which the name exceeds the limit with random bytes to avoid file
+  // name collisions for similar paths
+  if (Object.is(Math.sign(diff), -1)) {
+    const absDiff = Math.abs(diff);
+    const randomBytes = crypto.randomBytes(CHARACTER_LIMIT).toString("hex");
+    return name
+      .slice(absDiff + Math.floor(CHARACTER_LIMIT / 2))
+      .padStart(CHARACTER_LIMIT, randomBytes);
+  }
+  return name;
+}
 
 // find the unique variables referenced in an utterance by reducing
 // on the variables, with variable names as keys
@@ -93,6 +100,12 @@ function replaceVariableSignInText(text: string = ""): string {
   }
   return str;
 }
+
+let semaphore: void | Sema;
+let shouldUseDefaultWelcomeIntent = true;
+const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
+const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
+const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
 
 try {
   (async () => {
@@ -276,7 +289,9 @@ try {
             ...getInputContextFromMessage(messageId),
             ...(typeof name !== "undefined" ? [name] : []),
           ];
-          const basename = getIntentFileBasename(contexts, payload.nodeName);
+          const basename = truncateBasename(
+            getIntentFileBasename(contexts, payload.nodeName)
+          );
           const filePath = path.join(INTENT_PATH, `${basename}.json`);
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
