@@ -8,6 +8,7 @@ import os from "os";
 import path from "path";
 import util from "util";
 import assert from "assert";
+import crypto from "crypto";
 import fs, { Stats } from "fs";
 import BoardExplorer from "./lib/util/BoardExplorer";
 import { Provider } from "./lib/providers";
@@ -47,11 +48,22 @@ try {
   throw "requires node.js version 10.16.0 or greater";
 }
 
-let semaphore: void | Sema;
-let shouldUseDefaultWelcomeIntent = true;
-const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
-const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
-const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
+// If the basename would exceed the character limit, slice the excess
+// length from the beginning, and replace up to the excess ammount
+// with random bytes
+function truncateBasename(name: string = ""): string {
+  const CHARACTER_LIMIT = 100;
+  const diff = CHARACTER_LIMIT - name.length;
+  if (Object.is(Math.sign(diff), -1)) {
+    const absDiff = Math.abs(diff);
+    return (
+      name.slice(absDiff, absDiff) +
+      crypto.randomBytes(absDiff).toString("hex") +
+      name.slice(absDiff)
+    );
+  }
+  return name;
+}
 
 // find the unique variables referenced in an utterance by reducing
 // on the variables, with variable names as keys
@@ -93,6 +105,12 @@ function replaceVariableSignInText(text: string = ""): string {
   }
   return str;
 }
+
+let semaphore: void | Sema;
+let shouldUseDefaultWelcomeIntent = true;
+const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
+const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
+const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
 
 try {
   (async () => {
@@ -276,7 +294,9 @@ try {
             ...getInputContextFromMessage(messageId),
             ...(typeof name !== "undefined" ? [name] : []),
           ];
-          const basename = getIntentFileBasename(contexts, payload.nodeName);
+          const basename = truncateBasename(
+            getIntentFileBasename(contexts, payload.nodeName)
+          );
           const filePath = path.join(INTENT_PATH, `${basename}.json`);
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
