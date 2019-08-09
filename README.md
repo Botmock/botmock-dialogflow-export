@@ -20,7 +20,7 @@ To accomplish this, we make certain assumptions about Botmock project structure:
 
 ### intent files
 
-Currently, the script maps input context to the ordering of intents in the Botmock flow to control
+Currently, the script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the ordering of intents in the Botmock flow to control
 conversation paths. In other words, in the flow, a message downstream of a particular intent will
 require that intent as input context in the created file. Similarly, output contexts are set by
 the intents on connectors that go out of particular messages.
