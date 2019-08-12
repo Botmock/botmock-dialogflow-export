@@ -28,6 +28,7 @@ export class Provider {
     ).find(prop => type.includes(prop));
     // coerce odd types
     switch (type) {
+      case "api":
       case "delay":
         method = "text";
         break;
