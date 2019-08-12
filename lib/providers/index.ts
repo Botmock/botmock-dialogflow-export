@@ -26,8 +26,15 @@ export class Provider {
     let method = Object.getOwnPropertyNames(
       Object.getPrototypeOf(this.platform)
     ).find(prop => type.includes(prop));
-    if (type === "carousel") {
-      method = "list";
+    // coerce odd types
+    switch (type) {
+      case "api":
+      case "delay":
+        method = "text";
+        break;
+      case "carousel":
+        method = "list";
+        break;
     }
     if (type.endsWith("button") || type.endsWith("generic")) {
       method = "card";
