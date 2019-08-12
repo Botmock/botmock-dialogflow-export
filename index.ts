@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
+// import { toAdjMatrix } from "@botmock-api/flow-model";
 import { remove } from "fs-extra";
 import { Sema } from "async-sema";
 import mkdirp from "mkdirp";
