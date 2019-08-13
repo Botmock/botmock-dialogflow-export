@@ -2,7 +2,7 @@
 
 Import [Botmock](https://botmock.com) projects in [Dialogflow](https://console.dialogflow.com/).
 
-This script produces a compressible directory able to be restored from in Dialogflow.
+This script produces a compressible directory able to be [restored](https://cloud.google.com/dialogflow/docs/agents-settings) from in Dialogflow.
 
 ## ethos
 
