@@ -8,7 +8,7 @@ This script produces a compressible directory able to be [restored](https://clou
 
 ## ethos
 
-### general project structure
+### assumptions about project structure
 
 You have a Botmock project that you would like to translate into a Dialogflow project.
 To accomplish this, we make certain assumptions about Botmock project structure:
@@ -78,7 +78,7 @@ npm start
 - Run `npm start`.
 - Compress your output directory (`/output` by default).
 
-### importing to Dialogflow
+### importing
 
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
 - Choose the 'Export and Import' tab and choose 'Import From Zip'
