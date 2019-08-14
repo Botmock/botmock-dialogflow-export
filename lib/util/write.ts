@@ -57,11 +57,14 @@ export async function writeUtterancesFile(
             variable => variable.id === id
           );
           const entity = entities.find(entity => entity.id === entityId);
+          // if this text group has an entity associated with it, add the required
+          // fields to data
           if (typeof entity !== "undefined") {
             data.push(
               ...previousBlock.concat({
                 text: name.slice(1, -1),
-                meta: `@${entity.name}`,
+                alias: entity.name,
+                meta: "@sys.any",
                 userDefined: true,
               })
             );
