@@ -11,24 +11,23 @@ This script produces a compressible directory able to be [restored](https://clou
 You have a Botmock project that you would like to translate into a Dialogflow project.
 To accomplish this, we make certain assumptions about Botmock project structure:
 
-- If there is no intent from the root message in the Botmock flow, the script creates one and
-  merges into it all utterances from the default Dialogflow welcome intent.
-
 - Intents should be used on connectors whereever meaningful. Doing so helps the script break
   up responses across different intent files so as to bypass the repsonse type limits Dialogflow
   has in place.
 
+- If there is no intent from the root message in the Botmock flow, the script creates one and
+  merges into it all utterances from the default Dialogflow welcome intent.
+
 ### intent files
 
-Currently, the script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the ordering of intents in the Botmock flow to control
-conversation paths. In other words, in the flow, a message downstream of a particular intent will
-require that intent as input context in the created file. Similarly, output contexts are set by
-the intents on connectors that go out of particular messages.
+Currently, the script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the path of intents on connectors
+in the Botmock flow to control conversation paths. In other words, in the flow, a message downstream of a particular intent will require that
+intent as input context in the created file. Similarly, output contexts are set by the intents on connectors that go out of particular messages.
 
 > Note that Dialogflow has a limit of **5** input contexts per intent. Projects should be structured to take account of this fact.
 
 Files are named by the formula: `${PROJECT_NAME}-${...INPUT_CONTEXT}-${MESSAGE_NAME}`.
-The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment variable.
+The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment variable to the desired character.
 
 > Note that Dialogflow has a limit of **100** characters in the name of any intent file. The script will begin to use random bytes in file names to prevent this limit from being exceeded.
 
@@ -88,7 +87,7 @@ npm start
 | **Botmock** | **Dialogflow**  |
 | ----------- | --------------- |
 | utterance   | training phrase |
-| variable    | parameter       |
+| message     | response        |
 
 ## want to help?
 
