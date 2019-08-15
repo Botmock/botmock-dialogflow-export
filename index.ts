@@ -15,13 +15,38 @@ import { Provider } from "./lib/providers";
 import { getProjectData } from "./lib/util/client";
 import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
 import { getArgs, templates, supportedPlatforms } from "./lib/util";
-import {
-  Intent,
-  InputContext,
-  OutputContext,
-  ProjectResponse,
-  Message,
-} from "./lib/types";
+
+type Intent = {
+  name: string;
+  updated_at: { date: string };
+  utterances: { text: string; variables: any[] }[];
+};
+
+type InputContext = string[];
+type OutputContext = {
+  name: string | void;
+  parameters: {};
+  lifespan: number;
+};
+
+type ProjectResponse = Readonly<{
+  data?: any[];
+  errors?: any[];
+}>;
+
+export type Message = {
+  message_id: string;
+  next_message_ids: Partial<{
+    message_id: string;
+    action: any;
+    intent: any;
+    conditional: {};
+  }>[];
+  previous_message_ids: { message_id: string; action: string }[];
+  message_type: string;
+  intent: { value: string };
+  payload: any;
+};
 
 export const OUTPUT_PATH = path.join(
   process.cwd(),
@@ -82,12 +107,12 @@ function getUniqueVariablesInUtterances(utterances: any[]): any[] {
   );
 }
 
+// if given text contains at least one variable, replace all
+// occurrences of it with the correct output variable sign
 function replaceVariableSignInText(text: string = ""): string {
   let str = text;
   const variableRegex = /%[a-zA-Z0-9]+%/g;
   const matches = text.match(variableRegex);
-  // if this text contains at least one variable, replace all
-  // occurrences of it with the correct output variable sign
   if (!Object.is(matches, null)) {
     for (const match of matches) {
       const indexOfMatch = text.search(variableRegex);
@@ -147,6 +172,7 @@ try {
     if (platform === "google-actions") {
       platform = "google";
     }
+    console.log(board.messages.map(m => m.previous_message_ids));
     // create mapping of message id, intent ids connected to it
     const intentMap = createIntentMap(board.messages, intents);
     const explorer = new BoardExplorer({ board, intentMap });

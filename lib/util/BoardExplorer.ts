@@ -1,4 +1,4 @@
-import { Message } from "../types";
+import { Message } from "../..";
 
 export default class BoardExplorer {
   private board: { messages: Message[]; root_messages: string[] };
