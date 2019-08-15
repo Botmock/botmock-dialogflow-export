@@ -1,12 +1,16 @@
 # Botmock Dialogflow Export
 
+[![CircleCI](https://circleci.com/gh/Botmock/botmock-dialogflow-export.svg?style=svg)](https://circleci.com/gh/Botmock/botmock-dialogflow-export)
+
+[![Build status](https://ci.appveyor.com/api/projects/status/40b85tj9tbyqb6c0?svg=true)](https://ci.appveyor.com/project/nonnontrivial/botmock-dialogflow-export)
+
 Import [Botmock](https://botmock.com) projects in [Dialogflow](https://console.dialogflow.com/).
 
 This script produces a compressible directory able to be [restored](https://cloud.google.com/dialogflow/docs/agents-settings) from in Dialogflow.
 
 ## ethos
 
-### general project structure
+### assumptions about project structure
 
 You have a Botmock project that you would like to translate into a Dialogflow project.
 To accomplish this, we make certain assumptions about Botmock project structure:
@@ -76,7 +80,7 @@ npm start
 - Run `npm start`.
 - Compress your output directory (`/output` by default).
 
-### importing to Dialogflow
+### importing
 
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
 - Choose the 'Export and Import' tab and choose 'Import From Zip'
