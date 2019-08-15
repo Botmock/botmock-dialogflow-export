@@ -1,8 +1,8 @@
 ---
-name: Issue template
-about: Bug report
+name: Issue Template
+about: Bug Report
 title: ''
-labels: ''
+labels: bug
 assignees: ''
 
 ---
@@ -26,7 +26,6 @@ If applicable, add screenshots to help explain your problem.
 **Desktop (please complete the following information):**
  - OS: [e.g. iOS]
  - NPM Version:
--  Export Script Version:
 
-**Additional context**
+**Additional Context**
 Add any other context here.
