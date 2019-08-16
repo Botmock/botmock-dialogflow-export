@@ -4,7 +4,6 @@
   "description": "import botmock projects in dialogflow",
   "scripts": {
     "test": "jest",
-    "dev": "NODE_ENV=\"development\" ts-node index.ts",
     "start": "ts-node index.ts"
   },
   "keywords": [
@@ -45,7 +44,7 @@
     "@types/jest": "^24.0.17",
     "@types/node": "12.7.1",
     "@types/node-fetch": "^2.5.0",
-    "jest": "^24.8.0",
+    "jest": "24.9.0",
     "ts-jest": "^24.0.2",
     "ts-node": "^8.3.0",
     "typescript": "^3.5.3"

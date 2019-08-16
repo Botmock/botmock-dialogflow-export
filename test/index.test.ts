@@ -1,13 +1,15 @@
-// import os from "os";
+import { config } from "dotenv";
+// import test from "ava";
 import fs from "fs";
 import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { OUTPUT_PATH } from "../";
 
+config({ path: path.resolve(".test.env") });
+
 test("creates output directory", () => {
   expect(async () => {
-    console.log(process.cwd());
     promisify(exec)("npm start");
     await fs.promises.access(OUTPUT_PATH, fs.constants.R_OK);
   }).not.toThrow();
