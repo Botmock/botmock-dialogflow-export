@@ -4,10 +4,10 @@ export * from "./Facebook";
 export * from "./Google";
 export * from "./Generic";
 
-export const TEXT_TYPE = 0;
-export const CARD_TYPE = 1;
-export const QUICK_REPLIES_TYPE = 2;
-export const IMAGE_TYPE = 3;
+// export const TEXT_TYPE = 0;
+// export const CARD_TYPE = 1;
+// export const QUICK_REPLIES_TYPE = 2;
+// export const IMAGE_TYPE = 3;
 
 export class Provider {
   platform: any;
