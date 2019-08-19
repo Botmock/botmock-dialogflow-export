@@ -39,6 +39,11 @@ The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment v
 
 **Mapping Actions and Parameters have known issues which will be address in subsequent pull requests**
 
+### Script Features To-Do List
+[] Slot Filling Support - August 2019
+[] Multi-Lingual Support - Fall 2019
+[] DialogFlow Small Talk Support - Fall 2019
+
 ## prerequisites
 
 - [Node.js](https://nodejs.org/en/) >= 10.16.x
