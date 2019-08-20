@@ -8,9 +8,9 @@ Import [Botmock](https://botmock.com) projects in [Dialogflow](https://console.d
 
 This script produces a compressible directory able to be [restored](https://cloud.google.com/dialogflow/docs/agents-settings) from in Dialogflow.
 
-## ethos
+## ~~Ethos~~ Introduction
 
-### assumptions about project structure
+### ~~assumptions about project structure~~ How to structure your Botmock Project
 
 You have a Botmock project that you would like to translate into a Dialogflow project.
 To accomplish this, we make certain assumptions about Botmock project structure:
@@ -22,7 +22,7 @@ To accomplish this, we make certain assumptions about Botmock project structure:
 - If there is no intent from the root message in the Botmock flow, the script creates one and
   merges into it all utterances from the default Dialogflow welcome intent.
 
-### intent files
+### DialogFlow Intents & Context
 
 Currently, the script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the path of intents on connectors
 in the Botmock flow to control conversation paths. In other words, in the flow, a message downstream of a particular intent will require that
@@ -35,7 +35,7 @@ The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment v
 
 > Note that Dialogflow has a limit of **100** characters in the name of any intent file. The script will begin to use random bytes in file names to prevent this limit from being exceeded.
 
-### actions and parameters
+### DialogFlow actions and parameters
 
 **Mapping Actions and Parameters have known issues which will be address in subsequent pull requests**
 
@@ -54,7 +54,7 @@ node --version
 
 - [Dialogflow](https://console.dialogflow.com) account
 
-## guide
+## installation guide
 
 Clone this repository and install dependencies:
 
@@ -75,6 +75,8 @@ BOTMOCK_BOARD_ID=@YOUR-BOTMOCK-BOARD-ID
 BOTMOCK_PROJECT_ID=@YOUR-BOTMOCK-PROJECT-ID
 ```
 
+To get your Botmock API Token follow the instructions on http://help.botmock.com/en/articles/2334581-developer-api
+
 Start the script:
 
 ```shell
@@ -85,7 +87,7 @@ npm start
 - Run `npm start`.
 - Compress your output directory (`/output` by default).
 
-### importing
+### importing into DialogFlow
 
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
 - Choose the 'Export and Import' tab and choose 'Import From Zip'
