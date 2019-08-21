@@ -8,9 +8,9 @@ Import [Botmock](https://botmock.com) projects in [Dialogflow](https://console.d
 
 This script produces a compressible directory able to be [restored](https://cloud.google.com/dialogflow/docs/agents-settings) from in Dialogflow.
 
-## ~~Ethos~~ Introduction
+## Introduction
 
-### ~~assumptions about project structure~~ How to structure your Botmock Project
+### How to structure your Botmock Project
 
 You have a Botmock project that you would like to translate into a Dialogflow project.
 To accomplish this, we make certain assumptions about Botmock project structure:
@@ -40,6 +40,7 @@ The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment v
 **Mapping Actions and Parameters have known issues which will be address in subsequent pull requests**
 
 ### Feature To-Do List
+
 - [ ] Filling Support - August 2019
 - [ ] Multi-Lingual Support - Fall 2019
 - [ ] DialogFlow Small Talk Support - Fall 2019
