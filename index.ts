@@ -64,21 +64,19 @@ function truncateBasename(name: string = ""): string {
 // on the variables, with variable names as keys
 function getUniqueVariablesInUtterances(utterances: any[]): any[] {
   return Object.keys(
-    utterances
-      .filter(utterance => !!utterance.variables.length)
-      .reduce(
-        (acc, utterance) => ({
-          ...acc,
-          ...utterance.variables.reduce(
-            (acc, variable) => ({
-              ...acc,
-              [variable.name.replace(/%/g, "")]: variable,
-            }),
-            {}
-          ),
-        }),
-        {}
-      )
+    utterances.filter(utterance => !!utterance.variables.length).reduce(
+      (acc, utterance) => ({
+        ...acc,
+        ...utterance.variables.reduce(
+          (acc, variable) => ({
+            ...acc,
+            [variable.name.replace(/%/g, "")]: variable,
+          }),
+          {}
+        ),
+      }),
+      {}
+    )
   );
 }
 
@@ -147,7 +145,6 @@ try {
     if (platform === "google-actions") {
       platform = "google";
     }
-    console.log(projectName)
     // create mapping of message id, intent ids connected to it
     const intentMap = createIntentMap(board.messages, intents);
     const explorer = new BoardExplorer({ board, intentMap });
@@ -282,7 +279,9 @@ try {
           if (typeof name === "undefined") {
             const uniqueName = uuid();
             console.warn(
-              `${os.EOL}found unnamed intent. ${os.EOL}using name ${uniqueName}${os.EOL}`
+              `${os.EOL}found unnamed intent. ${
+                os.EOL
+              }using name ${uniqueName}${os.EOL}`
             );
             name = uniqueName;
           }
