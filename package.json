@@ -33,7 +33,7 @@
   "dependencies": {
     "@botmock-api/utils": "2.3.0",
     "arg": "4.1.1",
-    "async-sema": "^3.0.0",
+    "async-sema": "3.0.1",
     "botmock": "^1.2.0",
     "dotenv": "^8.0.0",
     "fs-extra": "^8.1.0",
@@ -45,7 +45,7 @@
     "@types/jest": "^24.0.17",
     "@types/node": "12.7.1",
     "@types/node-fetch": "^2.5.0",
-    "jest": "^24.8.0",
+    "jest": "24.9.0",
     "ts-jest": "^24.0.2",
     "ts-node": "^8.3.0",
     "typescript": "^3.5.3"

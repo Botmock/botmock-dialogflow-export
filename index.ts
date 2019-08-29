@@ -147,6 +147,7 @@ try {
     if (platform === "google-actions") {
       platform = "google";
     }
+    console.log(projectName)
     // create mapping of message id, intent ids connected to it
     const intentMap = createIntentMap(board.messages, intents);
     const explorer = new BoardExplorer({ board, intentMap });
