@@ -27,7 +27,7 @@ export async function writeUtterancesFile(
     return new Promise(res => res(undefined));
   }
   await fs.promises.writeFile(
-    `${intentFilepath.slice(0, -5)}_usersays_en.json`,
+    `${intentFilepath.replace(/\//g, "").slice(0, -5)}_usersays_en.json`,
     JSON.stringify(
       utterances.map(utterance => {
         const data = [];
