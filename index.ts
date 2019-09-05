@@ -1,4 +1,5 @@
 import "dotenv/config";
+// @ts-ignore
 import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
 import { remove } from "fs-extra";
 import { Sema } from "async-sema";
@@ -11,10 +12,11 @@ import assert from "assert";
 import crypto from "crypto";
 import fs, { Stats } from "fs";
 import BoardExplorer from "./lib/util/BoardExplorer";
+// @ts-ignore
 import { Provider } from "./lib/providers";
 import { getProjectData } from "./lib/util/client";
 import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
-import { getArgs, templates, supportedPlatforms } from "./lib/util";
+import { getArgs, templates, supportedPlatforms } from "./lib/util/index";
 import {
   Intent,
   InputContext,
@@ -22,11 +24,6 @@ import {
   ProjectResponse,
   Message,
 } from "./lib/types";
-
-export const OUTPUT_PATH = path.join(
-  process.cwd(),
-  process.env.OUTPUT_DIR || "output"
-);
 
 try {
   const MIN_NODE_VERSION = 101600;
@@ -101,6 +98,11 @@ function replaceVariableSignInText(text: string = ""): string {
   return str;
 }
 
+export const OUTPUT_PATH = path.join(
+  process.cwd(),
+  process.env.OUTPUT_DIR || "output"
+);
+
 let semaphore: void | Sema;
 let shouldUseDefaultWelcomeIntent = true;
 const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
@@ -147,11 +149,9 @@ try {
     if (platform === "google-actions") {
       platform = "google";
     }
-    // create mapping of message id, intent ids connected to it
     const intentMap = createIntentMap(board.messages, intents);
     const explorer = new BoardExplorer({ board, intentMap });
-    // create function that groups messages not connected by any intent
-    const collectIntermediateMessages: any = createMessageCollector(
+    const collectIntermediateMessages: (m: any) => any = createMessageCollector(
       intentMap,
       explorer.getMessageFromId.bind(explorer)
     );
@@ -281,23 +281,40 @@ try {
           if (typeof name === "undefined") {
             const uniqueName = uuid();
             console.warn(
-              `${os.EOL}found unnamed intent. ${os.EOL}using name ${uniqueName}${os.EOL}`
+              `${os.EOL}found unnamed intent. ${os.EOL}using name "${uniqueName}${os.EOL}"`
             );
             name = uniqueName;
           }
-          const contexts = [
+
+          const contexts: string[] = [
             ...getInputContextFromMessage(messageId),
             ...(typeof name !== "undefined" ? [name] : []),
-          ];
+          ].filter(ctx => ctx !== "");
+          // Name the actual intent file from the input context.
           const basename = truncateBasename(
             getIntentFileBasename(contexts, payload.nodeName.replace(/\//g, ""))
           );
           const filePath = path.join(INTENT_PATH, `${basename}.json`);
+
+          // Intermediate messages are those connected to this message, but with
+          // no interruption made by an intent.
+          // Any message connected without an intent, but also connected by an
+          // intent (and therefore excluded by the collector), must be manually
+          // concatenated to the collection.
           const intermediateMessages = collectIntermediateMessages(
             next_message_ids
-          ).map(explorer.getMessageFromId.bind(explorer));
-          // affectedContexts should be the union of input contexts and any
-          // intents reachable from messages in the intermediate cluster
+          )
+            .concat(
+              next_message_ids
+                .filter(
+                  message =>
+                    intentMap.get(message.message_id) && message.intent === ""
+                )
+                .map(message => message.message_id)
+            )
+            .map(explorer.getMessageFromId.bind(explorer));
+          // The output contexts should be the union of input contexts and any
+          // intents reachable from messages in the intermediate cluster.
           const affectedContexts = [
             ...contexts.map(name => ({
               name,
@@ -306,10 +323,11 @@ try {
             })),
             ...getAffectedContexts(intermediateMessages, next_message_ids),
           ];
-          const { utterances, updated_at, ...rest }: Partial<Intent> =
+          const { utterances, updated_at }: Partial<Intent> =
             intents.find(intent => intent.id === connectedIntentId) ||
             defaultIntent;
           const uniqueVariables = getUniqueVariablesInUtterances(utterances);
+          // Write the utterances file and the intent file.
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
           await fs.promises.writeFile(
             filePath,
