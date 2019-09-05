@@ -290,7 +290,7 @@ try {
             ...(typeof name !== "undefined" ? [name] : []),
           ];
           const basename = truncateBasename(
-            getIntentFileBasename(contexts, payload.nodeName).replace(/\//g, "")
+            getIntentFileBasename(contexts, payload.nodeName.replace(/\//g, ""))
           );
           const filePath = path.join(INTENT_PATH, `${basename}.json`);
           const intermediateMessages = collectIntermediateMessages(

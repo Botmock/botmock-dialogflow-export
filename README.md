@@ -45,7 +45,7 @@ The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment v
 - [ ] Multi-Lingual Support - Fall 2019
 - [ ] DialogFlow Small Talk Support - Fall 2019
 
-## prerequisites
+## Prerequisites
 
 - [Node.js](https://nodejs.org/en/) >= 10.16.x
 
@@ -55,7 +55,7 @@ node --version
 
 - [Dialogflow](https://console.dialogflow.com) account
 
-## installation guide
+## Installation Guide
 
 Clone this repository and install dependencies:
 
@@ -88,25 +88,25 @@ npm start
 - Run `npm start`.
 - Compress your output directory (`/output` by default).
 
-### importing into DialogFlow
+### Importing into DialogFlow
 
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
 - Choose the 'Export and Import' tab and choose 'Import From Zip'
 - Select your compressed output, typing 'IMPORT' in their form field and clicking 'IMPORT'
 
-## glossary
+## Glossary
 
 | **Botmock** | **Dialogflow**  |
 | ----------- | --------------- |
 | utterance   | training phrase |
 | message     | response        |
 
-## want to help?
+## Want to help?
 
 Found bugs or have some ideas to improve this plugin? We'd love to to hear from you! You can start by submitting an issue at the [Issues](https://github.com/Botmock/botmock-dialogflow-export/issues) tab. If you want, feel free to submit a pull request and propose a change as well!
 
 _NOTE: Make sure to leave any sensitive information out of an issue when reporting a bug with imagery or copying and pasting error data. We want to make sure all your info is safe!_
 
-## license
+## License
 
 Botmock Dialogflow Export is copyright © 2019 Botmock. It is free software, and may be redistributed under the terms specified in the LICENSE file.
