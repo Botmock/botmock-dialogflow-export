@@ -1,6 +1,6 @@
 // @ts-ignore
 import pkg from "./package.json";
-import chalk from "chalk";
+// import chalk from "chalk";
 import execa from "execa";
 import * as Sentry from "@sentry/node";
 import * as inquirer from "inquirer";
@@ -17,6 +17,8 @@ Sentry.init({
 
 type QuestionObject = {
   shouldUseContext: boolean;
+  intentNameDelimiter: string;
+  outputPath: string;
 };
 
 async function main(args: string[]): Promise<void> {
@@ -27,15 +29,31 @@ async function main(args: string[]): Promise<void> {
     case commands.RUN:
       const prompts = [
         {
-          type: "list",
+          type: "confirm",
           name: "shouldUseContext",
           message: "should input and output contexts be auto-generated?",
-          choices: [{ name: "yes" }, { name: "no" }],
+          default: true,
+        },
+        {
+          type: "list",
+          name: "intentNameDelimiter",
+          message:
+            "what symbol should separate the sections of intent file names?",
+          choices: [{ name: "-" }, { name: "/" }, { name: "_" }],
+        },
+        {
+          type: "input",
+          name: "outputPath",
+          message: "where should the output files be written?",
+          default: "./output",
         },
       ];
       const userResponses = await inquirer.prompt<QuestionObject>(prompts);
       try {
-        const { stdout } = await execa("ts-node", ["commands/run.ts"]);
+        const { stdout } = await execa("ts-node", [
+          "commands/run.ts",
+          ...userResponses.map(r => r),
+        ]);
         console.log(stdout);
       } catch (err) {
         throw err;
@@ -47,12 +65,6 @@ async function main(args: string[]): Promise<void> {
       return;
   }
 }
-
-// function mapResponsesToBool(responses: string[]): boolean[] {}
-
-// function log(str: string): void {
-//   console.info(chalk.dim(`> ${str}`));
-// }
 
 process.on("unhandledRejection", () => {});
 process.on("uncaughtException", () => {});
