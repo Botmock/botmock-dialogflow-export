@@ -3,6 +3,7 @@ import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
 import { remove } from "fs-extra";
 import { Sema } from "async-sema";
 import mkdirp from "mkdirp";
+import chalk from "chalk";
 import uuid from "uuid/v4";
 import os from "os";
 import path from "path";
@@ -44,6 +45,11 @@ try {
   throw "requires node.js version 10.16.0 or greater";
 }
 
+function log(str: string, hasError: boolean = false): void {
+  const method = !hasError ? "dim" : "bold";
+  console.info(chalk[method](`> ${str}`));
+}
+
 function truncateBasename(name: string = ""): string {
   const CHARACTER_LIMIT = 100;
   const diff = CHARACTER_LIMIT - name.length;
@@ -64,19 +70,21 @@ function truncateBasename(name: string = ""): string {
 // on the variables, with variable names as keys
 function getUniqueVariablesInUtterances(utterances: any[]): any[] {
   return Object.keys(
-    utterances.filter(utterance => !!utterance.variables.length).reduce(
-      (acc, utterance) => ({
-        ...acc,
-        ...utterance.variables.reduce(
-          (acc, variable) => ({
-            ...acc,
-            [variable.name.replace(/%/g, "")]: variable,
-          }),
-          {}
-        ),
-      }),
-      {}
-    )
+    utterances
+      .filter(utterance => !!utterance.variables.length)
+      .reduce(
+        (acc, utterance) => ({
+          ...acc,
+          ...utterance.variables.reduce(
+            (acc, variable) => ({
+              ...acc,
+              [variable.name.replace(/%/g, "")]: variable,
+            }),
+            {}
+          ),
+        }),
+        {}
+      )
   );
 }
 
@@ -250,8 +258,14 @@ try {
         )
         .map(createOutputContextFromMessage),
     ];
+    if (intentMap.size / board.messages.length <= 0.2) {
+      log(
+        "found few intents in flow; create more intents to ensure better functionality"
+      );
+    }
     // if no intent from the root is defined set a welcome-like intent
     if (!intentMap.size || explorer.isMissingWelcomeIntent(board.messages)) {
+      log("auto-generating welcome intent");
       const { next_message_ids } = board.messages.find(
         explorer.messageIsRoot.bind(explorer)
       );
@@ -278,10 +292,8 @@ try {
           let name = getIntentName(connectedIntentId);
           if (typeof name === "undefined") {
             const uniqueName = uuid();
-            console.warn(
-              `${os.EOL}found unnamed intent. ${
-                os.EOL
-              }using name ${uniqueName}${os.EOL}`
+            log(
+              `${os.EOL}found unnamed intent. ${os.EOL}using name ${uniqueName}${os.EOL}`
             );
             name = uniqueName;
           }
