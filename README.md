@@ -1,6 +1,6 @@
 # Botmock Dialogflow Export
 
-![demo](https://i.imgur.com/CfqW6BT.gif)
+![demo](https://i.imgur.com/y9yxoqu.gif)
 
 [![CircleCI](https://circleci.com/gh/Botmock/botmock-dialogflow-export.svg?style=svg)](https://circleci.com/gh/Botmock/botmock-dialogflow-export)
 
