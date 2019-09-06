@@ -1,5 +1,7 @@
 # Botmock Dialogflow Export
 
+![demo](https://i.imgur.com/xlwqGgY.gifv)
+
 [![CircleCI](https://circleci.com/gh/Botmock/botmock-dialogflow-export.svg?style=svg)](https://circleci.com/gh/Botmock/botmock-dialogflow-export)
 
 [![Build status](https://ci.appveyor.com/api/projects/status/40b85tj9tbyqb6c0?svg=true)](https://ci.appveyor.com/project/nonnontrivial/botmock-dialogflow-export)
