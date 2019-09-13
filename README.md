@@ -43,9 +43,9 @@ The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment v
 
 ### Feature To-Do List
 
-- [ ] Filling Support - August 2019
-- [ ] Multi-Lingual Support - Fall 2019
-- [ ] DialogFlow Small Talk Support - Fall 2019
+- [ ] Filling Support 
+- [ ] Multi-Lingual Support 
+- [ ] DialogFlow Small Talk Support
 
 ## prerequisites
 
