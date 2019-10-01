@@ -49,7 +49,7 @@ The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment v
 
 ## prerequisites
 
-- [Node.js](https://nodejs.org/en/) >= 10.16.x
+- [Node.js](https://nodejs.org/en/) > 12.x
 
 ```shell
 node --version
