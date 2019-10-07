@@ -4,7 +4,6 @@
   "description": "import botmock projects in dialogflow",
   "scripts": {
     "test": "jest",
-    "dev": "NODE_ENV=\"development\" ts-node index.ts",
     "start": "ts-node index.ts"
   },
   "keywords": [
@@ -12,11 +11,6 @@
     "dialogflow",
     "nodejs"
   ],
-  "prettier": {
-    "trailingComma": "es5",
-    "tabWidth": 2,
-    "printWidth": 80
-  },
   "jest": {
     "preset": "ts-jest",
     "globals": {
@@ -31,6 +25,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@botmock-api/flow": "0.1.0",
     "@botmock-api/utils": "2.3.0",
     "arg": "4.1.1",
     "async-sema": "3.0.1",
