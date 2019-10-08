@@ -291,6 +291,7 @@ try {
           ));
           // TODO: should use dynamic entity name
           const DATA_TYPE = "@sys.any";
+          const LANG = "en";
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
           await writeFile(
             filePath,
@@ -313,9 +314,9 @@ try {
                         id: slot.id,
                         name,
                         required: slot.is_required,
-                        data_type: DATA_TYPE,
+                        dataType: DATA_TYPE,
                         value: `$${name}`,
-                        promptMessages: Array.of(slot.prompt),
+                        promptMessages: Array.of({ lang: LANG, value: slot.prompt}),
                       }
                     }),
                     speech: [],
