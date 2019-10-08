@@ -1,7 +1,7 @@
 import "dotenv/config";
 // import * as flow from "@botmock-api/flow";
 import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
-import { remove } from "fs-extra";
+import { remove, readFile, readdir, writeFile, stat } from "fs-extra";
 import { Sema } from "async-sema";
 import mkdirp from "mkdirp";
 import chalk from "chalk";
@@ -10,20 +10,13 @@ import os from "os";
 import path from "path";
 import util from "util";
 import assert from "assert";
-import crypto from "crypto";
-import fs, { Stats } from "fs";
+import { randomBytes } from "crypto";
 import BoardExplorer from "./lib/util/BoardExplorer";
 import { Provider } from "./lib/providers";
 import { getProjectData } from "./lib/util/client";
+import { templates, supportedPlatforms } from "./lib/util";
 import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
-import { getArgs, templates, supportedPlatforms } from "./lib/util";
-import {
-  Intent,
-  InputContext,
-  OutputContext,
-  ProjectResponse,
-  Message,
-} from "./lib/types";
+import * as Assets from "./lib/types";
 
 export const OUTPUT_PATH = path.join(
   process.cwd(),
@@ -59,10 +52,9 @@ function truncateBasename(name: string = ""): string {
   // name collisions for similar paths
   if (Object.is(Math.sign(diff), -1)) {
     const absDiff = Math.abs(diff);
-    const randomBytes = crypto.randomBytes(CHARACTER_LIMIT).toString("hex");
     return name
       .slice(absDiff + Math.floor(CHARACTER_LIMIT / 2))
-      .padStart(CHARACTER_LIMIT, randomBytes);
+      .padStart(CHARACTER_LIMIT, randomBytes(CHARACTER_LIMIT).toString("hex"));
   }
   return name;
 }
@@ -121,7 +113,7 @@ try {
       updated_at: Date.now(),
       // merge in utterances of default dialogflow welcome intent
       utterances: JSON.parse(
-        await fs.promises.readFile(
+        await readFile(
           path.join(
             "templates",
             "defaults",
@@ -139,7 +131,7 @@ try {
     await util.promisify(mkdirp)(INTENT_PATH);
     await util.promisify(mkdirp)(ENTITY_PATH);
     // fetch project data via the botmock api
-    const project: ProjectResponse = await getProjectData({
+    const project: Assets.ProjectResponse = await getProjectData({
       projectId: process.env.BOTMOCK_PROJECT_ID,
       boardId: process.env.BOTMOCK_BOARD_ID,
       teamId: process.env.BOTMOCK_TEAM_ID,
@@ -164,13 +156,13 @@ try {
     );
     // get the name of an intent from its id
     const getIntentName = (id: string): string => {
-      const intent: Intent = intents.find(intent => intent.id === id) || {};
+      const intent: Assets.Intent = intents.find(intent => intent.id === id) || {};
       return intent.name || "";
     };
     // find the input context implied by a given message id
     const getInputContextFromMessage = (
       immediateMessageId: string
-    ): InputContext => {
+    ): Assets.InputContext => {
       const context: string[] = [];
       const seenIds: string[] = [];
       // recurse on a message id to fill in context
@@ -202,7 +194,7 @@ try {
     const uniqueNameMap = new Map<string, number>();
     // construct intent file name based on project name and input context
     const getIntentFileBasename = (
-      contexts: InputContext,
+      contexts: Assets.InputContext,
       messageName: string
     ): string => {
       let str =
@@ -226,8 +218,8 @@ try {
     };
     // map a message to proper output context object
     const createOutputContextFromMessage = (
-      message: Message
-    ): OutputContext => ({
+      message: Assets.Message
+    ): Assets.OutputContext => ({
       name: getIntentName(message.intent.value),
       parameters: {},
       lifespan: 1,
@@ -235,9 +227,9 @@ try {
     // pair output context of those intermediate messages that create
     // intents with those next messages that directly follow intents
     const getAffectedContexts = (
-      intermediateMessages: Message[],
+      intermediateMessages: Assets.Message[],
       nextMessageIds: any[]
-    ): OutputContext[] => [
+    ): Assets.OutputContext[] => [
       ...intermediateMessages.reduce((acc, { next_message_ids = [] }) => {
         if (!next_message_ids.length) {
           return acc;
@@ -319,12 +311,12 @@ try {
             })),
             ...getAffectedContexts(intermediateMessages, next_message_ids),
           ];
-          const { utterances, updated_at, ...rest }: Partial<Intent> =
+          const { utterances, updated_at }: Partial<Assets.Intent> =
             intents.find(intent => intent.id === connectedIntentId) ||
             defaultIntent;
           const uniqueVariables = getUniqueVariablesInUtterances(utterances);
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
-          await fs.promises.writeFile(
+          await writeFile(
             filePath,
             JSON.stringify(
               {
@@ -394,7 +386,7 @@ try {
     }
     // write an entity file for each entity in the project
     for (const entity of entities) {
-      await fs.promises.writeFile(
+      await writeFile(
         path.join(ENTITY_PATH, `${entity.name}.json`),
         JSON.stringify(
           {
@@ -406,17 +398,17 @@ try {
           2
         ) + os.EOL
       );
-      await fs.promises.writeFile(
+      await writeFile(
         path.join(ENTITY_PATH, `${entity.name}_entries_en.json`),
         JSON.stringify(entity.data, null, 2) + os.EOL
       );
     }
     // copy templates over to the output destination
-    for (const filename of await fs.promises.readdir(
+    for (const filename of await readdir(
       path.join(__dirname, "templates")
     )) {
       const pathToContent = path.join(__dirname, "templates", filename);
-      const stats: Stats = await fs.promises.stat(pathToContent);
+      const stats: any = await stat(pathToContent);
       // if this content of the templates directory is not itself a directory,
       // possibly copy the file over into the output directory
       if (!stats.isDirectory()) {
@@ -427,7 +419,7 @@ try {
       } else {
         // assume these are the templates for the default intents; copy them
         // into the intents directory
-        for (const file of await fs.promises.readdir(pathToContent)) {
+        for (const file of await readdir(pathToContent)) {
           if (!shouldUseDefaultWelcomeIntent && file.includes("Welcome")) {
             continue;
           }
@@ -439,18 +431,18 @@ try {
     }
     let sum: number = 0;
     // calculate uncompressed output file size
-    for (const content of await fs.promises.readdir(OUTPUT_PATH)) {
+    for (const content of await readdir(OUTPUT_PATH)) {
       const pathTo = path.join(OUTPUT_PATH, content);
-      const stats = await fs.promises.stat(pathTo);
+      const stats = await stat(pathTo);
       if (stats.isFile()) {
         sum += stats.size;
       } else if (stats.isDirectory()) {
         // for each file in this directory, find its size and add it to the total
-        for (const file of (await fs.promises.readdir(pathTo)).filter(
+        for (const file of (await readdir(pathTo)).filter(
           async (dirContent: any) =>
-            (await fs.promises.stat(path.join(pathTo, dirContent))).isFile()
+            (await stat(path.join(pathTo, dirContent))).isFile()
         )) {
-          sum += (await fs.promises.stat(path.join(pathTo, file))).size;
+          sum += (await stat(path.join(pathTo, file))).size;
         }
       }
     }
