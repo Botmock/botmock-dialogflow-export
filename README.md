@@ -1,6 +1,6 @@
 # Botmock Dialogflow Export
 
-![demo](https://i.imgur.com/y9yxoqu.gif)
+<!-- ![demo](https://i.imgur.com/y9yxoqu.gif) -->
 
 [![CircleCI](https://circleci.com/gh/Botmock/botmock-dialogflow-export.svg?style=svg)](https://circleci.com/gh/Botmock/botmock-dialogflow-export)
 
@@ -39,13 +39,7 @@ The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment v
 
 ### DialogFlow actions and parameters
 
-**Mapping Actions and Parameters have known issues which will be address in subsequent pull requests**
-
-### Feature To-Do List
-
-- [ ] Filling Support 
-- [ ] Multi-Lingual Support 
-- [ ] DialogFlow Small Talk Support
+> section coming soon
 
 ## prerequisites
 
