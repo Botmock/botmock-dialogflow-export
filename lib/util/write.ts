@@ -2,7 +2,7 @@ import uuid from "uuid/v4";
 import path from "path";
 import os from "os";
 import fs from "fs";
-import { OUTPUT_PATH } from "../../";
+import { outputPath } from "../../";
 
 // copies file to its destination in the output directory
 export async function copyFileToOutput(
@@ -10,7 +10,7 @@ export async function copyFileToOutput(
   options = { isIntentFile: false }
 ): Promise<void> {
   const pathToOutput = path.join(
-    OUTPUT_PATH,
+    outputPath,
     options.isIntentFile ? "intents" : "",
     path.basename(pathToFile)
   );

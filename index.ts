@@ -1,5 +1,6 @@
 import "dotenv/config";
 // import * as flow from "@botmock-api/flow";
+// import { default as findPlatformEntityEquivalent } from "@botmock-api/entity-map";
 import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
 import { remove, readFile, readdir, writeFile, stat } from "fs-extra";
 import { Sema } from "async-sema";
@@ -9,7 +10,6 @@ import uuid from "uuid/v4";
 import os from "os";
 import path from "path";
 import util from "util";
-import assert from "assert";
 import { randomBytes } from "crypto";
 import BoardExplorer from "./lib/util/BoardExplorer";
 import { Provider } from "./lib/providers";
@@ -18,26 +18,7 @@ import { templates, supportedPlatforms } from "./lib/util";
 import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
 import * as Assets from "./lib/types";
 
-export const OUTPUT_PATH = path.join(
-  process.cwd(),
-  process.env.OUTPUT_DIR || "output"
-);
-
-try {
-  const MIN_NODE_VERSION = 101600;
-  const numericalNodeVersion = parseInt(
-    process.version
-      .slice(1)
-      .split(".")
-      .map(seq => seq.padStart(2, "0"))
-      .join(""),
-    10
-  );
-  // check that the node version is above the minimum
-  assert.strictEqual(numericalNodeVersion >= MIN_NODE_VERSION, true);
-} catch (_) {
-  throw "requires node.js version 10.16.0 or greater";
-}
+export const outputPath = path.join(process.cwd(), process.env.OUTPUT_DIR || "output");
 
 function log(str: string, hasError: boolean = false): void {
   const method = !hasError ? "dim" : "bold";
@@ -103,8 +84,8 @@ function replaceVariableSignInText(text: string = ""): string {
 let semaphore: void | Sema;
 let shouldUseDefaultWelcomeIntent = true;
 const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
-const INTENT_PATH = path.join(OUTPUT_PATH, "intents");
-const ENTITY_PATH = path.join(OUTPUT_PATH, "entities");
+const INTENT_PATH = path.join(outputPath, "intents");
+const ENTITY_PATH = path.join(outputPath, "entities");
 
 try {
   (async () => {
@@ -127,7 +108,7 @@ try {
       }),
     };
     // recreate output directories
-    await remove(OUTPUT_PATH);
+    await remove(outputPath);
     await util.promisify(mkdirp)(INTENT_PATH);
     await util.promisify(mkdirp)(ENTITY_PATH);
     // fetch project data via the botmock api
@@ -137,12 +118,7 @@ try {
       teamId: process.env.BOTMOCK_TEAM_ID,
       token: process.env.BOTMOCK_TOKEN,
     });
-    let [
-      intents,
-      entities,
-      board,
-      { platform, name: projectName },
-    ] = project.data;
+    let [intents, entities, board, variables, { platform, name: projectName }] = project.data;
     if (platform === "google-actions") {
       platform = "google";
     }
@@ -277,7 +253,7 @@ try {
         payload,
         message_id,
         next_message_ids,
-        previous_message_ids,
+        // previous_message_ids,
       } = explorer.getMessageFromId(messageId);
       for (const connectedIntentId of intentIds) {
         await semaphore.acquire();
@@ -304,17 +280,17 @@ try {
           // affectedContexts should be the union of input contexts and any
           // intents reachable from messages in the intermediate cluster
           const affectedContexts = [
-            ...contexts.map(name => ({
-              name,
-              parameters: {},
-              lifespan: 1,
-            })),
+            ...contexts.map(name => ({ name, parameters: {}, lifespan: 1 })),
             ...getAffectedContexts(intermediateMessages, next_message_ids),
           ];
-          const { utterances, updated_at }: Partial<Assets.Intent> =
+          const { utterances, updated_at, slots }: Partial<Assets.Intent> =
             intents.find(intent => intent.id === connectedIntentId) ||
             defaultIntent;
-          const uniqueVariables = getUniqueVariablesInUtterances(utterances);
+          const uniqueVariables = getUniqueVariablesInUtterances(utterances).map(variableName => (
+            variables.find((variable: any) => variable.name === variableName)
+          ));
+          // TODO: should use dynamic entity name
+          const DATA_TYPE = "@sys.any";
           await writeUtterancesFile(filePath, utterances, updated_at, entities);
           await writeFile(
             filePath,
@@ -330,21 +306,18 @@ try {
                 lastUpdate: Date.parse(updated_at.date),
                 responses: [
                   {
-                    action: uniqueVariables.length
-                      ? `action.${uniqueVariables[0]}`
-                      : "",
-                    parameters: uniqueVariables.map(name => ({
-                      id: uuid(),
-                      required: false,
-                      dataType: "@sys.any",
-                      name,
-                      value: `$${name}`,
-                      promptMessages: [],
-                      noMatchPromptMessages: [],
-                      noInputPromptMessages: [],
-                      outputDialogContexts: [],
-                      isList: false,
-                    })),
+                    action: uniqueVariables.length ? `action.${uniqueVariables[0].name}` : "",
+                    parameters: !Array.isArray(slots) ? [] : slots.map((slot: Assets.Slot) => {
+                      const { name } = variables.find(variable => variable.id === slot.variable_id);
+                      return {
+                        id: slot.id,
+                        name,
+                        required: slot.is_required,
+                        data_type: DATA_TYPE,
+                        value: `$${name}`,
+                        promptMessages: Array.of(slot.prompt),
+                      }
+                    }),
                     speech: [],
                     resetContexts: false,
                     affectedContexts,
@@ -431,8 +404,8 @@ try {
     }
     let sum: number = 0;
     // calculate uncompressed output file size
-    for (const content of await readdir(OUTPUT_PATH)) {
-      const pathTo = path.join(OUTPUT_PATH, content);
+    for (const content of await readdir(outputPath)) {
+      const pathTo = path.join(outputPath, content);
       const stats = await stat(pathTo);
       if (stats.isFile()) {
         sum += stats.size;
@@ -449,7 +422,7 @@ try {
     console.info(
       `done.${os.EOL}wrote ${sum / 1000}kB to ${__dirname}${
         path.sep
-      }${path.basename(OUTPUT_PATH)}.`
+      }${path.basename(outputPath)}.`
     );
   })();
 } catch (err) {

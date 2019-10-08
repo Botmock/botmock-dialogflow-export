@@ -1,5 +1,13 @@
+export type Slot = {
+  id: string;
+  variable_id: string;
+  is_required: boolean;
+  prompt: string;
+};
+
 export type Intent = {
   name: string;
+  slots: Slot[] | null;
   updated_at: { date: string };
   utterances: { text: string; variables: any[] }[];
 };
