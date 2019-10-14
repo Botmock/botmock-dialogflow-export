@@ -2,6 +2,9 @@
   "name": "botmock-dialogflow-export",
   "version": "2.0.0",
   "description": "import botmock projects in dialogflow",
+  "engines": {
+    "node": ">=12.12.0"
+  },
   "scripts": {
     "test": "jest",
     "start": "ts-node index.ts"
