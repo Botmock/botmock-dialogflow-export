@@ -44,9 +44,9 @@ Sentry.init({
 });
 
 interface Paths {
-  outputPath: string;
-  intentPath: string;
-  entityPath: string;
+  readonly outputPath: string;
+  readonly intentPath: string;
+  readonly entityPath: string;
 }
 
 /**
@@ -79,7 +79,7 @@ async function main(args: string[]): Promise<void> {
   });
   log("fetching project data");
   const date = Date.now();
-  const { timestamp, data } = await new SDKWrapper({
+  const { timestamp, data: projectData } = await new SDKWrapper({
     token: process.env.BOTMOCK_TOKEN, 
     teamId: process.env.BOTMOCK_TEAM_ID,
     projectId: process.env.BOTMOCK_PROJECT_ID,
@@ -87,7 +87,7 @@ async function main(args: string[]): Promise<void> {
   }).fetch();
   log(`fetched project data in ${timestamp - date}ms`);
   log("writing files");
-  await new FileWriter({ projectData: data }).write();
+  await new FileWriter({ outputDirectory, projectData }).write();
   log("done");
 }
 
@@ -100,10 +100,7 @@ main(process.argv).catch(async (err: Error) => {
     Sentry.captureException(err);
   } else {
     const { message, stack } = err;
-    await writeJson(path.join(__dirname, "err.json"), {
-      message,
-      stack
-    });
+    await writeJson(path.join(__dirname, "err.json"), { message, stack });
   }
 });
 

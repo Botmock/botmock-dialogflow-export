@@ -28,10 +28,9 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@botmock-api/flow": "0.1.0",
-    "@botmock-api/utils": "2.3.0",
-    "@sentry/integrations": "5.7.0",
-    "@sentry/node": "5.7.0",
+    "@botmock-api/flow": "0.2.0",
+    "@sentry/integrations": "5.7.1",
+    "@sentry/node": "5.7.1",
     "arg": "4.1.1",
     "async-sema": "3.0.1",
     "botmock": "^1.2.0",
@@ -43,12 +42,12 @@
   },
   "devDependencies": {
     "@types/fs-extra": "8.0.0",
-    "@types/jest": "24.0.18",
-    "@types/node": "12.7.1",
-    "@types/node-fetch": "^2.5.0",
+    "@types/jest": "24.0.19",
+    "@types/node": "12.7.12",
+    "@types/node-fetch": "2.5.2",
     "jest": "24.9.0",
-    "ts-jest": "^24.0.2",
-    "ts-node": "^8.3.0",
-    "typescript": "3.6.2"
+    "ts-jest": "24.1.0",
+    "ts-node": "8.4.1",
+    "typescript": "3.6.4"
   }
 }

@@ -3,10 +3,10 @@ import { EventEmitter } from "events";
 import { FetchError } from "node-fetch";
 
 interface Config {
-  token: string;
-  teamId: string;
-  projectId: string;
-  boardId: string;
+  readonly token: string;
+  readonly teamId: string;
+  readonly projectId: string;
+  readonly boardId: string;
 }
 
 type JSONResponse = { [assetName: string]: any };
@@ -29,7 +29,7 @@ export default class SDKWrapper extends EventEmitter {
    * Fetches botmock project data using the SDK
    * @returns Promise<{ data: JSONResponse }>
    */
-  public async fetch(): Promise< null |{ data: JSONResponse, timestamp: number }> {
+  public async fetch(): Promise< null | { data: JSONResponse, timestamp: number }> {
     try {
       const [projectId, teamId, boardId] = [
         process.env.BOTMOCK_PROJECT_ID,

@@ -1,11 +1,21 @@
 // import { writeJson } from "fs-extra";
-import { EventEmitter } from "events";
+import * as flow from "@botmock-api/flow";
 
-interface Config {}
+interface Config {
+  readonly outputDirectory: string;
+  readonly projectData: any;
+}
 
-export default class FileWriter extends EventEmitter {
+export default class FileWriter extends flow.AbstractProject {
+  // static defaultWelcomeIntent: any = {};
+  private readonly outputDirectory: string;
+  /**
+   * Creates new instance of FileWriter class
+   * @param config Config object containing outputDirectory and projectData
+   */
   constructor(config: Config) {
-    super();
+    super({ projectData: config.projectData });
+    this.outputDirectory = config.outputDirectory;
   }
   /**
    * Writes necessary files to output directory
