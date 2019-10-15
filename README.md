@@ -6,7 +6,7 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/40b85tj9tbyqb6c0?svg=true)](https://ci.appveyor.com/project/nonnontrivial/botmock-dialogflow-export)
 
-Import [Botmock](https://botmock.com) projects in [Dialogflow](https://console.dialogflow.com/).
+> import [botmock](https://botmock.com) projects in [dialogflow](https://console.dialogflow.com/)
 
 This script produces a compressible directory able to be [restored](https://cloud.google.com/dialogflow/docs/agents-settings) from in Dialogflow.
 

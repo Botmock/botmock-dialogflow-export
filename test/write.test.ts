@@ -1,3 +1,3 @@
-// import { default as FileWriter } from "../lib/file";
+import { default as FileWriter } from "../lib/file";
 
-test.todo("");
+test.skip("writes files to output dir", async () => {});
