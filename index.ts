@@ -1,16 +1,8 @@
 import "dotenv/config";
-import { writeJson, mkdirp, remove } from "fs-extra";
-import { RewriteFrames } from "@sentry/integrations";
 import * as Sentry from "@sentry/node";
-// import { Sema } from "async-sema";
-// import uuid from "uuid/v4";
-// import os from "os";
-import path from "path";
-// import { Provider } from "./lib/providers";
-// import BoardExplorer from "./lib/util/BoardExplorer";
-// import { getProjectData } from "./lib/util/client";
-// import { templates, supportedPlatforms } from "./lib/util";
-// import { writeUtterancesFile, copyFileToOutput } from "./lib/util/write";
+import { RewriteFrames } from "@sentry/integrations";
+import { writeJson, mkdirp, remove } from "fs-extra";
+import { join } from "path";
 import { default as SDKWrapper } from "./lib/sdk";
 import { default as FileWriter } from "./lib/file";
 import { default as log } from "./lib/log";
@@ -65,9 +57,8 @@ async function main(args: string[]): Promise<void> {
   if (typeof outputDirectory === "undefined") {
     outputDirectory = process.env.OUTPUT_DIR || DEFAULT_OUTPUT;
   }
-  // const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
-  const INTENT_PATH = path.join(outputDirectory, "intents");
-  const ENTITY_PATH = path.join(outputDirectory, "entities");
+  const INTENT_PATH = join(outputDirectory, "intents");
+  const ENTITY_PATH = join(outputDirectory, "entities");
   log("creating output directories");
   await recreateOutputDirectories({
     outputPath: outputDirectory,
@@ -97,7 +88,7 @@ main(process.argv).catch(async (err: Error) => {
     Sentry.captureException(err);
   } else {
     const { message, stack } = err;
-    await writeJson(path.join(__dirname, "err.json"), { message, stack });
+    await writeJson(join(__dirname, "err.json"), { message, stack });
   }
 });
 
