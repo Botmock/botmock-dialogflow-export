@@ -6,7 +6,6 @@ import * as Sentry from "@sentry/node";
 // import uuid from "uuid/v4";
 // import os from "os";
 import path from "path";
-import { randomBytes } from "crypto";
 // import { Provider } from "./lib/providers";
 // import BoardExplorer from "./lib/util/BoardExplorer";
 // import { getProjectData } from "./lib/util/client";
@@ -101,75 +100,6 @@ main(process.argv).catch(async (err: Error) => {
     await writeJson(path.join(__dirname, "err.json"), { message, stack });
   }
 });
-
-/**
- * Truncates the name of a file to fit within dialogflow bounds
- * @param name string
- * @returns string
- */
-function truncateBasename(name: string = ""): string {
-  const CHARACTER_LIMIT = 100;
-  const diff = CHARACTER_LIMIT - name.length;
-  // if the name length exceeds the limit, replace the number of characters
-  // by which the name exceeds the limit with random bytes to avoid file
-  // name collisions for similar paths
-  if (Object.is(Math.sign(diff), -1)) {
-    const absDiff = Math.abs(diff);
-    return name
-      .slice(absDiff + Math.floor(CHARACTER_LIMIT / 2))
-      .padStart(CHARACTER_LIMIT, randomBytes(CHARACTER_LIMIT).toString("hex"));
-  }
-  return name;
-}
-
-/**
- * Gets array containing unique names of variables in given utterances
- * @param utterances any[]
- * @returns any[]
- */
-function getUniqueVariablesInUtterances(utterances: any[]): any[] {
-  return Object.keys(
-    utterances
-      .filter(utterance => !!utterance.variables.length)
-      .reduce(
-        (acc, utterance) => ({
-          ...acc,
-          ...utterance.variables.reduce(
-            (acc, variable) => ({
-              ...acc,
-              [variable.name.replace(/%/g, "")]: variable,
-            }),
-            {}
-          ),
-        }),
-        {}
-      )
-  );
-}
-
-/**
- * Replaces all occurances of variable sign in given text
- * @param text string
- * @returns string
- */
-function replaceVariableSignInText(text: string = ""): string {
-  let str = text;
-  const variableRegex = /%[a-zA-Z0-9]+%/g;
-  const matches = text.match(variableRegex);
-  // if this text contains at least one variable, replace all
-  // occurrences of it with the correct output variable sign
-  if (!Object.is(matches, null)) {
-    for (const match of matches) {
-      const indexOfMatch = text.search(variableRegex);
-      str =
-        str.slice(0, indexOfMatch) +
-        "$" +
-        match.slice(1, match.length - 1) +
-        str.slice(indexOfMatch + match.length);
-    }
-  }
-  return str;
-}
 
 // let semaphore: void | Sema;
 // let shouldUseDefaultWelcomeIntent = true;

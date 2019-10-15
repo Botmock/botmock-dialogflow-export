@@ -1,5 +1,6 @@
-// import { writeJson } from "fs-extra";
 import * as flow from "@botmock-api/flow";
+// import { writeJson } from "fs-extra";
+// import { default as TextOperator } from "./text";
 
 interface Config {
   readonly outputDirectory: string;
