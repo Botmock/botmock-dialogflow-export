@@ -1,6 +1,4 @@
 import "dotenv/config";
-// import { wrapEntitiesWithChar } from "@botmock-api/text";
-// import { createIntentMap, createMessageCollector } from "@botmock-api/utils";
 import { writeJson, mkdirp, remove } from "fs-extra";
 import { RewriteFrames } from "@sentry/integrations";
 import * as Sentry from "@sentry/node";
