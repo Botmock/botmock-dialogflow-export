@@ -8,7 +8,7 @@ beforeEach(async () => {
   await mkdirp(outputDirectory);
   instance = new FileWriter({
     outputDirectory,
-    projectData: { board: { board: { messages: [] } } }
+    projectData: { project: { platform: "" }, board: { board: { messages: [] } }, entities: [] }
   });
 });
 

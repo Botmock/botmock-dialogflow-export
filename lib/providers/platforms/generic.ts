@@ -1,9 +1,16 @@
-module.exports = class Generic {
-  text(data) {
+export default class Generic {
+  /**
+   * 
+   * @param data 
+   */
+  public text(data) {
     return { type: 0, speech: data.text };
   }
-
-  card(data) {
+  /**
+   * 
+   * @param data 
+   */
+  public card(data) {
     let buttons = [];
     if (data.elements) {
       buttons = data.elements.flatMap(element =>
@@ -19,12 +26,18 @@ module.exports = class Generic {
     }
     return { type: 1, title: data.text, buttons };
   }
-
-  image(data) {
+  /**
+   * 
+   * @param data 
+   */
+  public image(data) {
     return { type: 3, imageUrl: data.image_url };
   }
-
-  quick_replies(data) {
+  /**
+   * 
+   * @param data 
+   */
+  public quick_replies(data) {
     const replies = data.quick_replies.map(reply => reply.label || reply.title);
     return { type: 2, title: data.text, replies };
   }

@@ -1,8 +1,8 @@
-export * from "./platforms/Skype";
-export * from "./platforms/Slack";
-export * from "./platforms/Facebook";
-export * from "./platforms/Google";
-export * from "./platforms/Generic";
+export * from "./platforms/skype";
+export * from "./platforms/slack";
+export * from "./platforms/google";
+export * from "./platforms/generic";
+export * from "./platforms/facebook";
 
 export default class {
   private readonly platform: any;
@@ -12,12 +12,10 @@ export default class {
    */
   constructor(platformName: string) {
     let mod: any;
-    // assign the platform's class to the instance of the provider
     try {
-      mod = require(`./${platformName.replace(/^\w/, platformName.substr(0, 1).toUpperCase())}`);
+      mod = require(`./platforms/${platformName}`).default;
     } catch (_) {
-      // fallback to generic if unable to import corresponding module
-      mod = require("./platforms/Generic");
+      mod = require("./platforms/generic").default;
     }
     this.platform = new mod();
   }
@@ -32,7 +30,7 @@ export default class {
     let method = Object.getOwnPropertyNames(
       Object.getPrototypeOf(this.platform)).find(prop => type.includes(prop)
     );
-    // coerce odd types
+    // coerce method name for odd types
     switch (type) {
       case "api":
       case "delay":

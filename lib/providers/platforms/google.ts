@@ -1,16 +1,26 @@
-module.exports = class Google {
-  text(data) {
+export default class Google {
+  /**
+   * 
+   * @param data 
+   */
+  public text(data) {
     return { type: "simple_response", textToSpeech: data.text };
   }
-
-  suggestion_chips(data) {
+  /**
+   * 
+   * @param data 
+   */
+  public suggestion_chips(data) {
     const suggestions = data.quick_replies.map(reply => ({
       title: reply.title.substr(0, 19),
     }));
     return { type: "suggestion_chips", suggestions };
   }
-
-  list(data) {
+  /**
+   * 
+   * @param data 
+   */
+  public list(data) {
     const items = data.elements.map(element => {
       let title, description;
       try {
@@ -44,8 +54,11 @@ module.exports = class Google {
       items,
     };
   }
-
-  card(data) {
+  /**
+   * 
+   * @param data 
+   */
+  public card(data) {
     return {
       type: "basic_card",
       title: data.title,

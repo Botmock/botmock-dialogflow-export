@@ -1,20 +1,31 @@
-// const { TEXT_TYPE, CARD_TYPE, QUICK_REPLIES_TYPE, IMAGE_TYPE } = require("./");
-
-module.exports = class Skype {
-  text(data) {
+export default class Skype {
+  /**
+   * 
+   * @param data 
+   */
+  public text(data) {
     return { type: 0, speech: data.text };
   }
-
-  quick_replies(data) {
+  /**
+   * 
+   * @param data 
+   */
+  public quick_replies(data) {
     const replies = data.quick_replies.map(reply => reply.title.substr(0, 19));
     return { type: 2, title: data.text, replies };
   }
-
-  image(data) {
+  /**
+   * 
+   * @param data 
+   */
+  public image(data) {
     return { type: 3, imageUrl: data.image_url };
   }
-
-  card(data) {
+  /**
+   * 
+   * @param data 
+   */
+  public card(data) {
     return {
       type: 1,
       title: data.text,
