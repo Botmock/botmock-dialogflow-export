@@ -1,18 +1,16 @@
-export * from "./Skype";
-export * from "./Slack";
-export * from "./Facebook";
-export * from "./Google";
-export * from "./Generic";
+export * from "./platforms/Skype";
+export * from "./platforms/Slack";
+export * from "./platforms/Facebook";
+export * from "./platforms/Google";
+export * from "./platforms/Generic";
 
-// export const TEXT_TYPE = 0;
-// export const CARD_TYPE = 1;
-// export const QUICK_REPLIES_TYPE = 2;
-// export const IMAGE_TYPE = 3;
-
-export class Provider {
-  platform: any;
-
-  constructor(platform) {
+export default class {
+  private readonly platform: any;
+  /**
+   * Creates new instance of PlatformProvider
+   * @param platform string
+   */
+  constructor(platform: string) {
     let mod: any;
     // assign the platform's class to the instance of the provider
     try {
@@ -26,8 +24,13 @@ export class Provider {
     }
     this.platform = new mod();
   }
-
-  create(type, data) {
+  /**
+   * Creates json containing platform-specific data
+   * @param type string
+   * @param data any
+   * @returns object
+   */
+  create(type: string, data: any): object {
     const platform = this.platform.constructor.name.toLowerCase();
     // get the correct method on the correct class
     let method = Object.getOwnPropertyNames(

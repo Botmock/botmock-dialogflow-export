@@ -1,4 +1,4 @@
-import Botmock from "@botmock/client";
+import Botmock from "@botmock-api/client";
 import { EventEmitter } from "events";
 import { FetchError } from "node-fetch";
 

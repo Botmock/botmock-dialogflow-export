@@ -28,6 +28,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@botmock-api/client": "0.1.1",
     "@botmock-api/flow": "0.3.0",
     "@sentry/integrations": "5.7.1",
     "@sentry/node": "5.7.1",
