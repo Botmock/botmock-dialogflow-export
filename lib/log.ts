@@ -10,6 +10,6 @@ interface LogConfig {
  * @param config object dictating which chalk method to use to print
  */
 export default function log(str: string | number, config: LogConfig = { hasError: false }): void {
-  const method = !config.hasError ? "dim" : "bold";
+  const method = !config.hasError ? "dim" : "red";
   console.info(chalk[method](`> ${str}`));
 }

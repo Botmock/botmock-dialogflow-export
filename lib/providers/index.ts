@@ -20,7 +20,7 @@ export default class {
       )}`);
     } catch (_) {
       // fallback to generic if unable to import corresponding module
-      mod = require("./Generic");
+      mod = require("./platforms/Generic");
     }
     this.platform = new mod();
   }

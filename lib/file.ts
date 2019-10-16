@@ -5,7 +5,7 @@ import * as flow from "@botmock-api/flow";
 import { writeJson, readFile } from "fs-extra";
 import { default as BoardBoss } from "./board";
 // import { default as TextOperator } from "./text";
-// import { default as PlatformProvider } from "./providers";
+import { default as PlatformProvider } from "./providers";
 
 interface Config {
   readonly outputDirectory: string;
@@ -71,7 +71,7 @@ export default class FileWriter extends flow.AbstractProject {
    * @returns Promise<void>
    */
   private async writeEntities(): Promise<void> {
-    for (const { id, name } of this.projectData.entities) {
+    for (const { id, name, data: entityEntries } of this.projectData.entities) {
       const entityData = {
         id,
         name,
@@ -81,20 +81,23 @@ export default class FileWriter extends flow.AbstractProject {
         automatedExpansion: false,
         allowFuzzyExtraction: false
       };
-      const entityEntriesData = Array.of({
-        value: name,
-        synonyms: []
-      });
       const pathToEntities = join(this.outputDirectory, "entities");
       await writeJson(join(pathToEntities, `${name}.json`), entityData, { EOL, spaces: 2});
-      await writeJson(join(pathToEntities, `${name}_entries_en.json`), entityEntriesData, { EOL, spaces: 2 });
+      await writeJson(join(pathToEntities, `${name}_entries_en.json`), entityEntries, { EOL, spaces: 2 });
     }
   }
   /**
    * Writes intent files and utterance files
    * @returns Promise<void>
    */
-  private async writeIntents(): Promise<void> {}
+  private async writeIntents(): Promise<void> {
+    const platformProvider = new PlatformProvider(this.projectData.project.platform);
+    for (const [intentId, messageIds] of this.boardStructureByIntents.entries()) {
+      const intentData = {};
+      const pathToIntents = join(this.outputDirectory, "intents");
+      await writeJson(pathToIntents, intentData, { EOL, spaces: 2 });
+    }
+  }
   /**
    * Writes necessary files to output directory
    * @returns Promise<void>
