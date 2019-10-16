@@ -1,5 +1,7 @@
-// import { writeJson } from "fs-extra";
+import { join } from "path";
+import { EOL } from "os";
 import * as flow from "@botmock-api/flow";
+import { writeJson, readFile } from "fs-extra";
 import { default as BoardBoss } from "./board";
 // import { default as TextOperator } from "./text";
 // import { default as PlatformProvider } from "./providers";
@@ -17,6 +19,7 @@ export default class FileWriter extends flow.AbstractProject {
     "skype",
     "google",
   ]);
+  private readonly templateDirectory: string;
   private readonly outputDirectory: string;
   private readonly board: BoardBoss;
   /**
@@ -26,13 +29,19 @@ export default class FileWriter extends flow.AbstractProject {
   constructor(config: Config) {
     super({ projectData: config.projectData });
     this.outputDirectory = config.outputDirectory;
+    this.templateDirectory = join(process.cwd(), "templates");
     this.board = new BoardBoss({ board: this.projectData.board.board });
   }
   /**
-   * Writes files that contain meta data
+   * Writes files that contain agent meta data
    * @returns Promise<void>
    */
-  private async writeMeta(): Promise<void> {}
+  private async writeMeta(): Promise<void> {
+    const packageData = { version: "1.0.0" };
+    const agentData = JSON.parse(await readFile(join(this.templateDirectory, "agent.json"), "utf8"));
+    await writeJson(join(this.outputDirectory, "package.json"), packageData, { EOL, spaces: 2 });
+    await writeJson(join(this.outputDirectory, "agent.json"), agentData, { EOL, spaces: 2 });
+  }
   /**
    * Writes files that contain entities
    * @returns Promise<void>
