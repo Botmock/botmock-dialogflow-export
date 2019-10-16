@@ -1,4 +1,4 @@
-import Botmock from "@botmock-api/client";
+import Botmock from "@botmock/client";
 import { EventEmitter } from "events";
 import { FetchError } from "node-fetch";
 
@@ -9,7 +9,7 @@ interface Config {
   readonly boardId: string;
 }
 
-type JSONResponse = { [assetName: string]: any };
+export type JSONResponse = { [assetName: string]: any };
 
 export default class SDKWrapper extends EventEmitter {
   private readonly client: Botmock;

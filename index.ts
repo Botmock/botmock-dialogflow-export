@@ -92,12 +92,6 @@ main(process.argv).catch(async (err: Error) => {
   }
 });
 
-// let semaphore: void | Sema;
-// let shouldUseDefaultWelcomeIntent = true;
-// const INTENT_NAME_DELIMITER = process.env.INTENT_NAME_DELIMITER || "-";
-// const INTENT_PATH = path.join(outputPath, "intents");
-// const ENTITY_PATH = path.join(outputPath, "entities");
-
 // try {
 //   (async () => {
 //     const defaultIntent = {

@@ -16,14 +16,14 @@ export default class {
    * @returns string
    */
   public replaceVariableSignInText(text: string): string {
-    let str = text;
-    const variableRegex = /%[a-zA-Z0-9]+%/g;
-    const matches = text.match(variableRegex);
+    let str: string = text;
+    const variableRegex: RegExp = /%[a-zA-Z0-9]+%/g;
+    const matches: RegExpMatchArray | null = text.match(variableRegex);
     // if this text contains at least one variable, replace all
     // occurrences of it with the correct output variable sign
     if (!Object.is(matches, null)) {
       for (const match of matches) {
-        const indexOfMatch = text.search(variableRegex);
+        const indexOfMatch: number = text.search(variableRegex);
         str =
           str.slice(0, indexOfMatch) +
           "$" +
@@ -36,12 +36,12 @@ export default class {
   /**
    * Gets array containing unique names of variables in given utterances
    * @param utterances flow.Utterance[]
-   * @returns any[]
+   * @returns string[]
    */
-  public getUniqueVariablesInUtterances(utterances: flow.Utterance[]): any[] {
+  public getUniqueVariablesInUtterances(utterances: flow.Utterance[]): string[] {
     return Object.keys(
       utterances
-        .filter(utterance => !!utterance.variables.length)
+        .filter((utterance: flow.Utterance) => !!utterance.variables.length)
         .reduce(
           (acc, utterance) => ({
             ...acc,
