@@ -1,22 +1,21 @@
 import * as flow from "@botmock-api/flow";
 import { randomBytes } from "crypto";
 
-interface Options {}
+interface Config {}
 
 export default class {
-  // private readonly options: any;
   /**
-   * Creates new instance of the TextOperator class
-   * @param options Options object
+   * Creates new instance of the TextTransformer class
+   * @param config Config object
    */
-  constructor(options: Options) {}
+  constructor(config: Config) {}
   /**
    * Replaces all occurances of variable sign in given text
    * @param text string possibly containing variables
    * @returns string
    */
   public replaceVariableSignInText(text: string): string {
-    let str: string = text;
+    let str: string = text.replace(/\s/g, "");
     const variableRegex: RegExp = /%[a-zA-Z0-9]+%/g;
     const matches: RegExpMatchArray | null = text.match(variableRegex);
     // if this text contains at least one variable, replace all
@@ -48,7 +47,7 @@ export default class {
             ...utterance.variables.reduce(
               (acc, variable) => ({
                 ...acc,
-                [variable.name.replace(/%/g, "")]: variable,
+                [variable.name.replace(/%/g, "")]: void 0,
               }),
               {}
             ),

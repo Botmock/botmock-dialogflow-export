@@ -8,16 +8,13 @@ export default class {
   private readonly platform: any;
   /**
    * Creates new instance of PlatformProvider
-   * @param platform string
+   * @param platformName string
    */
-  constructor(platform: string) {
+  constructor(platformName: string) {
     let mod: any;
     // assign the platform's class to the instance of the provider
     try {
-      mod = require(`./${platform.replace(
-        /^\w/,
-        platform.substr(0, 1).toUpperCase()
-      )}`);
+      mod = require(`./${platformName.replace(/^\w/, platformName.substr(0, 1).toUpperCase())}`);
     } catch (_) {
       // fallback to generic if unable to import corresponding module
       mod = require("./platforms/Generic");
@@ -26,16 +23,15 @@ export default class {
   }
   /**
    * Creates json containing platform-specific data
-   * @param type string
-   * @param data any
+   * @param data object
    * @returns object
    */
   create(type: string, data: any): object {
     const platform = this.platform.constructor.name.toLowerCase();
     // get the correct method on the correct class
     let method = Object.getOwnPropertyNames(
-      Object.getPrototypeOf(this.platform)
-    ).find(prop => type.includes(prop));
+      Object.getPrototypeOf(this.platform)).find(prop => type.includes(prop)
+    );
     // coerce odd types
     switch (type) {
       case "api":

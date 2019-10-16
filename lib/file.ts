@@ -1,10 +1,11 @@
 import { join } from "path";
 import { EOL } from "os";
+import { uuid4 } from "@sentry/utils";
 import * as flow from "@botmock-api/flow";
 // import { default as findPlatformEntity } from "@botmock-api/entity-map";
 import { writeJson, readFile } from "fs-extra";
 import { default as BoardBoss } from "./board";
-// import { default as TextOperator } from "./text";
+import { default as TextTransformer } from "./text";
 import { default as PlatformProvider } from "./providers";
 
 interface Config {
@@ -20,8 +21,10 @@ export default class FileWriter extends flow.AbstractProject {
     "skype",
     "google",
   ]);
+  static delimiter = ".";
   private readonly templateDirectory: string;
   private readonly outputDirectory: string;
+  private readonly text: TextTransformer;
   private readonly board: BoardBoss;
   private readonly boardStructureByIntents: flow.SegmentizedStructure;
   /**
@@ -33,6 +36,7 @@ export default class FileWriter extends flow.AbstractProject {
     this.outputDirectory = config.outputDirectory;
     this.templateDirectory = join(process.cwd(), "templates");
     this.boardStructureByIntents = this.segmentizeBoardFromIntents();
+    this.text = new TextTransformer({});
     this.board = new BoardBoss({
       board: this.projectData.board.board,
       boardStructureByIntents: this.boardStructureByIntents
@@ -53,8 +57,26 @@ export default class FileWriter extends flow.AbstractProject {
    * @returns string[]
    * @todo
    */
-  private getOutputContextsForIntent(intentId: string): string[] {
-    return [];
+  private getOutputContextsForIntent(intentId: string): object[] {
+    return [{ name: "", parameters: {}, lifespan: 1 }];
+  }
+  /**
+   * Gets array of messages to serve as responses for a given intent id
+   * @param intentId string
+   * @returns flow.Message[]
+   * @todo
+   */
+  private getMessagesForIntent(intentId: string): flow.Message[] {
+    const nextMessages = this.boardStructureByIntents.get(intentId)
+      .map((messageId: string) => {
+        const message = this.getMessage(messageId) as flow.Message;
+        return this.board.findMessagesUpToNextIntent(message);
+      })
+      .reduce((acc, group) => {
+        return [...acc, ...group];
+      }, []);
+    // @ts-ignore
+    return [...nextMessages];
   }
   /**
    * Writes files that contain agent meta data
@@ -91,11 +113,57 @@ export default class FileWriter extends flow.AbstractProject {
    * @returns Promise<void>
    */
   private async writeIntents(): Promise<void> {
-    const platformProvider = new PlatformProvider(this.projectData.project.platform);
+    const platform = this.projectData.project.platform.toLowerCase();
+    const platformProvider = new PlatformProvider(platform);
     for (const [intentId, messageIds] of this.boardStructureByIntents.entries()) {
-      const intentData = {};
+      const { name } = this.getIntent(intentId) as flow.Intent;
+      const inputContexts = this.getInputContextsForIntent(intentId);
+      const intentData = {
+        id: intentId,
+        name,
+        auto: true,
+        contexts: inputContexts,
+        responses: [
+          {
+            resetContexts: false,
+            affectedContexts: this.getOutputContextsForIntent(intentId),
+            parameters: {},
+            messages: this.getMessagesForIntent(intentId).map(message => (
+              platformProvider.create(message.message_type, message.payload)
+            )),
+            defaultResponsePlatforms: FileWriter.supportedPlatforms.has(platform)
+              ? { [platform]: true }
+              : {},
+            speech: []
+          }
+        ],
+        priority: 500000,
+        webhookUsed: false,
+        webhookForSlotFilling: false,
+        fallbackIntent: false,
+        events: [],
+        conditionalResponses: [],
+        condition: "",
+        conditionalFollowupEvents: []
+      };
+      const utteranceData = (this.getIntent(intentId) as flow.Intent).utterances
+      .map(utterance => {
+        const data = [{
+          text: utterance.text,
+          userDefined: false
+        }];
+        return {
+          id: uuid4(),
+          data,
+          isTemplate: false,
+          count: 0,
+          updated: 0
+        }
+      });
       const pathToIntents = join(this.outputDirectory, "intents");
-      await writeJson(pathToIntents, intentData, { EOL, spaces: 2 });
+      const intentName = this.text.truncateBasename(inputContexts.join(FileWriter.delimiter) + uuid4());
+      await writeJson(join(pathToIntents, `${intentName}.json`), intentData, { EOL, spaces: 2 });
+      await writeJson(join(pathToIntents, `${intentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
     }
   }
   /**

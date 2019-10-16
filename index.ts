@@ -2,6 +2,7 @@ import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import { RewriteFrames } from "@sentry/integrations";
 import { writeJson, mkdirp, remove } from "fs-extra";
+// import { zipSync } from "cross-zip";
 import { join } from "path";
 import { default as SDKWrapper } from "./lib/sdk";
 import { default as FileWriter } from "./lib/file";
@@ -74,6 +75,7 @@ async function main(args: string[]): Promise<void> {
   }).fetch();
   log("writing files");
   await new FileWriter({ outputDirectory, projectData }).write();
+  // zipSync(outputDirectory, `${outputDirectory}.zip`);
   log("done");
 }
 
