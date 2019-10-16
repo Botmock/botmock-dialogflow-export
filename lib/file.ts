@@ -22,6 +22,7 @@ export default class FileWriter extends flow.AbstractProject {
   private readonly templateDirectory: string;
   private readonly outputDirectory: string;
   private readonly board: BoardBoss;
+  private readonly boardStructureByIntents: flow.SegmentizedStructure;
   /**
    * Creates new instance of FileWriter class
    * @param config Config object containing outputDirectory and projectData
@@ -30,7 +31,11 @@ export default class FileWriter extends flow.AbstractProject {
     super({ projectData: config.projectData });
     this.outputDirectory = config.outputDirectory;
     this.templateDirectory = join(process.cwd(), "templates");
-    this.board = new BoardBoss({ board: this.projectData.board.board });
+    this.boardStructureByIntents = this.segmentizeBoardFromIntents();
+    this.board = new BoardBoss({
+      board: this.projectData.board.board,
+      boardStructureByIntents
+    });
   }
   /**
    * Writes files that contain agent meta data

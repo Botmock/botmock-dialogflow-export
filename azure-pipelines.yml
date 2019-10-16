@@ -11,11 +11,15 @@ pool:
 
 variables:
 - group: env
-  
+
 steps:
 - task: NodeTool@0
   inputs:
     versionSpec: '12.x'
+    BOTMOCK_TOKEN: $(env.token)
+    BOTMOCK_TEAM_ID: $(env.teamId)
+    BOTMOCK_PROJECT_ID: $(env.projectId)
+    BOTMOCK_BOARD_ID: $(env.boardId)
   displayName: 'Install Node.js'
 
 - script: |

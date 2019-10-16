@@ -29,7 +29,7 @@ export default class SDKWrapper extends EventEmitter {
    * Fetches botmock project data using the SDK
    * @returns Promise<{ data: JSONResponse }>
    */
-  public async fetch(): Promise< null | { data: JSONResponse, timestamp: number }> {
+  public async fetch(): Promise< null | { data: JSONResponse }> {
     try {
       const [projectId, teamId, boardId] = [
         process.env.BOTMOCK_PROJECT_ID,
@@ -42,7 +42,6 @@ export default class SDKWrapper extends EventEmitter {
       const entities = await this.client.getEntities({ projectId, teamId });
       const variables = await this.client.getVariables({ projectId, teamId });
       return {
-        timestamp: Date.now(),
         data: {
           project,
           board,
