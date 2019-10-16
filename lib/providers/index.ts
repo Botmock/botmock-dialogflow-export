@@ -26,11 +26,9 @@ export default class {
    */
   create(type: string, data: any): object {
     const platform = this.platform.constructor.name.toLowerCase();
-    // get the correct method on the correct class
     let method = Object.getOwnPropertyNames(
       Object.getPrototypeOf(this.platform)).find(prop => type.includes(prop)
     );
-    // coerce method name for odd types
     switch (type) {
       case "api":
       case "delay":

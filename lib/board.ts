@@ -1,11 +1,12 @@
 import * as flow from "@botmock-api/flow";
 
 interface Config {
+  readonly projectData: any;
   readonly board: any;
   readonly boardStructureByIntents: flow.SegmentizedStructure;
 }
 
-export default class {
+export default class extends flow.AbstractProject {
   private readonly board: any;
   private readonly boardStructureByIntents: flow.SegmentizedStructure;
   /**
@@ -14,6 +15,7 @@ export default class {
    * from intents
    */
   constructor(config: Config) {
+    super({ projectData: config.projectData });
     this.board = config.board;
     this.boardStructureByIntents = config.boardStructureByIntents;
   }
@@ -39,8 +41,18 @@ export default class {
    * @returns flow.Message[]
    * @todo
    */
-  public findMessagesUpToNextIntent(message: flow.Message): flow.Message [] {
+  public findMessagesUpToNextIntent(message: flow.Message): flow.Message[] {
     const messages: flow.Message[] = [];
+    const self = this;
+    (function gatherNextMessages(nextMessages: flow.NextMessage[]): void {
+      for (const { message_id, intent } of nextMessages) {
+        if (typeof intent === "string") {
+          const message = self.getMessage(message_id) as flow.Message;
+          messages.push(message);
+          gatherNextMessages(message.next_message_ids);
+        }
+      }
+    })(message.next_message_ids);
     return messages;
   }
 }

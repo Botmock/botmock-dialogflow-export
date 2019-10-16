@@ -38,6 +38,7 @@ export default class FileWriter extends flow.AbstractProject {
     this.boardStructureByIntents = this.segmentizeBoardFromIntents();
     this.text = new TextTransformer({});
     this.board = new BoardBoss({
+      projectData: config.projectData,
       board: this.projectData.board.board,
       boardStructureByIntents: this.boardStructureByIntents
     });
@@ -75,7 +76,6 @@ export default class FileWriter extends flow.AbstractProject {
       .reduce((acc, group) => {
         return [...acc, ...group];
       }, []);
-    // @ts-ignore
     return [...nextMessages];
   }
   /**
