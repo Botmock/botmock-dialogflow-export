@@ -34,14 +34,14 @@
     "@sentry/node": "5.7.1",
     "botmock": "^1.2.0",
     "chalk": "2.4.2",
-    "dotenv": "8.1.0",
+    "dotenv": "8.2.0",
     "fs-extra": "^8.1.0",
     "uuid": "3.3.3"
   },
   "devDependencies": {
     "@types/fs-extra": "8.0.0",
     "@types/jest": "24.0.19",
-    "@types/node": "12.7.12",
+    "@types/node": "12.11.1",
     "jest": "24.9.0",
     "ts-jest": "24.1.0",
     "ts-node": "8.4.1",

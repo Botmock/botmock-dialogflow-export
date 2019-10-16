@@ -35,7 +35,7 @@ export default class {
     return this.boardStructureByIntents.get(rootMessage).length > 0;
   }
   /**
-   * Finds messages connected to message id that are not separated by an intent in the flow
+   * Finds all messages connected to message id that are not separated by an intent in the flow
    * @param messageId string
    * @returns string | flow.Message[]
    * @todo
