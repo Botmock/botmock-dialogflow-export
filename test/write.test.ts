@@ -1,5 +1,5 @@
-import { mkdirp, readdir, remove } from "fs-extra";
 import { join } from "path";
+import { mkdirp, readdir, remove } from "fs-extra";
 import { default as FileWriter } from "../lib/file";
 
 let instance: FileWriter;

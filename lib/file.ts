@@ -1,6 +1,7 @@
 import { join } from "path";
 import { EOL } from "os";
 import * as flow from "@botmock-api/flow";
+// import { default as findPlatformEntity } from "@botmock-api/entity-map";
 import { writeJson, readFile } from "fs-extra";
 import { default as BoardBoss } from "./board";
 // import { default as TextOperator } from "./text";
@@ -38,6 +39,24 @@ export default class FileWriter extends flow.AbstractProject {
     });
   }
   /**
+   * Gets array of required input context for a given intent
+   * @param intentId string
+   * @returns string[]
+   * @todo
+   */
+  private getInputContextsForIntent(intentId: string): string[] {
+    return [];
+  }
+  /**
+   * Gets array of output context for a given intent
+   * @param intentId string
+   * @returns string[]
+   * @todo
+   */
+  private getOutputContextsForIntent(intentId: string): string[] {
+    return [];
+  }
+  /**
    * Writes files that contain agent meta data
    * @returns Promise<void>
    */
@@ -51,7 +70,26 @@ export default class FileWriter extends flow.AbstractProject {
    * Writes files that contain entities
    * @returns Promise<void>
    */
-  private async writeEntities(): Promise<void> {}
+  private async writeEntities(): Promise<void> {
+    for (const { id, name } of this.projectData.entities) {
+      const entityData = {
+        id,
+        name,
+        isOverridable: true,
+        isEnum: false,
+        isRegexp: false,
+        automatedExpansion: false,
+        allowFuzzyExtraction: false
+      };
+      const entityEntriesData = Array.of({
+        value: name,
+        synonyms: []
+      });
+      const pathToEntities = join(this.outputDirectory, "entities");
+      await writeJson(join(pathToEntities, `${name}.json`), entityData, { EOL, spaces: 2});
+      await writeJson(join(pathToEntities, `${name}_entries_en.json`), entityEntriesData, { EOL, spaces: 2 });
+    }
+  }
   /**
    * Writes intent files and utterance files
    * @returns Promise<void>

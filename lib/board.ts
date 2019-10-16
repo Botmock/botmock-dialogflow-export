@@ -28,19 +28,19 @@ export default class {
   /**
    * Determines if the entire board contains a welcome intent
    * @returns boolean
-   * @todo
    */
   public containsWelcomeIntent(): boolean {
     const [rootMessage] = this.board.root_messages;
     return this.boardStructureByIntents.get(rootMessage).length > 0;
   }
   /**
-   * Finds all messages connected to message id that are not separated by an intent in the flow
-   * @param messageId string
-   * @returns string | flow.Message[]
+   * Finds all messages connected to message that are not separated by an intent in the flow
+   * @param message flow.Message
+   * @returns flow.Message[]
    * @todo
    */
-  public findMessagesUpToNextIntent(messageId: string): string | flow.Message [] {
-    return [];
+  public findMessagesUpToNextIntent(message: flow.Message): flow.Message [] {
+    const messages: flow.Message[] = [];
+    return messages;
   }
 }
