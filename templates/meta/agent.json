@@ -1,26 +1,39 @@
 {
   "description": "",
   "language": "en",
+  "shortDescription": "",
+  "examples": "",
+  "linkToDocs": "",
   "disableInteractionLogs": false,
   "disableStackdriverLogs": true,
   "googleAssistant": {
     "googleAssistantCompatible": false,
-    "project": "flow-e4987",
+    "project": "___",
     "welcomeIntentSignInRequired": false,
     "startIntents": [],
     "systemIntents": [],
     "endIntentIds": [],
     "oAuthLinking": {
       "required": false,
+      "providerId": "",
+      "authorizationUrl": "",
+      "tokenUrl": "",
+      "scopes": "",
+      "privacyPolicyUrl": "",
       "grantType": "AUTH_CODE_GRANT"
     },
     "voiceType": "MALE_1",
     "capabilities": [],
+    "env": "",
     "protocolVersion": "V2",
+    "autoPreviewEnabled": false,
     "isDeviceAgent": false
   },
-  "defaultTimezone": "America/New_York",
+  "defaultTimezone": "America/Barbados",
   "webhook": {
+    "url": "",
+    "username": "",
+    "headers": {},
     "available": false,
     "useForDomains": false,
     "cloudFunctionsEnabled": false,
@@ -34,5 +47,6 @@
   "analyzeQueryTextSentiment": false,
   "enabledKnowledgeBaseNames": [],
   "knowledgeServiceConfidenceAdjustment": -0.4,
-  "dialogBuilderMode": false
+  "dialogBuilderMode": false,
+  "baseActionPackagesUrl": ""
 }

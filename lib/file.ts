@@ -34,7 +34,7 @@ export default class FileWriter extends flow.AbstractProject {
     this.boardStructureByIntents = this.segmentizeBoardFromIntents();
     this.board = new BoardBoss({
       board: this.projectData.board.board,
-      boardStructureByIntents
+      boardStructureByIntents: this.boardStructureByIntents
     });
   }
   /**
@@ -43,7 +43,7 @@ export default class FileWriter extends flow.AbstractProject {
    */
   private async writeMeta(): Promise<void> {
     const packageData = { version: "1.0.0" };
-    const agentData = JSON.parse(await readFile(join(this.templateDirectory, "agent.json"), "utf8"));
+    const agentData = JSON.parse(await readFile(join(this.templateDirectory, "meta", "agent.json"), "utf8"));
     await writeJson(join(this.outputDirectory, "package.json"), packageData, { EOL, spaces: 2 });
     await writeJson(join(this.outputDirectory, "agent.json"), agentData, { EOL, spaces: 2 });
   }
