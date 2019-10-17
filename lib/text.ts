@@ -1,5 +1,4 @@
 import * as flow from "@botmock-api/flow";
-// import * as text from "@botmock-api/text";
 import { randomBytes } from "crypto";
 
 interface Config {}
@@ -13,11 +12,11 @@ export default class TextTransformer {
    */
   constructor(config: Config) {}
   /**
-   * Replaces all occurances of variable sign in given text
-   * @param text string possibly containing variables
+   * Replaces all occurances of variable char in given text
+   * @param text string
    * @returns string
    */
-  public replaceVariableSignInText(text: string): string {
+  public replaceVariableCharacterInText(text: string): string {
     let str: string = text.replace(/\s/g, "");
     const { dialogflowCharacter } = TextTransformer;
     const variableRegex: RegExp = /%[a-zA-Z0-9]+%/g;
