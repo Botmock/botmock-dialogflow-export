@@ -56,11 +56,19 @@ export default class FileWriter extends flow.AbstractProject {
    * Gets array of output context for a given intent
    * @param intentId string
    * @returns Dialogflow.OutputContext[]
-   * @todo
    */
   private getOutputContextsForIntent(intentId: string): Dialogflow.OutputContext[] {
-    // const nextMessages = this.getMessagesForIntent(intentId);
-    return [];
+    const connectedMessagesCreatingIntents = this.getMessagesForIntent(intentId)
+      .filter((message: flow.Message) => {
+        return message.next_message_ids.some((nextMessage: flow.NextMessage) => (
+          typeof nextMessage.intent !== "string"
+        ));
+      });
+    return connectedMessagesCreatingIntents.map((message: flow.Message) => ({
+      name: message.payload.nodeName,
+      parameters: {},
+      lifespan: 1,
+    }));
   }
   /**
    * Gets array of parameters for a given intent
@@ -99,7 +107,6 @@ export default class FileWriter extends flow.AbstractProject {
    * Gets array of messages to serve as responses for an intent id
    * @param intentId string
    * @returns flow.Message[]
-   * @todo
    */
   private getMessagesForIntent(intentId: string): flow.Message[] {
     return this.boardStructureByIntents.get(intentId)
