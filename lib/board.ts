@@ -39,7 +39,6 @@ export default class extends flow.AbstractProject {
    * Finds all messages connected to message that are not separated by an intent in the flow
    * @param message flow.Message
    * @returns flow.Message[]
-   * @todo
    */
   public findMessagesUpToNextIntent(message: flow.Message): flow.Message[] {
     const messages: flow.Message[] = [];

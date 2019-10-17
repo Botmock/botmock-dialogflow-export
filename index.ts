@@ -4,6 +4,7 @@ import { RewriteFrames } from "@sentry/integrations";
 import { writeJson, mkdirp, remove } from "fs-extra";
 // import { zipSync } from "cross-zip";
 import { join } from "path";
+import { EOL } from "os";
 import { default as SDKWrapper } from "./lib/sdk";
 import { default as FileWriter } from "./lib/file";
 import { default as log } from "./lib/log";
@@ -52,6 +53,11 @@ async function recreateOutputDirectories(paths: Paths): Promise<void> {
   await mkdirp(entityPath);
 }
 
+/**
+ * Calls all fetch methods and calls all write methods
+ * @param args string[]
+ * @returns Promise<void>
+ */
 async function main(args: string[]): Promise<void> {
   const DEFAULT_OUTPUT = "output";
   let [, , outputDirectory] = args;
@@ -88,6 +94,6 @@ main(process.argv).catch(async (err: Error) => {
     Sentry.captureException(err);
   } else {
     const { message, stack } = err;
-    await writeJson(join(__dirname, "err.json"), { message, stack });
+    await writeJson(join(__dirname, "err.json"), { message, stack }, { EOL, spaces: 2 });
   }
 });

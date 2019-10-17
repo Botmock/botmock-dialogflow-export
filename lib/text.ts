@@ -1,9 +1,12 @@
 import * as flow from "@botmock-api/flow";
+// import * as text from "@botmock-api/text";
 import { randomBytes } from "crypto";
 
 interface Config {}
 
-export default class {
+export default class TextTransformer {
+  static readonly characterLimit = 100;
+  static readonly dialogflowCharacter = "$";
   /**
    * Creates new instance of the TextTransformer class
    * @param config Config object
@@ -16,6 +19,7 @@ export default class {
    */
   public replaceVariableSignInText(text: string): string {
     let str: string = text.replace(/\s/g, "");
+    const { dialogflowCharacter } = TextTransformer;
     const variableRegex: RegExp = /%[a-zA-Z0-9]+%/g;
     const matches: RegExpMatchArray | null = text.match(variableRegex);
     // if this text contains at least one variable, replace all
@@ -25,7 +29,7 @@ export default class {
         const indexOfMatch: number = text.search(variableRegex);
         str =
           str.slice(0, indexOfMatch) +
-          "$" +
+          dialogflowCharacter +
           match.slice(1, match.length - 1) +
           str.slice(indexOfMatch + match.length);
       }
@@ -57,21 +61,21 @@ export default class {
     );
   }
   /**
-   * Truncates the name of a file to fit within dialogflow bounds
+   * Truncates a file basename to within dialogflow limit
    * @param name string
    * @returns string
    */
   public truncateBasename(basename: string = ""): string {
-    const CHARACTER_LIMIT = 100;
-    const diff = CHARACTER_LIMIT - basename.length;
+    const { characterLimit } = TextTransformer;
+    const diff = characterLimit - basename.length;
     // if the name length exceeds the limit, replace the number of characters
     // by which the name exceeds the limit with random bytes to avoid file
     // name collisions for similar paths
     if (Object.is(Math.sign(diff), -1)) {
       const absDiff = Math.abs(diff);
       return basename
-        .slice(absDiff + Math.floor(CHARACTER_LIMIT / 2))
-        .padStart(CHARACTER_LIMIT, randomBytes(CHARACTER_LIMIT).toString("hex"));
+        .slice(absDiff + Math.floor(characterLimit / 2))
+        .padStart(characterLimit, randomBytes(characterLimit).toString("hex"));
     }
     return basename;
   }

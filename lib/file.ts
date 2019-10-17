@@ -55,20 +55,21 @@ export default class FileWriter extends flow.AbstractProject {
   /**
    * Gets array of output context for a given intent
    * @param intentId string
-   * @returns string[]
+   * @returns object[]
    * @todo
    */
   private getOutputContextsForIntent(intentId: string): object[] {
-    return [{ name: "", parameters: {}, lifespan: 1 }];
+    // const nextMessages = this.getMessagesForIntent(intentId);
+    return [];
   }
   /**
-   * Gets array of messages to serve as responses for a given intent id
+   * Gets array of messages to serve as responses for an intent id
    * @param intentId string
    * @returns flow.Message[]
    * @todo
    */
   private getMessagesForIntent(intentId: string): flow.Message[] {
-    const nextMessages = this.boardStructureByIntents.get(intentId)
+    return this.boardStructureByIntents.get(intentId)
       .map((messageId: string) => {
         const message = this.getMessage(messageId) as flow.Message;
         return this.board.findMessagesUpToNextIntent(message);
@@ -76,7 +77,14 @@ export default class FileWriter extends flow.AbstractProject {
       .reduce((acc, group) => {
         return [...acc, ...group];
       }, []);
-    return [...nextMessages];
+  }
+  /**
+   * Gets array of events for an intent id
+   * @param intentId string
+   * @returns string[]
+   */
+  private getEventsForIntent(intentId: string): string[] {
+    return [];
   }
   /**
    * Writes files that contain agent meta data
@@ -141,25 +149,26 @@ export default class FileWriter extends flow.AbstractProject {
         webhookUsed: false,
         webhookForSlotFilling: false,
         fallbackIntent: false,
-        events: [],
+        events: this.getEventsForIntent(intentId),
         conditionalResponses: [],
         condition: "",
         conditionalFollowupEvents: []
       };
-      const utteranceData = (this.getIntent(intentId) as flow.Intent).utterances
-      .map(utterance => {
-        const data = [{
-          text: utterance.text,
-          userDefined: false
-        }];
-        return {
-          id: uuid4(),
-          data,
-          isTemplate: false,
-          count: 0,
-          updated: 0
-        }
-      });
+      const utteranceData = (this.getIntent(intentId) as flow.Intent)
+        .utterances
+        .map(utterance => {
+          const data = [{
+            text: utterance.text,
+            userDefined: false
+          }];
+          return {
+            id: uuid4(),
+            data,
+            isTemplate: false,
+            count: 0,
+            updated: 0
+          }
+        });
       const pathToIntents = join(this.outputDirectory, "intents");
       const intentName = this.text.truncateBasename(inputContexts.join(FileWriter.delimiter) + uuid4());
       await writeJson(join(pathToIntents, `${intentName}.json`), intentData, { EOL, spaces: 2 });
