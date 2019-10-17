@@ -26,22 +26,22 @@ export default class {
    */
   create(type: string, data: any): object {
     const platform = this.platform.constructor.name.toLowerCase();
-    let method = Object.getOwnPropertyNames(
+    let methodToCallOnClass = Object.getOwnPropertyNames(
       Object.getPrototypeOf(this.platform)).find(prop => type.includes(prop)
     );
     switch (type) {
       case "api":
       case "delay":
-        method = "text";
+        methodToCallOnClass = "text";
         break;
       case "carousel":
-        method = "list";
+        methodToCallOnClass = "list";
         break;
     }
     if (type.endsWith("button") || type.endsWith("generic")) {
-      method = "card";
+      methodToCallOnClass = "card";
     }
-    if (!method) {
+    if (!methodToCallOnClass) {
       return {
         type: 4,
         payload: {
@@ -51,9 +51,10 @@ export default class {
       };
     }
     return {
-      ...this.platform[method](data),
+      ...this.platform[methodToCallOnClass](data),
       platform: platform !== "generic" ? platform : undefined,
       lang: "en",
+      condition: "",
     };
   }
 }

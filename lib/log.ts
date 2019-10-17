@@ -1,7 +1,7 @@
 import chalk from "chalk";
 
 interface LogConfig {
-  hasError: boolean;
+  readonly hasError: boolean;
 }
 
 /**

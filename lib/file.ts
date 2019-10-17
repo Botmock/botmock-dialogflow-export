@@ -3,7 +3,7 @@ import { EOL } from "os";
 import { uuid4 } from "@sentry/utils";
 import * as flow from "@botmock-api/flow";
 // import { default as findPlatformEntity } from "@botmock-api/entity-map";
-import { writeJson, readFile } from "fs-extra";
+import { writeJson, readFile, readdir, stat } from "fs-extra";
 import { default as BoardBoss } from "./board";
 import { default as TextTransformer } from "./text";
 import { default as PlatformProvider } from "./providers";
@@ -14,13 +14,13 @@ interface Config {
 }
 
 export default class FileWriter extends flow.AbstractProject {
-  static defaultWelcomeIntent: any = {};
   static supportedPlatforms = new Set([
     "facebook",
     "slack",
     "skype",
     "google",
   ]);
+  // static defaultWelcomeIntent: any = {};
   static delimiter = ".";
   private readonly templateDirectory: string;
   private readonly outputDirectory: string;
@@ -185,7 +185,8 @@ export default class FileWriter extends flow.AbstractProject {
     await this.writeIntents();
     return {
       data: {
-        filesWritten: 0
+        // @ts-ignore
+        files: []
       }
     };
   }
