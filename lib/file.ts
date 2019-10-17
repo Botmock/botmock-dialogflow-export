@@ -2,11 +2,12 @@ import { join } from "path";
 import { EOL } from "os";
 import { uuid4 } from "@sentry/utils";
 import * as flow from "@botmock-api/flow";
-// import { default as findPlatformEntity } from "@botmock-api/entity-map";
-import { writeJson, readFile, readdir, stat } from "fs-extra";
+import { default as findPlatformEntity } from "@botmock-api/entity-map";
+import { writeJson, readFile } from "fs-extra";
 import { default as BoardBoss } from "./board";
 import { default as TextTransformer } from "./text";
 import { default as PlatformProvider } from "./providers";
+import * as Dialogflow from "./types";
 
 interface Config {
   readonly outputDirectory: string;
@@ -20,7 +21,6 @@ export default class FileWriter extends flow.AbstractProject {
     "skype",
     "google",
   ]);
-  // static defaultWelcomeIntent: any = {};
   static delimiter = ".";
   private readonly templateDirectory: string;
   private readonly outputDirectory: string;
@@ -46,21 +46,54 @@ export default class FileWriter extends flow.AbstractProject {
   /**
    * Gets array of required input context for a given intent
    * @param intentId string
-   * @returns string[]
+   * @returns Dialogflow.InputContext[]
    * @todo
    */
-  private getInputContextsForIntent(intentId: string): string[] {
+  private getInputContextsForIntent(intentId: string): Dialogflow.InputContext[] {
     return [];
   }
   /**
    * Gets array of output context for a given intent
    * @param intentId string
-   * @returns object[]
+   * @returns Dialogflow.OutputContext[]
    * @todo
    */
-  private getOutputContextsForIntent(intentId: string): object[] {
+  private getOutputContextsForIntent(intentId: string): Dialogflow.OutputContext[] {
     // const nextMessages = this.getMessagesForIntent(intentId);
     return [];
+  }
+  /**
+   * Gets array of parameters for a given intent
+   * @param intentId string
+   * @returns Dialogflow.Parameter[]
+   */
+  private getParametersForIntent(intentId: string): Dialogflow.Parameter[] {
+    const { utterances, slots } = this.getIntent(intentId) as flow.Intent;
+    return this.text.getUniqueVariablesInUtterances(utterances)
+      .map((variableName: string) => {
+        const { id, name, default_value: value, entity } = this.projectData.variables.find(variable => (
+          variable.name === variableName
+        ));
+        let dataType: string;
+        try {
+          dataType = findPlatformEntity(entity, { platform: "dialogflow" }) as string;
+        } catch (_) {
+          const { name } = this.projectData.entities.find(customEntity => customEntity.id === entity) as any;
+          dataType = `@${this.sanitizeEntityName(name)}`;
+        }
+        return {
+          id,
+          required: false,
+          dataType,
+          name,
+          value: `$${value || name}`,
+          promptMessages: [],
+          noMatchPromptMessages: [],
+          noInputPromptMessages: [],
+          outputDialogContexts: [],
+          isList: false,
+        }
+      });
   }
   /**
    * Gets array of messages to serve as responses for an intent id
@@ -87,6 +120,14 @@ export default class FileWriter extends flow.AbstractProject {
     return [];
   }
   /**
+   * Removes forbidden characters from custom entity name
+   * @param name string
+   * @returns string
+   */
+  private sanitizeEntityName(name: string): string {
+    return name.replace(/\s/g, "").toLowerCase();
+  }
+  /**
    * Writes files that contain agent meta data
    * @returns Promise<void>
    */
@@ -102,9 +143,10 @@ export default class FileWriter extends flow.AbstractProject {
    */
   private async writeEntities(): Promise<void> {
     for (const { id, name, data: entityEntries } of this.projectData.entities) {
+      const entityNameWithoutForbiddenCharaters = this.sanitizeEntityName(name);
       const entityData = {
         id,
-        name,
+        name: entityNameWithoutForbiddenCharaters,
         isOverridable: true,
         isEnum: false,
         isRegexp: false,
@@ -112,8 +154,8 @@ export default class FileWriter extends flow.AbstractProject {
         allowFuzzyExtraction: false
       };
       const pathToEntities = join(this.outputDirectory, "entities");
-      await writeJson(join(pathToEntities, `${name}.json`), entityData, { EOL, spaces: 2});
-      await writeJson(join(pathToEntities, `${name}_entries_en.json`), entityEntries, { EOL, spaces: 2 });
+      await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}.json`), entityData, { EOL, spaces: 2});
+      await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}_entries_en.json`), entityEntries, { EOL, spaces: 2 });
     }
   }
   /**
@@ -135,7 +177,7 @@ export default class FileWriter extends flow.AbstractProject {
           {
             resetContexts: false,
             affectedContexts: this.getOutputContextsForIntent(intentId),
-            parameters: {},
+            parameters: this.getParametersForIntent(intentId),
             messages: this.getMessagesForIntent(intentId).map(message => (
               platformProvider.create(message.message_type, message.payload)
             )),

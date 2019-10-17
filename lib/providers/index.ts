@@ -21,26 +21,32 @@ export default class {
   }
   /**
    * Creates json containing platform-specific data
-   * @param data object
+   * @param type string
+   * @param data any
    * @returns object
    */
   create(type: string, data: any): object {
-    const platform = this.platform.constructor.name.toLowerCase();
-    let methodToCallOnClass = Object.getOwnPropertyNames(
-      Object.getPrototypeOf(this.platform)).find(prop => type.includes(prop)
-    );
+    let methodToCallOnClass: string;
     switch (type) {
+      case "button":
+        methodToCallOnClass = "quick_replies";
+      case "generic":
+        methodToCallOnClass = "card";
+        break;
       case "api":
+      case "jump":
       case "delay":
         methodToCallOnClass = "text";
         break;
       case "carousel":
         methodToCallOnClass = "list";
         break;
+      default:
+        methodToCallOnClass = Object.getOwnPropertyNames(
+          Object.getPrototypeOf(this.platform)).find(prop => type.includes(prop)
+        );
     }
-    if (type.endsWith("button") || type.endsWith("generic")) {
-      methodToCallOnClass = "card";
-    }
+    const platform = this.platform.constructor.name.toLowerCase();
     if (!methodToCallOnClass) {
       return {
         type: 4,
