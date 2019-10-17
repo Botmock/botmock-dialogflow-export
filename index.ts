@@ -2,7 +2,6 @@ import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import { RewriteFrames } from "@sentry/integrations";
 import { writeJson, mkdirp, remove } from "fs-extra";
-// import { zipSync } from "cross-zip";
 import { join } from "path";
 import { EOL } from "os";
 import { default as SDKWrapper } from "./lib/sdk";
@@ -64,13 +63,13 @@ async function main(args: string[]): Promise<void> {
   if (typeof outputDirectory === "undefined") {
     outputDirectory = process.env.OUTPUT_DIR || DEFAULT_OUTPUT;
   }
-  const INTENT_PATH = join(outputDirectory, "intents");
-  const ENTITY_PATH = join(outputDirectory, "entities");
+  const intentPath = join(outputDirectory, "intents");
+  const entityPath = join(outputDirectory, "entities");
   log("creating output directories");
   await recreateOutputDirectories({
     outputPath: outputDirectory,
-    intentPath: INTENT_PATH,
-    entityPath: ENTITY_PATH
+    intentPath,
+    entityPath,
   });
   log("fetching project data");
   const { data: projectData } = await new SDKWrapper({
@@ -80,8 +79,11 @@ async function main(args: string[]): Promise<void> {
     boardId: process.env.BOTMOCK_BOARD_ID,
   }).fetch();
   log("writing files");
-  await new FileWriter({ outputDirectory, projectData }).write();
-  // zipSync(outputDirectory, `${outputDirectory}.zip`);
+  // @ts-ignore
+  const { data } = await new FileWriter({
+    outputDirectory,
+    projectData
+  }).write();
   log("done");
 }
 

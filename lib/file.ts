@@ -177,11 +177,16 @@ export default class FileWriter extends flow.AbstractProject {
   }
   /**
    * Writes necessary files to output directory
-   * @returns Promise<void>
+   * @returns Promise<{ data: any }>
    */
-  public async write(): Promise<void> {
+  public async write(): Promise<{ data: any }> {
     await this.writeMeta();
     await this.writeEntities();
     await this.writeIntents();
+    return {
+      data: {
+        filesWritten: 0
+      }
+    };
   }
 }
