@@ -10,7 +10,7 @@ export default class TextTransformer {
    * Creates new instance of the TextTransformer class
    * @param config Config object
    */
-  constructor(config: Config) {}
+  constructor(config?: Config) {}
   /**
    * Replaces all occurances of variable char in given text
    * @param text string

@@ -13,10 +13,10 @@ beforeEach(() => {
 });
 
 test("fetches required resources", async () => {
+  const resourceNames = ["project", "board", "intents", "entities", "variables"];
   const { data } = await instance.fetch();
-  expect(data).toHaveProperty("project");
-  expect(data).toHaveProperty("board");
-  expect(data).toHaveProperty("intents");
-  expect(data).toHaveProperty("entities");
-  expect(data).toHaveProperty("variables");
+  expect.assertions(resourceNames.length);
+  for (const name of resourceNames) {
+    expect(data).toHaveProperty(name);
+  }
 });
