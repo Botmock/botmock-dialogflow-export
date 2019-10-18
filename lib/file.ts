@@ -22,26 +22,43 @@ export default class FileWriter extends flow.AbstractProject {
     "google",
   ]);
   static delimiter = ".";
+  static welcomeIntentName = "Default Welcome Intent";
+  static fallbackIntentName = "Default Fallback Intent";
   private readonly templateDirectory: string;
   private readonly outputDirectory: string;
+  private readonly pathToIntents: string;
   private readonly text: TextTransformer;
   private readonly board: BoardBoss;
-  private readonly boardStructureByIntents: flow.SegmentizedStructure;
+  private readonly firstMessage: flow.Message;
+  private boardStructureByMessages: flow.SegmentizedStructure;
   /**
    * Creates new instance of FileWriter class
+   * 
+   * @remarks sets artifical intent between root message and only connected
+   * message for the sake of establishing a welcome intent
+   * 
    * @param config Config object containing outputDirectory and projectData
    */
   constructor(config: Config) {
     super({ projectData: config.projectData });
     this.outputDirectory = config.outputDirectory;
     this.templateDirectory = join(process.cwd(), "templates");
-    this.boardStructureByIntents = this.segmentizeBoardFromIntents();
+    this.pathToIntents = join(this.outputDirectory, "intents")
+    this.boardStructureByMessages = this.segmentizeBoardFromMessages();
     this.text = new TextTransformer({});
     this.board = new BoardBoss({
       projectData: config.projectData,
       board: this.projectData.board.board,
-      boardStructureByIntents: this.boardStructureByIntents
+      boardStructureByMessages: this.boardStructureByMessages
     });
+    if (!this.board.containsWelcomeIntent()) {
+      const [idOfRootMessage] = this.projectData.board.board.root_messages;
+      const rootMessage = this.board.getMessage(idOfRootMessage) as flow.Message;
+      const [firstMessage] = rootMessage.next_message_ids as flow.NextMessage[];
+      this.firstMessage = firstMessage;
+      // @ts-ignore
+      this.boardStructureByMessages.set(firstMessage.message_id, uuid4());
+    }
   }
   /**
    * Gets array of required input context for a given intent
@@ -58,7 +75,7 @@ export default class FileWriter extends flow.AbstractProject {
    * @returns Dialogflow.OutputContext[]
    */
   private getOutputContextsForIntent(intentId: string): Dialogflow.OutputContext[] {
-    const connectedMessagesCreatingIntents = this.getMessagesForIntent(intentId)
+    const connectedMessagesCreatingIntents = this.getMessagesForMessage(intentId)
       .filter((message: flow.Message) => {
         return message.next_message_ids.some((nextMessage: flow.NextMessage) => (
           typeof nextMessage.intent !== "string"
@@ -104,19 +121,17 @@ export default class FileWriter extends flow.AbstractProject {
       });
   }
   /**
-   * Gets array of messages to serve as responses for an intent id
-   * @param intentId string
+   * Gets array of messages connected to message id without any intent
+   * @param messageId string
    * @returns flow.Message[]
+   * @todo
    */
-  private getMessagesForIntent(intentId: string): flow.Message[] {
-    return this.boardStructureByIntents.get(intentId)
-      .map((messageId: string) => {
-        const message = this.getMessage(messageId) as flow.Message;
-        return this.board.findMessagesUpToNextIntent(message);
-      })
-      .reduce((acc, group) => {
-        return [...acc, ...group];
-      }, []);
+  private getMessagesForMessage(messageId: string): flow.Message[] {
+    const message = this.board.getMessage(messageId);
+    if (typeof message !== "undefined") {
+      return this.board.findMessagesUpToNextIntent(message);
+    }
+    return [];
   }
   /**
    * Gets array of events for an intent id
@@ -167,62 +182,88 @@ export default class FileWriter extends flow.AbstractProject {
     }
   }
   /**
+   * Writes intent files for artifically inserted intent between root message and first message
+   * @param providerInstance PlatformProvider
+   * @returns Promise<void>
+   */
+  private async writePseudoWelcomeIntent(providerInstance: PlatformProvider): Promise<void> {
+    const pathToTemplates = join(this.templateDirectory, "defaults");
+    const { welcomeIntentName } = FileWriter;
+    const intentData = JSON.parse(await readFile(join(pathToTemplates, `${welcomeIntentName}.json`), "utf8"));
+    intentData.responses[0].messages = this.getMessagesForMessage(this.firstMessage.message_id)
+      .map(message => (
+        providerInstance.create(message.message_type, message.payload)
+      ));
+    const utteranceData = JSON.parse(await readFile(join(pathToTemplates, `${welcomeIntentName}_usersays_en.json`), "utf8"));
+    await writeJson(join(this.pathToIntents, `${welcomeIntentName}.json`), intentData, { EOL, spaces: 2 });
+    await writeJson(join(this.pathToIntents, `${welcomeIntentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
+  }
+  /**
    * Writes intent files and utterance files
+   * 
+   * @remarks Iterates over intent ids in terms of the message they are connected to
+   * 
    * @returns Promise<void>
    */
   private async writeIntents(): Promise<void> {
     const platform = this.projectData.project.platform.toLowerCase();
     const platformProvider = new PlatformProvider(platform);
-    for (const [intentId, messageIds] of this.boardStructureByIntents.entries()) {
-      const { name } = this.getIntent(intentId) as flow.Intent;
-      const inputContexts = this.getInputContextsForIntent(intentId);
-      const intentData = {
-        id: intentId,
-        name,
-        auto: true,
-        contexts: inputContexts,
-        responses: [
-          {
-            resetContexts: false,
-            affectedContexts: this.getOutputContextsForIntent(intentId),
-            parameters: this.getParametersForIntent(intentId),
-            messages: this.getMessagesForIntent(intentId).map(message => (
-              platformProvider.create(message.message_type, message.payload)
-            )),
-            defaultResponsePlatforms: FileWriter.supportedPlatforms.has(platform)
-              ? { [platform]: true }
-              : {},
-            speech: []
-          }
-        ],
-        priority: 500000,
-        webhookUsed: false,
-        webhookForSlotFilling: false,
-        fallbackIntent: false,
-        events: this.getEventsForIntent(intentId),
-        conditionalResponses: [],
-        condition: "",
-        conditionalFollowupEvents: []
-      };
-      const utteranceData = (this.getIntent(intentId) as flow.Intent)
-        .utterances
-        .map(utterance => {
-          const data = [{
-            text: utterance.text,
-            userDefined: false
-          }];
-          return {
-            id: uuid4(),
-            data,
-            isTemplate: false,
-            count: 0,
-            updated: 0
-          }
-        });
-      const pathToIntents = join(this.outputDirectory, "intents");
-      const intentName = this.text.truncateBasename(inputContexts.join(FileWriter.delimiter) + uuid4());
-      await writeJson(join(pathToIntents, `${intentName}.json`), intentData, { EOL, spaces: 2 });
-      await writeJson(join(pathToIntents, `${intentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
+    const entriesOfSegmentizedBoard = this.boardStructureByMessages.entries();
+    for (const [idOfConnectedMessage, idsOfConnectingIntents] of entriesOfSegmentizedBoard) {
+      for (const id of idsOfConnectingIntents) {
+        if (!this.getIntent(id)) {
+          await this.writePseudoWelcomeIntent(platformProvider);
+          continue;
+        }
+        const { name } = this.getIntent(id) as flow.Intent;
+        const inputContexts = this.getInputContextsForIntent(id);
+        const intentName = this.text.truncateBasename(inputContexts.join(FileWriter.delimiter) + name + uuid4());
+        const intentData = {
+          id,
+          name: intentName,
+          auto: true,
+          contexts: inputContexts,
+          responses: [
+            {
+              resetContexts: false,
+              affectedContexts: this.getOutputContextsForIntent(id),
+              parameters: this.getParametersForIntent(id),
+              messages: this.getMessagesForMessage(idOfConnectedMessage).map(message => (
+                platformProvider.create(message.message_type, message.payload)
+              )),
+              defaultResponsePlatforms: FileWriter.supportedPlatforms.has(platform)
+                ? { [platform]: true }
+                : {},
+              speech: []
+            }
+          ],
+          priority: 500000,
+          webhookUsed: false,
+          webhookForSlotFilling: false,
+          fallbackIntent: false,
+          events: this.getEventsForIntent(id),
+          conditionalResponses: [],
+          condition: "",
+          conditionalFollowupEvents: []
+        };
+        const utteranceData = (this.getIntent(id) as flow.Intent)
+          .utterances
+          .map(utterance => {
+            const data = [{
+              text: utterance.text,
+              userDefined: false
+            }];
+            return {
+              id: uuid4(),
+              data,
+              isTemplate: false,
+              count: 0,
+              updated: 0
+            }
+          });
+        await writeJson(join(this.pathToIntents, `${intentName}.json`), intentData, { EOL, spaces: 2 });
+        await writeJson(join(this.pathToIntents, `${intentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
+      }
     }
   }
   /**

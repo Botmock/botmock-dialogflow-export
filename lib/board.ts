@@ -3,12 +3,12 @@ import * as flow from "@botmock-api/flow";
 interface Config {
   readonly projectData: any;
   readonly board: any;
-  readonly boardStructureByIntents: flow.SegmentizedStructure;
+  readonly boardStructureByMessages: flow.SegmentizedStructure;
 }
 
 export default class extends flow.AbstractProject {
   private readonly board: any;
-  private readonly boardStructureByIntents: flow.SegmentizedStructure;
+  private readonly boardStructureByMessages: flow.SegmentizedStructure;
   /**
    * Creates new instance of BoardBoss class
    * @param config object containing full board and board structure as seen
@@ -17,15 +17,7 @@ export default class extends flow.AbstractProject {
   constructor(config: Config) {
     super({ projectData: config.projectData });
     this.board = config.board;
-    this.boardStructureByIntents = config.boardStructureByIntents;
-  }
-  /**
-   * Determines if a given message id is the root message
-   * @param messageId
-   * @returns boolean
-   */
-  public messageIsRoot(messageId: string): boolean {
-    return this.board.root_messages.includes(messageId);
+    this.boardStructureByMessages = config.boardStructureByMessages;
   }
   /**
    * Determines if the entire board contains a welcome intent
@@ -33,7 +25,7 @@ export default class extends flow.AbstractProject {
    */
   public containsWelcomeIntent(): boolean {
     const [rootMessage] = this.board.root_messages;
-    return this.boardStructureByIntents.get(rootMessage).length > 0;
+    return !!this.boardStructureByMessages.get(rootMessage.message_id);
   }
   /**
    * Finds all messages connected to message that are not separated by an intent in the flow
