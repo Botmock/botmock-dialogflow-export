@@ -1,23 +1,24 @@
+import { tmpdir } from "os";
 import { join } from "path";
-import { mkdirp, readdir, remove } from "fs-extra";
+import { mkdirp, remove, readdir } from "fs-extra";
 import { default as FileWriter } from "../lib/file";
+import { mockProjectData } from "./fixtures";
 
 let instance: FileWriter;
-const outputDirectory = join(__dirname, "test_output");
-beforeEach(async () => {
-  await mkdirp(outputDirectory);
-  instance = new FileWriter({
-    outputDirectory,
-    projectData: { project: { platform: "" }, board: { board: { messages: [] } }, entities: [] }
-  });
+const outputDirectory = tmpdir();
+beforeAll(async () => {
+  await mkdirp(join(outputDirectory, "intents"));
+  await mkdirp(join(outputDirectory, "entities"));
+  instance = new FileWriter({ outputDirectory, projectData: mockProjectData });
 });
 
-afterEach(async () => {
-  await remove(outputDirectory);
+afterAll(async () => {
+  await remove(join(outputDirectory, "intents"));
+  await remove(join(outputDirectory, "entities"));
 });
 
 test("writes files to output dir", async () => {
   await instance.write();
   const contents = await readdir(outputDirectory);
-  expect(contents).toEqual(["agent.json", "package.json"]);
+  expect(contents.includes("agent.json")).toBeTruthy();
 });
