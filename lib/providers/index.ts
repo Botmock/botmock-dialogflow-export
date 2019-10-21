@@ -28,15 +28,15 @@ export default class {
   create(type: string, data: any): object {
     let methodToCallOnClass: string;
     switch (type) {
+      case "api":
+      case "jump":
+      case "delay":
+        methodToCallOnClass = undefined;
+        break;
       case "button":
         methodToCallOnClass = "quick_replies";
       case "generic":
         methodToCallOnClass = "card";
-        break;
-      case "api":
-      case "jump":
-      case "delay":
-        methodToCallOnClass = "text";
         break;
       case "carousel":
         methodToCallOnClass = "list";

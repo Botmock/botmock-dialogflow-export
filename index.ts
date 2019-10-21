@@ -1,6 +1,7 @@
 import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import { RewriteFrames } from "@sentry/integrations";
+// import { default as log } from "@botmock-api/log";
 import { writeJson, mkdirp, remove } from "fs-extra";
 import { join } from "path";
 import { EOL } from "os";
@@ -54,6 +55,9 @@ async function recreateOutputDirectories(paths: Paths): Promise<void> {
 
 /**
  * Calls all fetch methods and calls all write methods
+ * 
+ * @remark entry point to the script
+ * 
  * @param args string[]
  * @returns Promise<void>
  */
@@ -61,6 +65,7 @@ async function main(args: string[]): Promise<void> {
   const DEFAULT_OUTPUT = "output";
   let [, , outputDirectory] = args;
   if (typeof outputDirectory === "undefined") {
+    log("no output path given as first argument; using default path", { isQuiet: true });
     outputDirectory = process.env.OUTPUT_DIR || DEFAULT_OUTPUT;
   }
   const intentPath = join(outputDirectory, "intents");
@@ -91,7 +96,7 @@ process.on("unhandledRejection", () => {});
 process.on("uncaughtException", () => {});
 
 main(process.argv).catch(async (err: Error) => {
-  log(err.stack, { hasError: true });
+  log(err.stack, { isQuiet: true });
   if (process.env.OPT_IN_ERROR_REPORTING) {
     Sentry.captureException(err);
   } else {

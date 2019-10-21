@@ -15,6 +15,7 @@ interface Config {
 }
 
 export default class FileWriter extends flow.AbstractProject {
+  static botmockVariableCharacter = "%";
   static supportedPlatforms = new Set([
     "facebook",
     "slack",
@@ -249,16 +250,37 @@ export default class FileWriter extends flow.AbstractProject {
         const utteranceData = (this.getIntent(id) as flow.Intent)
           .utterances
           .map(utterance => {
-            const data = [{
-              text: utterance.text,
-              userDefined: false
-            }];
             return {
               id: uuid4(),
-              data,
+              data: utterance.text.split(FileWriter.botmockVariableCharacter)
+                .filter(text => text !== "")
+                .map(text => {
+                  let entityForVariableInTextSegment: any;
+                  const variableInTextSegment = this.projectData.variables.find(variable => (
+                    variable.name === text.trim()
+                  ));
+                  try {
+                    entityForVariableInTextSegment = findPlatformEntity(
+                      variableInTextSegment.entity,
+                      { platform: "dialogflow" }
+                    );
+                  } catch (_) {}
+                  return {
+                    text,
+                    userDefined: false,
+                    ...(typeof variableInTextSegment !== "undefined"
+                      ? {
+                        alias: variableInTextSegment.entity,
+                        meta: typeof entityForVariableInTextSegment !== "undefined"
+                          ? entityForVariableInTextSegment
+                          : "@sys.any"
+                      }
+                      : {})
+                  }
+                }),
               isTemplate: false,
               count: 0,
-              updated: 0
+              updated: 0,
             }
           });
         await writeJson(join(this.pathToIntents, `${intentName}.json`), intentData, { EOL, spaces: 2 });
