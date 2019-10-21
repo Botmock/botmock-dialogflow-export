@@ -69,7 +69,34 @@ export default class FileWriter extends flow.AbstractProject {
    * @todo
    */
   private getInputContextsForMessageConnectedByIntent(messageId: string): Dialogflow.InputContext[] {
-    return [];
+    const self = this;
+    const inputs: string[] = [];
+    const { previous_message_ids } = this.getMessage(messageId) as flow.Message;
+    // @ts-ignore
+    (function gatherDeterministicInputPath(previousMessages: flow.PreviousMessage[]): void {
+      const previousMessagesConnectedByIntents = previousMessages.filter(message => (
+        self.boardStructureByMessages.get(message.message_id)
+      ));
+      switch (previousMessagesConnectedByIntents.length) {
+        case 1:
+          const [previousMessageConnectedByIntent] = previousMessagesConnectedByIntents;
+          const { message_id } = self.getMessage(previousMessageConnectedByIntent.message_id) as flow.Message;
+          const intentsConnectedToPreviousMessage = self.boardStructureByMessages
+            .get(message_id)
+            .map(intentId => (self.getIntent(intentId) as flow.Intent).name);
+          inputs.push(...intentsConnectedToPreviousMessage);
+          break;
+        case 0:
+          for (const previousMessage of previousMessages) {
+            if (typeof previousMessage.previous_message_ids !== "undefined") {
+              gatherDeterministicInputPath(previousMessage.previous_message_ids);
+            }
+          }
+        default:
+          break;
+      }
+    })(previous_message_ids);
+    return inputs;
   }
   /**
    * Gets array of output context for a given connected message id
@@ -169,8 +196,9 @@ export default class FileWriter extends flow.AbstractProject {
    * @param idOfConnectedIntent string
    */
   private createFilenameForIntent(inputContexts: string[], idOfConnectedIntent: string): string {
+    const { delimiterCharacter } = FileWriter;
     const { name } = this.getIntent(idOfConnectedIntent) as flow.Intent;
-    return this.text.truncateBasename(inputContexts.join(FileWriter.delimiterCharacter) + name);
+    return this.text.truncateBasename([...inputContexts, name].join(delimiterCharacter));
   }
   /**
    * Writes files that contain agent meta data
