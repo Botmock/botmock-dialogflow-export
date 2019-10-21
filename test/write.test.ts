@@ -17,8 +17,16 @@ afterAll(async () => {
   await remove(join(outputDirectory, "entities"));
 });
 
-test("writes files to output dir", async () => {
-  await instance.write();
-  const contents = await readdir(outputDirectory);
-  expect(contents.includes("agent.json")).toBeTruthy();
+describe("file meta data", () => {
+  test("writes files to output dir", async () => {
+    await instance.write();
+    const contents = await readdir(outputDirectory);
+    expect(contents.includes("agent.json")).toBeTruthy();
+    expect(contents.includes("package.json")).toBeTruthy();
+  });
+});
+
+describe("file content", () => {
+  test.todo("intent files have correct field content");
+  test.todo("utterance files have correct field content");
 });
