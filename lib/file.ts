@@ -15,16 +15,17 @@ interface Config {
 }
 
 export default class FileWriter extends flow.AbstractProject {
+  static lifespan = 5;
   static botmockVariableCharacter = "%";
+  static delimiterCharacter = ".";
+  static welcomeIntentName = "Default Welcome Intent";
+  static fallbackIntentName = "Default Fallback Intent";
   static supportedPlatforms = new Set([
     "facebook",
     "slack",
     "skype",
     "google",
   ]);
-  static delimiter = ".";
-  static welcomeIntentName = "Default Welcome Intent";
-  static fallbackIntentName = "Default Fallback Intent";
   private readonly templateDirectory: string;
   private readonly outputDirectory: string;
   private readonly pathToIntents: string;
@@ -62,31 +63,42 @@ export default class FileWriter extends flow.AbstractProject {
     }
   }
   /**
-   * Gets array of required input context for a given intent
-   * @param intentId string
+   * Gets array of input context for a given connected message id
+   * @param messageId string
    * @returns Dialogflow.InputContext[]
    * @todo
    */
-  private getInputContextsForIntent(intentId: string): Dialogflow.InputContext[] {
+  private getInputContextsForMessageConnectedByIntent(messageId: string): Dialogflow.InputContext[] {
     return [];
   }
   /**
-   * Gets array of output context for a given intent
-   * @param intentId string
+   * Gets array of output context for a given connected message id
+   * @param messageId string
    * @returns Dialogflow.OutputContext[]
    */
-  private getOutputContextsForIntent(intentId: string): Dialogflow.OutputContext[] {
-    const connectedMessagesCreatingIntents = this.getMessagesForMessage(intentId)
-      .filter((message: flow.Message) => {
-        return message.next_message_ids.some((nextMessage: flow.NextMessage) => (
-          typeof nextMessage.intent !== "string"
-        ));
-      });
-    return connectedMessagesCreatingIntents.map((message: flow.Message) => ({
-      name: message.payload.nodeName,
-      parameters: {},
-      lifespan: 1,
-    }));
+  private getOutputContextsForMessageConnectedByIntent(messageId: string): Dialogflow.OutputContext[] {
+    return this.getMessagesForMessage(messageId)
+      .filter(message => message.next_message_ids.some((nextMessage: flow.NextMessage) => (
+        typeof nextMessage.intent !== "string"
+      )))
+      .reduce((acc, messageSettingIntent) => {
+        return [
+          ...acc,
+          ...messageSettingIntent.next_message_ids
+            .filter((nextMessage: flow.NextMessage) => (
+              typeof nextMessage.intent !== "string"
+            ))
+            .map((nextMessage: flow.NextMessage) => {
+              // @ts-ignore
+              const { name } = this.getIntent(nextMessage.intent.value);
+              return {
+                name,
+                parameters: {},
+                lifespan: FileWriter.lifespan
+              }
+            })
+        ]
+      }, []);
   }
   /**
    * Gets array of parameters for a given intent
@@ -152,6 +164,15 @@ export default class FileWriter extends flow.AbstractProject {
     return name.replace(/\s/g, "").toLowerCase();
   }
   /**
+   * Creates filename for an intent based on its input context and id
+   * @param inputContexts string[]
+   * @param idOfConnectedIntent string
+   */
+  private createFilenameForIntent(inputContexts: string[], idOfConnectedIntent: string): string {
+    const { name } = this.getIntent(idOfConnectedIntent) as flow.Intent;
+    return this.text.truncateBasename(inputContexts.join(FileWriter.delimiterCharacter) + name);
+  }
+  /**
    * Writes files that contain agent meta data
    * @returns Promise<void>
    */
@@ -211,43 +232,49 @@ export default class FileWriter extends flow.AbstractProject {
     const platformProvider = new PlatformProvider(platform);
     const entriesOfSegmentizedBoard = this.boardStructureByMessages.entries();
     for (const [idOfConnectedMessage, idsOfConnectingIntents] of entriesOfSegmentizedBoard) {
-      for (const id of idsOfConnectingIntents) {
-        if (!this.getIntent(id)) {
+      for (const idOfConnectedIntent of idsOfConnectingIntents) {
+        if (!this.getIntent(idOfConnectedIntent)) {
           await this.writePseudoWelcomeIntent(platformProvider);
           continue;
         }
-        const { name } = this.getIntent(id) as flow.Intent;
-        const inputContexts = this.getInputContextsForIntent(id);
-        const intentName = this.text.truncateBasename(inputContexts.join(FileWriter.delimiter) + name + uuid4());
+        const inputContexts = this.getInputContextsForMessageConnectedByIntent(idOfConnectedMessage);
+        const intentName = this.createFilenameForIntent(inputContexts, idOfConnectedIntent);
         const intentData = {
-          id,
+          id: idOfConnectedIntent,
           name: intentName,
           auto: true,
           contexts: inputContexts,
           responses: [
             {
               resetContexts: false,
-              affectedContexts: this.getOutputContextsForIntent(id),
-              parameters: this.getParametersForIntent(id),
+              affectedContexts: [
+                ...inputContexts.map(inputContext => ({
+                  name: inputContext,
+                  parameters: {},
+                  lifespan: FileWriter.lifespan
+                })),
+                ...this.getOutputContextsForMessageConnectedByIntent(idOfConnectedMessage)
+              ],
+              parameters: this.getParametersForIntent(idOfConnectedIntent),
               messages: this.getMessagesForMessage(idOfConnectedMessage).map(message => (
                 platformProvider.create(message.message_type, message.payload)
               )),
               defaultResponsePlatforms: FileWriter.supportedPlatforms.has(platform)
                 ? { [platform]: true }
                 : {},
-              speech: []
+              speech: [],
             }
           ],
           priority: 500000,
           webhookUsed: false,
           webhookForSlotFilling: false,
           fallbackIntent: false,
-          events: this.getEventsForIntent(id),
+          events: this.getEventsForIntent(idOfConnectedIntent),
           conditionalResponses: [],
           condition: "",
-          conditionalFollowupEvents: []
+          conditionalFollowupEvents: [],
         };
-        const utteranceData = (this.getIntent(id) as flow.Intent)
+        const utteranceData = (this.getIntent(idOfConnectedIntent) as flow.Intent)
           .utterances
           .map(utterance => {
             return {
@@ -259,12 +286,19 @@ export default class FileWriter extends flow.AbstractProject {
                   const variableInTextSegment = this.projectData.variables.find(variable => (
                     variable.name === text.trim()
                   ));
-                  try {
-                    entityForVariableInTextSegment = findPlatformEntity(
-                      variableInTextSegment.entity,
-                      { platform: "dialogflow" }
-                    );
-                  } catch (_) {}
+                  if (typeof variableInTextSegment !== "undefined") {
+                    try {
+                      entityForVariableInTextSegment = findPlatformEntity(
+                        variableInTextSegment.entity,
+                        { platform: "dialogflow" }
+                      );
+                    } catch (_) {
+                      const { name } = this.projectData.entities.find(customEntity => (
+                        customEntity.id === variableInTextSegment.entity
+                      )) as any;
+                      entityForVariableInTextSegment = `@${this.sanitizeEntityName(name)}`;
+                    }
+                  }
                   return {
                     text,
                     userDefined: false,

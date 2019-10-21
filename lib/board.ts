@@ -37,11 +37,12 @@ export default class extends flow.AbstractProject {
     const self = this;
     (function gatherNextMessages(nextMessages: flow.NextMessage[]): void {
       for (const { message_id, intent } of nextMessages) {
-        if (typeof intent === "string") {
-          const message = self.getMessage(message_id) as flow.Message;
-          messages.push(message);
-          gatherNextMessages(message.next_message_ids);
+        if (typeof intent !== "string") {
+          continue;
         }
+        const message = self.getMessage(message_id) as flow.Message;
+        messages.push(message);
+        gatherNextMessages(message.next_message_ids);
       }
     })(message.next_message_ids);
     return messages;
