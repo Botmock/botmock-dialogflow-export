@@ -1,14 +1,36 @@
 import { uuid4 } from "@sentry/utils";
 
-const id = uuid4();
+const messageId = uuid4();
+const intentId = uuid4();
 
 export const mockProjectData = {
   project: { platform: "" },
   board: {
-    board: { messages: [{ message_id: id, next_message_ids: [{ message_id: uuid4(), intent: "" }] }],
-    root_messages: [id] }
+    board: {
+      messages: [
+        {
+          is_root: true,
+          message_id: messageId,
+          next_message_ids: [{ message_id: uuid4(), intent: { label: "", value: intentId }, action: "", conditional: "" }],
+        },
+        {
+          message_id: uuid4(),
+          previous_message_ids: [],
+          next_message_ids: [],
+        }
+      ],
+      root_messages: [messageId]
+    }
   },
   entities: [],
-  intents: [],
+  intents: [{
+    id: intentId,
+    name: "",
+    utterances: [{ text: "", variables: [] }],
+    created_at: {},
+    updated_at: {},
+    is_global: false,
+    slots: [],
+  }],
   variables: [],
 };
