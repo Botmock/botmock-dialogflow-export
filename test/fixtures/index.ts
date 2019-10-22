@@ -1,5 +1,6 @@
 import { uuid4 } from "@sentry/utils";
 
+const nextMessageId = uuid4();
 const messageId = uuid4();
 const intentId = uuid4();
 
@@ -13,11 +14,12 @@ export const mockProjectData = {
         {
           is_root: true,
           message_id: messageId,
-          next_message_ids: [{ message_id: uuid4(), intent: { label: "", value: intentId }, action: "", conditional: "" }],
+          next_message_ids: [{ message_id: nextMessageId, intent: { label: "", value: intentId }, action: "", conditional: "" }],
         },
         {
-          message_id: uuid4(),
-          previous_message_ids: [],
+          is_root: false,
+          message_id: nextMessageId,
+          previous_message_ids: [{ message_id: messageId }],
           next_message_ids: [],
         }
       ],

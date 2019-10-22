@@ -2,7 +2,7 @@ import "dotenv/config";
 import { readdir, mkdirp, remove } from "fs-extra";
 import { join } from "path";
 import { execSync } from "child_process";
-import { EOL, tmpdir } from "os";
+import { EOL, tmpdir, platform } from "os";
 import { mockProjectData, variableName } from "./fixtures";
 import { default as SDKWrapper } from "../lib/sdk";
 import { default as FileWriter } from "../lib/file";
@@ -103,10 +103,51 @@ describe("interaction of file writer and util classes", () => {
       test.todo("platform provider can consume collected messages");
     });
     describe("platform provider methods", () => {
-      test.todo("text");
-      test.todo("card");
-      test.todo("image");
-      test.todo("quick_replies");
+      test("text", () => {
+        const payload = { text: "_" };
+        expect(platformProviderInstance.create("text", payload)).toEqual({
+          condition: "",
+          lang: "en",
+          platform: undefined,
+          speech: "_",
+          type: 0,
+        });
+      });
+      test("card", () => {
+        const payload = { text: "t", elements: [{ buttons: [{ title: "_", payload: "__" }] }] };
+        expect(platformProviderInstance.create("card", payload)).toEqual({
+          buttons: [{
+            postback: "__",
+            text: "_"
+          }],
+          condition: "",
+          lang: "en",
+          platform: undefined,
+          title: "t",
+          type: 1,
+        });
+      });
+      test("image", () => {
+        const payload = { image_url: "_" };
+        expect(platformProviderInstance.create("image", payload)).toEqual({
+          condition: "",
+          imageUrl: "_",
+          lang: "en",
+          platform: undefined,
+          type: 3,
+        });
+      });
+      test("quick_replies", () => {
+        const payload = { text: "", quick_replies: [{ title: "_" }] };
+        expect(platformProviderInstance.create("quick_replies", payload)).toEqual({
+          condition: "",
+          lang: "en",
+          title: "",
+          replies: ["_"],
+          platform: undefined,
+          type: 2,
+        });
+      });
     });
   });
 });

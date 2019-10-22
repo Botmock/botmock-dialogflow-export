@@ -23,6 +23,8 @@ describe("file meta data", () => {
   });
   test("writes files to output dir", async () => {
     const contents = await readdir(outputDirectory);
+    expect(contents.includes("entities")).toBeTruthy();
+    expect(contents.includes("intents")).toBeTruthy();
     expect(contents.includes("agent.json")).toBeTruthy();
     expect(contents.includes("package.json")).toBeTruthy();
   });
