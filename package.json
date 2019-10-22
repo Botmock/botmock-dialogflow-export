@@ -30,7 +30,7 @@
   "dependencies": {
     "@botmock-api/client": "0.1.1",
     "@botmock-api/entity-map": "0.2.0",
-    "@botmock-api/flow": "0.3.0",
+    "@botmock-api/flow": "0.4.1",
     "@sentry/integrations": "5.7.1",
     "@sentry/node": "5.7.1",
     "chalk": "2.4.2",
