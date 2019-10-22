@@ -134,11 +134,13 @@ export default class FileWriter extends flow.AbstractProject {
    */
   private getParametersForIntent(intentId: string): Dialogflow.Parameter[] {
     const { utterances, slots } = this.getIntent(intentId) as flow.Intent;
+    const requiredSlotsForIntent = slots.filter(slot => slot.is_required);
     return this.text.getUniqueVariablesInUtterances(utterances)
       .map((variableName: string) => {
         const { id, name, default_value: value, entity } = this.projectData.variables.find(variable => (
           variable.name === variableName
         ));
+        const requiredSlot = requiredSlotsForIntent.find(slot => slot.variable_id === id);
         let dataType: string;
         try {
           dataType = findPlatformEntity(entity, { platform: "dialogflow" }) as string;
@@ -148,11 +150,13 @@ export default class FileWriter extends flow.AbstractProject {
         }
         return {
           id,
-          required: false,
+          required: typeof requiredSlot !== "undefined",
           dataType,
           name,
           value: `$${value || name}`,
-          promptMessages: [],
+          promptMessages: typeof requiredSlot !== "undefined"
+            ? Array.of(requiredSlot.prompt)
+            : [],
           noMatchPromptMessages: [],
           noInputPromptMessages: [],
           outputDialogContexts: [],
