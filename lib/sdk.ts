@@ -1,6 +1,6 @@
 import Botmock from "@botmock-api/client";
 import { EventEmitter } from "events";
-import { FetchError } from "node-fetch";
+// import { FetchError } from "node-fetch";
 
 interface Config {
   readonly token: string;
@@ -13,7 +13,6 @@ export type JSONResponse = { [assetName: string]: any };
 
 export default class SDKWrapper extends EventEmitter {
   private readonly client: Botmock;
-  private readonly endpoints: Map<string, string>;
   /**
    * Creates new instance of the SDKWrapper
    * @param config config containing botmock credentials
@@ -21,7 +20,7 @@ export default class SDKWrapper extends EventEmitter {
   constructor(config: Config) {
     super();
     this.client = new Botmock({ token: config.token });
-    this.client.on("error", (err: FetchError) => {
+    this.client.on("error", (err: Error) => {
       throw err;
     });
   }
