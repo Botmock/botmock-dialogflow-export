@@ -5,6 +5,17 @@ export default class Slack {
    * @returns object
    */
   public text(data: any): object {
+    if (data.attachments) {
+      return {
+        type: 4,
+        payload: {
+          slack: {
+            text: data.text,
+            attachments: data.attachments
+          }
+        }
+      };
+    }
     return { type: 0, speech: data.text };
   }
   /**

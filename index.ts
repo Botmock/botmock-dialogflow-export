@@ -48,6 +48,8 @@ interface Paths {
  */
 async function recreateOutputDirectories(paths: Paths): Promise<void> {
   const { outputPath, intentPath, entityPath } = paths;
+  await remove(intentPath);
+  await remove(entityPath);
   await remove(outputPath);
   await mkdirp(intentPath);
   await mkdirp(entityPath);
