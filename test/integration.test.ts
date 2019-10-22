@@ -3,11 +3,11 @@ import { readdir, mkdirp, remove } from "fs-extra";
 import { join } from "path";
 import { execSync } from "child_process";
 import { EOL, tmpdir } from "os";
-import { mockProjectData } from "./fixtures";
+import { mockProjectData, variableName } from "./fixtures";
 import { default as SDKWrapper } from "../lib/sdk";
 import { default as FileWriter } from "../lib/file";
 import { default as BoardBoss } from "../lib/board";
-// import { default as TextTransformer } from "../lib/text";
+import { default as TextTransformer } from "../lib/text";
 import { default as PlatformProvider } from "../lib/providers";
 
 describe("run", () => {
@@ -72,11 +72,25 @@ describe("interaction of file writer and util classes", () => {
   });
 
   describe("text transformer", () => {
-    test.todo("text transformer affects file writer output");
+    test.todo("text transformer affects intent file parameters");
     describe("text transformer public methods", () => {
-      test.todo("truncate basename");
-      test.todo("get unique variables in utterances");
-      test.todo("replace variable character in text");
+      let textTransformerInstance: TextTransformer;
+      beforeEach(() => {
+        textTransformerInstance = new TextTransformer();
+      });
+      test("truncate basename", () => {
+        const longFilename = __dirname.repeat(12);
+        expect(textTransformerInstance.truncateBasename(longFilename)).toHaveLength(100);
+      });
+      test("get unique variables in utterances", () => {
+        const [{ utterances }] = mockProjectData.intents;
+        // @ts-ignore
+        expect(textTransformerInstance.getUniqueVariablesInUtterances(utterances)).toEqual([variableName]);
+      });
+      test("replace variable character in text", () => {
+        const text = `%${variableName}%__`;
+        expect(textTransformerInstance.replaceVariableCharacterInText(text)).toBe(`$${variableName}__`);
+      });
     });
   });  
 

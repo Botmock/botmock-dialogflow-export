@@ -3,6 +3,8 @@ import { uuid4 } from "@sentry/utils";
 const messageId = uuid4();
 const intentId = uuid4();
 
+export const variableName = "v";
+
 export const mockProjectData = {
   project: { platform: "" },
   board: {
@@ -26,7 +28,9 @@ export const mockProjectData = {
   intents: [{
     id: intentId,
     name: "",
-    utterances: [{ text: "", variables: [] }],
+    utterances: [
+      { text: "", variables: [{ name: `%${variableName}%` }] }, { text: "_", variables: [{ name: `%${variableName}%` }] }
+    ],
     created_at: {},
     updated_at: {},
     is_global: false,
