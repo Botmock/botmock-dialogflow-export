@@ -6,11 +6,12 @@
   </summary>
 </details>
 
-<!-- ## October 15, 2019
+## October 22, 2019
 
 ### Notes
+
+Script undergoes major refactor for modularity & maintainabilty.
 
 ### Bug Fixes
 
 ### New Features
- -->

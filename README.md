@@ -1,30 +1,44 @@
 # Botmock Dialogflow Export
 
-<!-- ![demo](https://i.imgur.com/y9yxoqu.gif) -->
-
-[![CircleCI](https://circleci.com/gh/Botmock/botmock-dialogflow-export.svg?style=svg)](https://circleci.com/gh/Botmock/botmock-dialogflow-export)
-
-[![Build status](https://ci.appveyor.com/api/projects/status/40b85tj9tbyqb6c0?svg=true)](https://ci.appveyor.com/project/nonnontrivial/botmock-dialogflow-export)
+[![Build Status](https://dev.azure.com/botmock/botmock-dialogflow-export/_apis/build/status/Botmock.botmock-dialogflow-export?branchName=master)](https://dev.azure.com/botmock/botmock-dialogflow-export/_build/latest?definitionId=2&branchName=master)
 
 > import [botmock](https://botmock.com) projects in [dialogflow](https://console.dialogflow.com/)
 
-This script produces a compressible directory able to be [restored](https://cloud.google.com/dialogflow/docs/agents-settings) from in Dialogflow.
+This script produces a compressible directory able to be [restored](https://cloud.google.com/dialogflow/docs/agents-settings) from in the Dialogflow console.
 
-## Introduction
+## Table of Contents
 
-### How to structure your Botmock Project
+* [Overview](#overview)
+  * [Botmock project structure](#botmock-project-structure)
+  * [Approach to importing](#approach-to-importing)
+  * [Prerequisites](#prerequisites)
+    * [nodejs](#nodejs)
+    * [dialogflow](#dialogflow)
+  * [Installation](#installation)
+    * [clone](#clone)
+    * [env](#env)
+  * [Commands](#commands)
+    * [start](#start)
+    <!-- * [report](#report) -->
+  * [Importing](#importing)
+    * [restoration](#restoration)
+
+
+## Overview
+
+### Botmock project structure
 
 You have a Botmock project that you would like to translate into a Dialogflow project.
 To accomplish this, we make certain assumptions about Botmock project structure:
 
-- Intents should be used on connectors whereever meaningful. Doing so helps the script break
+- Intents should be used on connectors in the flow as often as is meaningful. Doing so helps the script break
   up responses across different intent files so as to bypass the repsonse type limits Dialogflow
   has in place.
 
 - If there is no intent from the root message in the Botmock flow, the script creates one and
   merges into it all utterances from the default Dialogflow welcome intent.
 
-### DialogFlow Intents & Context
+### Approach to importing
 
 Currently, the script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the path of intents on connectors
 in the Botmock flow to control conversation paths. In other words, in the flow, a message downstream of a particular intent will require that
@@ -32,26 +46,26 @@ intent as input context in the created file. Similarly, output contexts are set 
 
 > Note that Dialogflow has a limit of **5** input contexts per intent. Projects should be structured to take account of this fact.
 
-Files are named by the formula: `${PROJECT_NAME}-${...INPUT_CONTEXT}-${MESSAGE_NAME}`.
-The hyphens can be replaced by setting the `INTENT_NAME_DELIMITER` environment variable to the desired character.
-
 > Note that Dialogflow has a limit of **100** characters in the name of any intent file. The script will begin to use random bytes in file names to prevent this limit from being exceeded.
 
-### DialogFlow actions and parameters
+### Prerequisites
 
-> section coming soon
+#### NodeJS
 
-## prerequisites
-
-- [Node.js](https://nodejs.org/en/) Version 12.x
+- [NodeJS](https://nodejs.org/en/) Version 12.x
 
 ```shell
+# check node version
 node --version
 ```
 
+#### Dialogflow
+
 - [Dialogflow](https://console.dialogflow.com) account
 
-## installation guide
+### Installation
+
+#### Clone
 
 Clone this repository and install dependencies:
 
@@ -63,46 +77,34 @@ cd botmock-dialogflow-export
 npm i
 ```
 
-Create `.env` in the newly-made directory and fill in values for the following:
+#### Env
+
+Create `.env` in `/botmock-dialogflow-export` and fill in values for the following:
 
 ```shell
-BOTMOCK_TOKEN=@YOUR-BOTMOCK-TOKEN
-BOTMOCK_TEAM_ID=@YOUR-BOTMOCK-TEAM-ID
-BOTMOCK_BOARD_ID=@YOUR-BOTMOCK-BOARD-ID
-BOTMOCK_PROJECT_ID=@YOUR-BOTMOCK-PROJECT-ID
+BOTMOCK_TOKEN=@botmock-token
+BOTMOCK_TEAM_ID=@botmock-team-id
+BOTMOCK_BOARD_ID=@botmock-board-id
+BOTMOCK_PROJECT_ID=@botmock-project-id
 ```
 
-To get your Botmock API Token follow the instructions on http://help.botmock.com/en/articles/2334581-developer-api
+To get your Botmock API token, follow the [guide](http://help.botmock.com/en/articles/2334581-developer-api).
 
-Start the script:
+### Commands
+
+#### `start`
+
+Populates `/output` with `.json` files produced from your original project.
 
 ```shell
 npm start
 ```
 
-- Run `npm install`.
-- Run `npm start`.
-- Compress your output directory (`/output` by default).
+### Importing
 
-### importing into DialogFlow
+Once `npm start` is successfully run, `/output` should be able to be compressed and imported into Dialogflow.
 
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
-- Choose the 'Export and Import' tab and choose 'Import From Zip'
-- Select your compressed output, typing 'IMPORT' in their form field and clicking 'IMPORT'
-
-## glossary
-
-| **Botmock** | **Dialogflow**  |
-| ----------- | --------------- |
-| utterance   | training phrase |
-| message     | response        |
-
-## want to help?
-
-Found bugs or have some ideas to improve this plugin? We'd love to to hear from you! You can start by submitting an issue at the [Issues](https://github.com/Botmock/botmock-dialogflow-export/issues) tab. If you want, feel free to submit a pull request and propose a change as well!
-
-_NOTE: Make sure to leave any sensitive information out of an issue when reporting a bug with imagery or copying and pasting error data. We want to make sure all your info is safe!_
-
-## license
-
-Botmock Dialogflow Export is copyright © 2019 Botmock. It is free software, and may be redistributed under the terms specified in the LICENSE file.
+- Choose the "Export and Import" tab and choose "RESTORE FROM ZIP"
+- Select `output.zip`
+- Type "RESTORE" into the form field, and click "RESTORE"
