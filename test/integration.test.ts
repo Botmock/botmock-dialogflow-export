@@ -2,7 +2,7 @@ import "dotenv/config";
 import { readdir, mkdirp, remove } from "fs-extra";
 import { join } from "path";
 import { execSync } from "child_process";
-import { EOL, tmpdir, platform } from "os";
+import { EOL, tmpdir } from "os";
 import { mockProjectData, variableName } from "./fixtures";
 import { default as SDKWrapper } from "../lib/sdk";
 import { default as FileWriter } from "../lib/file";
