@@ -8,7 +8,7 @@ export default class TextTransformer {
   static readonly dialogflowCharacter = "$";
   /**
    * Creates new instance of the TextTransformer class
-   * @param config Config object
+   * @param config Config
    */
   constructor(config?: Config) {}
   /**

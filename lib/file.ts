@@ -244,8 +244,8 @@ export default class FileWriter extends flow.AbstractProject {
       };
       const pathToEntities = join(this.outputDirectory, "entities");
       await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}.json`), entityData, { EOL, spaces: 2});
-      await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}_entries_en.json`), entityEntries, { EOL, spaces: 2 });
       this.emit("write-complete", { basename: `${entityNameWithoutForbiddenCharaters}.json` });
+      await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}_entries_en.json`), entityEntries, { EOL, spaces: 2 });
       this.emit("write-complete", { basename: `${entityNameWithoutForbiddenCharaters}_entries_en.json` });
     }
   }
@@ -266,8 +266,8 @@ export default class FileWriter extends flow.AbstractProject {
     ));
     const utteranceData = JSON.parse(await readFile(join(pathToTemplates, `${welcomeIntentName}_usersays_en.json`), "utf8"));
     await writeJson(join(this.pathToIntents, `${welcomeIntentName}.json`), intentData, { EOL, spaces: 2 });
-    await writeJson(join(this.pathToIntents, `${welcomeIntentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
     this.emit("write-complete", { basename: `${welcomeIntentName}_entries_en.json` });
+    await writeJson(join(this.pathToIntents, `${welcomeIntentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
     this.emit("write-complete", { basename: `${welcomeIntentName}_entries_en.json` });
   }
   /**
@@ -373,8 +373,8 @@ export default class FileWriter extends flow.AbstractProject {
             }
           });
         await writeJson(join(this.pathToIntents, `${intentName}.json`), intentData, { EOL, spaces: 2 });
-        await writeJson(join(this.pathToIntents, `${intentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
         this.emit("write-complete", { basename: `${intentName}.json`});
+        await writeJson(join(this.pathToIntents, `${intentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
         this.emit("write-complete", { basename: `${intentName}._usersays_en.json`});
       }
     }
