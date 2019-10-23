@@ -1,3 +1,5 @@
+import TextTransformer from "../text";
+
 export * from "./platforms/skype";
 export * from "./platforms/slack";
 export * from "./platforms/google";
@@ -8,6 +10,7 @@ export type MessagePayload = {};
 
 export default class {
   private readonly platform: any;
+  private readonly text: TextTransformer;
   /**
    * Creates new instance of PlatformProvider
    * @param platformName string
@@ -24,6 +27,7 @@ export default class {
       mod = require("./platforms/generic").default;
     }
     this.platform = new mod();
+    this.text = new TextTransformer();
   }
   /**
    * Creates json containing platform-specific data
@@ -62,10 +66,17 @@ export default class {
         lang: "en",
       };
     }
+    const generatedResponse: any = this.platform[methodToCallOnClass](data);
+    const textlikeFields = ["text", "textToSpeech"];
+    for (const field of textlikeFields) {
+      if (generatedResponse[field]) {
+        generatedResponse[field] = this.text.replaceVariableCharacterInText(generatedResponse[field]);
+      }
+    }
     return {
-      ...this.platform[methodToCallOnClass](data),
-      platform: platform !== "generic" ? platform : undefined,
+      ...generatedResponse,
       lang: "en",
+      platform: platform !== "generic" ? platform : undefined,
       condition: "",
     };
   }

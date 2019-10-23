@@ -20,7 +20,7 @@ export default class TextTransformer {
     const { dialogflowCharacter } = TextTransformer;
     const variableRegex: RegExp = /%[a-zA-Z0-9]+%/g;
     const matches: RegExpMatchArray | null = text.match(variableRegex);
-    let str: string = text.replace(/\s/g, "");
+    let str: string = text;
     // if this text contains at least one variable, replace all
     // occurrences of it with the correct output variable sign
     if (!Object.is(matches, null)) {
