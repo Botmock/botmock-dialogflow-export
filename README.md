@@ -28,25 +28,25 @@ This script produces a compressible directory able to be [restored](https://clou
 
 ### Botmock project structure
 
-You have a Botmock project that you would like to translate into a Dialogflow project.
-To accomplish this, we make certain assumptions about Botmock project structure:
+To translate Botmock projects into Dialogflow agents, we make certain assumptions about Botmock project structure:
 
 - Intents should be used on connectors in the flow as often as is meaningful. Doing so helps the script break
   up responses across different intent files so as to bypass the repsonse type limits Dialogflow
   has in place.
 
-- If there is no intent from the root message in the Botmock flow, the script creates one and
-  merges into it all utterances from the default Dialogflow welcome intent.
+- If there is no intent on the connector from the root message to the first message in the Botmock flow, the 
+  script creates one and merges into it all utterances from the default Dialogflow Welcome Intent.
 
 ### Approach to importing
 
-Currently, the script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the path of intents on connectors
-in the Botmock flow to control conversation paths. In other words, in the flow, a message downstream of a particular intent will require that
-intent as input context in the created file. Similarly, output contexts are set by the intents on connectors that go out of particular messages.
+The script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the path of 
+intents on connectors in the Botmock flow to control conversation paths. In other words, in the flow, a 
+message downstream of a particular intent will require that intent as input context in the created file. 
+Similarly, output contexts are set by the intents on connectors that go out of particular messages.
 
 > Note that Dialogflow has a limit of **5** input contexts per intent. Projects should be structured to take account of this fact.
 
-> Note that Dialogflow has a limit of **100** characters in the name of any intent file. The script will begin to use random bytes in file names to prevent this limit from being exceeded.
+> Note also that Dialogflow has a limit of **100** characters in the name of any intent file. The script will begin to use random bytes in file names to prevent this limit from being exceeded.
 
 ### Prerequisites
 
