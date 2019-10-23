@@ -11,12 +11,13 @@ import { default as TextTransformer } from "../lib/text";
 import { default as PlatformProvider } from "../lib/providers";
 
 describe("run", () => {
-  // afterAll(async () => {
-  //   await remove(pathToDefaultOutputDirectory);
-  // });
+  const pathToDefaultOutputDirectory = join(process.cwd(), "output");
+  afterAll(async () => {
+    await remove(pathToDefaultOutputDirectory);
+  });
   test("outputs correct number of newlines", () => {
     const res = execSync("npm start");
-    expect(res.toString().split(EOL)).toHaveLength(10);
+    expect(res.toString().split(EOL)).toHaveLength(13);
   });
 });
 

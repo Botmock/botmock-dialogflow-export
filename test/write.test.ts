@@ -46,7 +46,11 @@ describe("file content", () => {
       action: "input.welcome",
       affectedContexts: [],
       parameters: [],
-      messages: [],
+      messages: [{
+        lang: "en",
+        payload: {},
+        type: 4,
+      }],
       defaultResponsePlatforms: {},
       speech: [],
     });

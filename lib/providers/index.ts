@@ -35,7 +35,7 @@ export default class {
    * @param data MessagePayload
    * @returns object
    */
-  create(type: string, data: MessagePayload): object {
+  create(type: string = "", data: MessagePayload): object {
     let methodToCallOnClass: string;
     switch (type) {
       case "api":

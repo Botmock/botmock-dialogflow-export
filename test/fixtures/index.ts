@@ -7,7 +7,7 @@ const intentId = uuid4();
 export const variableName = "v";
 
 export const mockProjectData = {
-  project: { platform: "" },
+  project: { platform: "generic" },
   board: {
     board: {
       messages: [
