@@ -258,10 +258,12 @@ export default class FileWriter extends flow.AbstractProject {
     const pathToTemplates = join(this.templateDirectory, "defaults");
     const { welcomeIntentName } = FileWriter;
     const intentData = JSON.parse(await readFile(join(pathToTemplates, `${welcomeIntentName}.json`), "utf8"));
-    intentData.responses[0].messages = this.getMessagesForMessage(this.firstMessage.message_id)
-      .map(message => (
-        providerInstance.create(message.message_type, message.payload)
-      ));
+    intentData.responses[0].messages = [
+      this.getMessage(this.firstMessage.message_id),
+      ...this.getMessagesForMessage(this.firstMessage.message_id)
+    ].map((message: flow.Message) => (
+      providerInstance.create(message.message_type, message.payload)
+    ));
     const utteranceData = JSON.parse(await readFile(join(pathToTemplates, `${welcomeIntentName}_usersays_en.json`), "utf8"));
     await writeJson(join(this.pathToIntents, `${welcomeIntentName}.json`), intentData, { EOL, spaces: 2 });
     await writeJson(join(this.pathToIntents, `${welcomeIntentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
@@ -307,7 +309,7 @@ export default class FileWriter extends flow.AbstractProject {
               messages: [
                 this.getMessage(idOfConnectedMessage),
                 ...this.getMessagesForMessage(idOfConnectedMessage),
-              ].map((message: any) => (
+              ].map((message: flow.Message) => (
                 platformProvider.create(message.message_type, message.payload)
               )),
               defaultResponsePlatforms: FileWriter.supportedPlatforms.has(platform)
