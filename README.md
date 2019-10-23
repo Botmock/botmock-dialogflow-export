@@ -104,6 +104,7 @@ npm start
 
 Once `npm start` is successfully run, `/output` should be able to be compressed and imported into Dialogflow.
 
+- Compress `/output` to create `output.zip`
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
 - Choose the "Export and Import" tab and choose "RESTORE FROM ZIP"
 - Select `output.zip`
