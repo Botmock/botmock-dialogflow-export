@@ -58,8 +58,7 @@ export default class FileWriter extends flow.AbstractProject {
       const rootMessage = this.board.getMessage(idOfRootMessage) as flow.Message;
       const [firstMessage] = rootMessage.next_message_ids as flow.NextMessage[];
       this.firstMessage = firstMessage;
-      // @ts-ignore
-      this.boardStructureByMessages.set(firstMessage.message_id, uuid4());
+      this.boardStructureByMessages.set(firstMessage.message_id, Array.of(uuid4()));
     }
   }
   /**
@@ -80,10 +79,18 @@ export default class FileWriter extends flow.AbstractProject {
       switch (previousMessagesConnectedByIntents.length) {
         case 1:
           const [previousMessageConnectedByIntent] = previousMessagesConnectedByIntents;
-          const { message_id } = self.getMessage(previousMessageConnectedByIntent.message_id) as flow.Message;
+          const { message_id: messageId } = self.getMessage(previousMessageConnectedByIntent.message_id) as flow.Message;
           const intentsConnectedToPreviousMessage = self.boardStructureByMessages
-            .get(message_id)
-            .map(intentId => (self.getIntent(intentId) as flow.Intent).name);
+            .get(messageId)
+            .map(intentId => {
+              const intent = self.getIntent(intentId);
+              if (typeof intent !== "undefined") {
+                return intent.name
+              } else {
+                return null;
+              }
+            })
+            .filter(intent => !Object.is(intent, null));
           inputs.push(...intentsConnectedToPreviousMessage);
           break;
         case 0:
@@ -145,8 +152,12 @@ export default class FileWriter extends flow.AbstractProject {
         try {
           dataType = findPlatformEntity(entity, { platform: "dialogflow" }) as string;
         } catch (_) {
-          const { name } = this.projectData.entities.find(customEntity => customEntity.id === entity) as any;
-          dataType = `@${this.sanitizeEntityName(name)}`;
+          const entity = this.projectData.entities.find(customEntity => customEntity.id === entity);
+          if (typeof entity !== "undefined") {
+            dataType = `@${this.sanitizeEntityName(entity.name)}`;
+          } else {
+            dataType = "@sys.any";
+          }
         }
         return {
           id,
@@ -325,10 +336,14 @@ export default class FileWriter extends flow.AbstractProject {
                         { platform: "dialogflow" }
                       );
                     } catch (_) {
-                      const { name } = this.projectData.entities.find(customEntity => (
+                      const entity = this.projectData.entities.find(customEntity => (
                         customEntity.id === variableInTextSegment.entity
-                      )) as any;
-                      entityForVariableInTextSegment = `@${this.sanitizeEntityName(name)}`;
+                      ));
+                      if (typeof entity !== "undefined") {
+                        entityForVariableInTextSegment = `@${this.sanitizeEntityName(name)}`;
+                      } else {
+                        entityForVariableInTextSegment = "@sys.any";
+                      }
                     }
                   }
                   return {
@@ -337,9 +352,7 @@ export default class FileWriter extends flow.AbstractProject {
                     ...(typeof variableInTextSegment !== "undefined"
                       ? {
                         alias: variableInTextSegment.entity,
-                        meta: typeof entityForVariableInTextSegment !== "undefined"
-                          ? entityForVariableInTextSegment
-                          : "@sys.any"
+                        meta: entityForVariableInTextSegment,
                       }
                       : {})
                   }
