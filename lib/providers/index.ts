@@ -4,6 +4,8 @@ export * from "./platforms/google";
 export * from "./platforms/generic";
 export * from "./platforms/facebook";
 
+export type MessagePayload = {};
+
 export default class {
   private readonly platform: any;
   /**
@@ -12,8 +14,12 @@ export default class {
    */
   constructor(platformName: string) {
     let mod: any;
+    let platform = platformName;
+    if (platformName.startsWith("google")) {
+      platform = "google";
+    }
     try {
-      mod = require(`./platforms/${platformName}`).default;
+      mod = require(`./platforms/${platform}`).default;
     } catch (_) {
       mod = require("./platforms/generic").default;
     }
@@ -22,10 +28,10 @@ export default class {
   /**
    * Creates json containing platform-specific data
    * @param type string
-   * @param data any
+   * @param data MessagePayload
    * @returns object
    */
-  create(type: string, data: any): object {
+  create(type: string, data: MessagePayload): object {
     let methodToCallOnClass: string;
     switch (type) {
       case "api":

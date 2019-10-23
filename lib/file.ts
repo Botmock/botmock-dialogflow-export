@@ -71,7 +71,6 @@ export default class FileWriter extends flow.AbstractProject {
     const self = this;
     const inputs: string[] = [];
     const { previous_message_ids } = this.getMessage(messageId) as flow.Message;
-    // @ts-ignore
     (function gatherDeterministicInputPath(previousMessages: flow.PreviousMessage[]): void {
       const previousMessagesConnectedByIntents = previousMessages.filter(message => (
         self.boardStructureByMessages.get(message.message_id)
@@ -123,8 +122,10 @@ export default class FileWriter extends flow.AbstractProject {
               typeof nextMessage.intent !== "string"
             ))
             .map((nextMessage: flow.NextMessage) => {
-              // @ts-ignore
-              const { name } = this.getIntent(nextMessage.intent.value);
+              let name: string;
+              if (typeof nextMessage.intent !== "string") {
+                name = (this.getIntent(nextMessage.intent.value) as flow.Intent).name;
+              }
               return {
                 name,
                 parameters: {},
@@ -244,6 +245,8 @@ export default class FileWriter extends flow.AbstractProject {
       const pathToEntities = join(this.outputDirectory, "entities");
       await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}.json`), entityData, { EOL, spaces: 2});
       await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}_entries_en.json`), entityEntries, { EOL, spaces: 2 });
+      this.emit("write-complete", { basename: `${entityNameWithoutForbiddenCharaters}.json` });
+      this.emit("write-complete", { basename: `${entityNameWithoutForbiddenCharaters}_entries_en.json` });
     }
   }
   /**
@@ -262,6 +265,8 @@ export default class FileWriter extends flow.AbstractProject {
     const utteranceData = JSON.parse(await readFile(join(pathToTemplates, `${welcomeIntentName}_usersays_en.json`), "utf8"));
     await writeJson(join(this.pathToIntents, `${welcomeIntentName}.json`), intentData, { EOL, spaces: 2 });
     await writeJson(join(this.pathToIntents, `${welcomeIntentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
+    this.emit("write-complete", { basename: `${welcomeIntentName}_entries_en.json` });
+    this.emit("write-complete", { basename: `${welcomeIntentName}_entries_en.json` });
   }
   /**
    * Writes intent files and utterance files
@@ -299,7 +304,10 @@ export default class FileWriter extends flow.AbstractProject {
                 ...this.getOutputContextsForMessageConnectedByIntent(idOfConnectedMessage)
               ],
               parameters: this.getParametersForIntent(idOfConnectedIntent),
-              messages: this.getMessagesForMessage(idOfConnectedMessage).map(message => (
+              messages: [
+                this.getMessage(idOfConnectedMessage),
+                ...this.getMessagesForMessage(idOfConnectedMessage),
+              ].map((message: any) => (
                 platformProvider.create(message.message_type, message.payload)
               )),
               defaultResponsePlatforms: FileWriter.supportedPlatforms.has(platform)
@@ -351,7 +359,7 @@ export default class FileWriter extends flow.AbstractProject {
                     userDefined: false,
                     ...(typeof variableInTextSegment !== "undefined"
                       ? {
-                        alias: variableInTextSegment.entity,
+                        alias: variableInTextSegment.entity.replace(/\./g, ""),
                         meta: entityForVariableInTextSegment,
                       }
                       : {})
@@ -364,22 +372,18 @@ export default class FileWriter extends flow.AbstractProject {
           });
         await writeJson(join(this.pathToIntents, `${intentName}.json`), intentData, { EOL, spaces: 2 });
         await writeJson(join(this.pathToIntents, `${intentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
+        this.emit("write-complete", { basename: `${intentName}.json`});
+        this.emit("write-complete", { basename: `${intentName}._usersays_en.json`});
       }
     }
   }
   /**
    * Writes necessary files to output directory
-   * @returns Promise<{ data: any }>
+   * @returns Promise<void>
    */
-  public async write(): Promise<{ data: any }> {
+  public async write(): Promise<void> {
     await this.writeMeta();
     await this.writeEntities();
     await this.writeIntents();
-    return {
-      data: {
-        // @ts-ignore
-        files: []
-      }
-    };
   }
 }

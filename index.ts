@@ -67,7 +67,6 @@ async function main(args: string[]): Promise<void> {
   const DEFAULT_OUTPUT = "output";
   let [, , outputDirectory] = args;
   if (typeof outputDirectory === "undefined") {
-    log("no output path given as first argument; using default path", { isQuiet: true });
     outputDirectory = process.env.OUTPUT_DIR || DEFAULT_OUTPUT;
   }
   const intentPath = join(outputDirectory, "intents");
@@ -86,11 +85,14 @@ async function main(args: string[]): Promise<void> {
     boardId: process.env.BOTMOCK_BOARD_ID,
   }).fetch();
   log("writing files");
-  // @ts-ignore
-  const { data } = await new FileWriter({
+  const fileWriter = new FileWriter({
     outputDirectory,
     projectData
-  }).write();
+  });
+  fileWriter.on("write-complete", ({ basename }) => {
+    log(`wrote ${basename}`);
+  });
+  await fileWriter.write();
   log("done");
 }
 
