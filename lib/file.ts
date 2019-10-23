@@ -145,15 +145,15 @@ export default class FileWriter extends flow.AbstractProject {
     const requiredSlotsForIntent = slots.filter(slot => slot.is_required);
     return this.text.getUniqueVariablesInUtterances(utterances)
       .map((variableName: string) => {
-        const { id, name, default_value: value, entity } = this.projectData.variables.find(variable => (
+        const { id, name, default_value: value, entity: entityId } = this.projectData.variables.find(variable => (
           variable.name === variableName
         ));
         const requiredSlot = requiredSlotsForIntent.find(slot => slot.variable_id === id);
         let dataType: string;
         try {
-          dataType = findPlatformEntity(entity, { platform: "dialogflow" }) as string;
+          dataType = findPlatformEntity(entityId, { platform: "dialogflow" }) as string;
         } catch (_) {
-          const entity = this.projectData.entities.find(customEntity => customEntity.id === entity);
+          const entity = this.projectData.entities.find(customEntity => customEntity.id === entityId);
           if (typeof entity !== "undefined") {
             dataType = `@${this.sanitizeEntityName(entity.name)}`;
           } else {
@@ -350,7 +350,7 @@ export default class FileWriter extends flow.AbstractProject {
                         customEntity.id === variableInTextSegment.entity
                       ));
                       if (typeof entity !== "undefined") {
-                        entityForVariableInTextSegment = `@${this.sanitizeEntityName(name)}`;
+                        entityForVariableInTextSegment = `@${this.sanitizeEntityName(entity.name)}`;
                       } else {
                         entityForVariableInTextSegment = "@sys.any";
                       }
