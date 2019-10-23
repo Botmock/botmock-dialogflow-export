@@ -361,7 +361,7 @@ export default class FileWriter extends flow.AbstractProject {
                     userDefined: false,
                     ...(typeof variableInTextSegment !== "undefined"
                       ? {
-                        alias: variableInTextSegment.entity.replace(/\./g, ""),
+                        alias: text,
                         meta: entityForVariableInTextSegment,
                       }
                       : {})
