@@ -24,7 +24,6 @@ export default class Google {
         title: title.substr(0, 19),
       }
     });
-    console.log(suggestions)
     return { type: "suggestion_chips", suggestions };
   }
   /**

@@ -1,8 +1,8 @@
 import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import { RewriteFrames } from "@sentry/integrations";
-// import { default as log } from "@botmock-api/log";
 import { writeJson, mkdirp, remove } from "fs-extra";
+import { zipSync } from "cross-zip";
 import { join } from "path";
 import { EOL } from "os";
 import { default as SDKWrapper } from "./lib/sdk";
@@ -93,7 +93,12 @@ async function main(args: string[]): Promise<void> {
     log(`wrote ${basename}`);
   });
   await fileWriter.write();
-  log("done");
+  log("compressing generated files");
+  try {
+    zipSync(outputDirectory, `${outputDirectory}.zip`);
+  } finally {
+    log(`import ${outputDirectory}.zip in the Dialogflow console`);
+  }
 }
 
 process.on("unhandledRejection", () => {});
