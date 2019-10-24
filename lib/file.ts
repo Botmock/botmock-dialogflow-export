@@ -16,10 +16,11 @@ interface Config {
 
 export default class FileWriter extends flow.AbstractProject {
   static lifespan = 5;
-  static botmockVariableCharacter = "%";
   static delimiterCharacter = ".";
+  static botmockVariableCharacter = "%";
   static welcomeIntentName = "Default Welcome Intent";
   static fallbackIntentName = "Default Fallback Intent";
+  static defaultPriority = 500000;
   static supportedPlatforms = new Set([
     "facebook",
     "slack",
@@ -201,6 +202,19 @@ export default class FileWriter extends flow.AbstractProject {
     return [];
   }
   /**
+   * Gets numerical priority for intent based on entity types found in its utterances
+   * @param intentId string
+   * @returns number
+   */
+  private getPriorityForIntent(intentId: string): number {
+    const { defaultPriority } = FileWriter;
+    const parameters = this.getParametersForIntent(intentId);
+    if (parameters.some(parameter => parameter.dataType === "@sys.any")) {
+      return 250000;
+    }
+    return defaultPriority;
+  }
+  /**
    * Gets array of events for an intent id
    * @param intentId string
    * @returns string[]
@@ -262,6 +276,10 @@ export default class FileWriter extends flow.AbstractProject {
   }
   /**
    * Writes intent files for artifically inserted intent between root message and first message
+   * 
+   * @remarks sets response messages and affected contexts based on the first message connected
+   * to the root message
+   * 
    * @param providerInstance PlatformProvider
    * @returns Promise<void>
    */
@@ -332,7 +350,7 @@ export default class FileWriter extends flow.AbstractProject {
               speech: [],
             }
           ],
-          priority: 500000,
+          priority: this.getPriorityForIntent(idOfConnectedIntent),
           webhookUsed: false,
           webhookForSlotFilling: false,
           fallbackIntent: false,
