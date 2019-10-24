@@ -77,9 +77,13 @@ export default class PlatformProvider {
       };
     }
     const generatedResponse: any = this.platform[methodToCallOnClass](messagePayload);
-    const textlikeFields = ["text", "textToSpeech"];
+    const textlikeFields = ["text", "textToSpeech", "formattedText", "image"];
     for (const field of textlikeFields) {
       if (generatedResponse[field]) {
+        if (field === "image" && generatedResponse[field].accessibilityText) {
+          generatedResponse[field].accessibilityText = this.text.replaceVariableCharacterInText(generatedResponse[field].accessibilityText);
+          continue;
+        }
         generatedResponse[field] = this.text.replaceVariableCharacterInText(generatedResponse[field]);
       }
     }

@@ -275,6 +275,9 @@ export default class FileWriter extends flow.AbstractProject {
     ].map((message: flow.Message) => (
       providerInstance.create(message.message_type, message.payload)
     ));
+    intentData.responses[0].affectedContexts = [
+      ...this.getOutputContextsForMessageConnectedByIntent(this.firstMessage.message_id)
+    ];
     const utteranceData = JSON.parse(await readFile(join(pathToTemplates, `${welcomeIntentName}_usersays_en.json`), "utf8"));
     await writeJson(join(this.pathToIntents, `${welcomeIntentName}.json`), intentData, { EOL, spaces: 2 });
     this.emit("write-complete", { basename: `${welcomeIntentName}_entries_en.json` });
