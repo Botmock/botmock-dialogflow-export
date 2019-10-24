@@ -13,9 +13,18 @@ export default class Google {
    * @returns object
    */
   public suggestion_chips(data: any): object {
-    const suggestions = data.quick_replies.map((reply: any) => ({
-      title: reply.title.substr(0, 19),
-    }));
+    const suggestions = data.quick_replies.map((reply: any) => {
+      let title: string;
+      try {
+        title = JSON.parse(reply.title).value;
+      } catch (_) {
+        title = reply.title;
+      }
+      return {
+        title: title.substr(0, 19),
+      }
+    });
+    console.log(suggestions)
     return { type: "suggestion_chips", suggestions };
   }
   /**
