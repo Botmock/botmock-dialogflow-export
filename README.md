@@ -37,6 +37,8 @@ To translate Botmock projects into Dialogflow agents, we make certain assumption
 - If there is no intent on the connector from the root message to the first message in the Botmock flow, the 
   script creates one and merges into it all utterances from the default Dialogflow Welcome Intent.
 
+- When using quick replies or suggestion chips in a project, some intent utterances should be designed to exactly match the content of the options in the content block.
+
 ### Approach to importing
 
 The script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the path of 
@@ -102,9 +104,8 @@ npm start
 
 ### Importing
 
-Once `npm start` is successfully run, `/output` should be able to be compressed and imported into Dialogflow.
+Once `npm start` is successfully run, `output.zip` should be able to be imported into Dialogflow.
 
-- Compress `/output` to create `output.zip`
 - Visit [your dashboard](console.dialogflow.com) and create a new agent
 - Choose the "Export and Import" tab and choose "RESTORE FROM ZIP"
 - Select `output.zip`
