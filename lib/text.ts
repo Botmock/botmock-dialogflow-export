@@ -21,16 +21,17 @@ export default class TextTransformer {
     const variableRegex: RegExp = /%[a-zA-Z0-9]+%/g;
     const matches: RegExpMatchArray | null = text.match(variableRegex);
     let str: string = text;
-    // if this text contains at least one variable, replace all
-    // occurrences of it with the correct output variable sign
     if (!Object.is(matches, null)) {
       for (const match of matches) {
-        const indexOfMatch: number = text.search(variableRegex);
+        const rawText = match.slice(1, match.length - 1);
+        const indexOfMatchBegin = text.indexOf(match);
+        const indexOfMatchEnd = indexOfMatchBegin + match.length;
         str =
-          str.slice(0, indexOfMatch) +
+          str.slice(0, indexOfMatchBegin) +
           dialogflowCharacter +
-          match.slice(1, match.length - 1) +
-          str.slice(indexOfMatch + match.length);
+          rawText +
+          " " +
+          str.slice(indexOfMatchEnd);
       }
     }
     return str;
@@ -61,15 +62,17 @@ export default class TextTransformer {
   }
   /**
    * Truncates a file basename to within dialogflow limit
+   * 
+   * @remarks if the name length exceeds the limit, replaces the number of characters
+   * by which the name exceeds the limit with random bytes to avoid file name collisions
+   * for similar paths
+   * 
    * @param name string
    * @returns string
    */
   public truncateBasename(basename: string = ""): string {
     const { characterLimit } = TextTransformer;
     const diff = characterLimit - basename.length;
-    // if the name length exceeds the limit, replace the number of characters
-    // by which the name exceeds the limit with random bytes to avoid file
-    // name collisions for similar paths
     if (Object.is(Math.sign(diff), -1)) {
       const absDiff = Math.abs(diff);
       return basename
