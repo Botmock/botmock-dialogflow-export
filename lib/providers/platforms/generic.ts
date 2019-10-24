@@ -5,7 +5,7 @@ export default class Generic {
    * @returns object
    */
   public text(data: any): object {
-    return { type: 0, speech: data.text };
+    return { speech: data.text };
   }
   /**
    * 
@@ -16,7 +16,7 @@ export default class Generic {
     let buttons = [];
     if (data.elements) {
       buttons = data.elements.flatMap((element: any) =>
-        element.buttons.reduce((acc, button) => {
+        element.buttons.reduce((acc: any, button: any) => {
           return [...acc, { text: button.title, postback: button.payload }];
         }, [])
       );
@@ -26,7 +26,7 @@ export default class Generic {
         postback: button.payload,
       }));
     }
-    return { type: 1, title: data.text, buttons };
+    return { title: data.text, buttons };
   }
   /**
    * 
@@ -34,7 +34,7 @@ export default class Generic {
    * @returns object
    */
   public image(data: any): object {
-    return { type: 3, imageUrl: data.image_url };
+    return { imageUrl: data.image_url };
   }
   /**
    * 
@@ -43,6 +43,6 @@ export default class Generic {
    */
   public quick_replies(data: any): object {
     const replies = data.quick_replies.map((reply: any) => reply.label || reply.title);
-    return { type: 2, title: data.text, replies };
+    return { title: data.text, replies };
   }
 };

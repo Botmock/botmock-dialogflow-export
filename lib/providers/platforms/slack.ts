@@ -7,7 +7,6 @@ export default class Slack {
   public text(data: any): object {
     if (data.attachments) {
       return {
-        type: 4,
         payload: {
           slack: {
             text: data.text,
@@ -16,7 +15,7 @@ export default class Slack {
         }
       };
     }
-    return { type: 0, speech: data.text };
+    return { speech: data.text };
   }
   /**
    * @param data any
@@ -24,6 +23,6 @@ export default class Slack {
    */
   public quick_replies(data: any): object {
     const replies = data.quick_replies.map((reply: any) => reply.title.substr(0, 19));
-    return { type: 2, title: data.title, replies };
+    return { title: data.title, replies };
   }
 };

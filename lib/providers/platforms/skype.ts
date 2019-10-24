@@ -5,7 +5,7 @@ export default class Skype {
    * @returns object
    */
   public text(data: any): object {
-    return { type: 0, speech: data.text };
+    return { speech: data.text };
   }
   /**
    * 
@@ -14,7 +14,7 @@ export default class Skype {
    */
   public quick_replies(data: any): object {
     const replies = data.quick_replies.map((reply: any) => reply.title.substr(0, 19));
-    return { type: 2, title: data.text, replies };
+    return { title: data.text, replies };
   }
   /**
    * 
@@ -22,7 +22,7 @@ export default class Skype {
    * @returns object
    */
   public image(data: any): object {
-    return { type: 3, imageUrl: data.image_url };
+    return { imageUrl: data.image_url };
   }
   /**
    * 
@@ -31,7 +31,6 @@ export default class Skype {
    */
   public card(data: any): object {
     return {
-      type: 1,
       title: data.text,
       subtitle: data.text,
       imageUrl: "",

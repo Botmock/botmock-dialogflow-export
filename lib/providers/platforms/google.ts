@@ -25,7 +25,7 @@ export default class Google {
    */
   public list(data: any): object {
     const items = data.elements.map((element: any) => {
-      let title, description;
+      let title: any, description: any;
       try {
         const { value: deserialDesc } = JSON.parse(element.description);
         description = deserialDesc;

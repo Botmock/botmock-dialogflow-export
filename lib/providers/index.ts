@@ -6,6 +6,14 @@ export * from "./platforms/google";
 export * from "./platforms/generic";
 export * from "./platforms/facebook";
 
+const messageTypes = new Map([
+  ["text", 0],
+  ["card", 1],
+  ["quick_replies", 2],
+  ["image", 3],
+  ["custom_payload", 4],
+]);
+
 export type MessagePayload = {};
 
 export default class {
@@ -59,7 +67,7 @@ export default class {
     const platform = this.platform.constructor.name.toLowerCase();
     if (!methodToCallOnClass) {
       return {
-        type: 4,
+        type: messageTypes.get("custom_payload"),
         payload: {
           [platform]: JSON.stringify(messagePayload),
         },
@@ -75,6 +83,7 @@ export default class {
     }
     return {
       ...generatedResponse,
+      type: messageTypes.get(methodToCallOnClass),
       lang: "en",
       platform: platform !== "generic" ? platform : undefined,
       condition: "",
