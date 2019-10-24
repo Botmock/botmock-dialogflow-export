@@ -9,6 +9,9 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
+variables:
+- group: env
+
 steps:
 - task: NodeTool@0
   inputs:
@@ -18,4 +21,10 @@ steps:
 - script: |
     npm install
     npm run test
+  env: {
+    BOTMOCK_TOKEN: $(token),
+    BOTMOCK_TEAM_ID: $(teamId),
+    BOTMOCK_PROJECT_ID: $(projectId),
+    BOTMOCK_BOARD_ID: $(boardId)
+  }
   displayName: 'npm install and test'

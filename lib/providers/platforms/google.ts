@@ -1,18 +1,39 @@
-module.exports = class Google {
-  text(data) {
+export default class Google {
+  /**
+   * 
+   * @param data 
+   * @returns object
+   */
+  public text(data: any): object {
     return { type: "simple_response", textToSpeech: data.text };
   }
-
-  suggestion_chips(data) {
-    const suggestions = data.quick_replies.map(reply => ({
-      title: reply.title.substr(0, 19),
-    }));
+  /**
+   * 
+   * @param data 
+   * @returns object
+   */
+  public suggestion_chips(data: any): object {
+    const suggestions = data.quick_replies.map((reply: any) => {
+      let title: string;
+      try {
+        title = JSON.parse(reply.title).value;
+      } catch (_) {
+        title = reply.title;
+      }
+      return {
+        title: title.substr(0, 19),
+      }
+    });
     return { type: "suggestion_chips", suggestions };
   }
-
-  list(data) {
-    const items = data.elements.map(element => {
-      let title, description;
+  /**
+   * 
+   * @param data 
+   * @returns object
+   */
+  public list(data: any): object {
+    const items = data.elements.map((element: any) => {
+      let title: any, description: any;
       try {
         const { value: deserialDesc } = JSON.parse(element.description);
         description = deserialDesc;
@@ -44,8 +65,12 @@ module.exports = class Google {
       items,
     };
   }
-
-  card(data) {
+  /**
+   * 
+   * @param data 
+   * @returns object
+   */
+  public card(data: any): object {
     return {
       type: "basic_card",
       title: data.title,

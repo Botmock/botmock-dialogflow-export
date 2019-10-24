@@ -1,64 +1,99 @@
-export * from "./Skype";
-export * from "./Slack";
-export * from "./Facebook";
-export * from "./Google";
-export * from "./Generic";
+import TextTransformer from "../text";
 
-// export const TEXT_TYPE = 0;
-// export const CARD_TYPE = 1;
-// export const QUICK_REPLIES_TYPE = 2;
-// export const IMAGE_TYPE = 3;
+export * from "./platforms/skype";
+export * from "./platforms/slack";
+export * from "./platforms/google";
+export * from "./platforms/generic";
+export * from "./platforms/facebook";
 
-export class Provider {
-  platform: any;
+const messageTypes = new Map([
+  ["text", 0],
+  ["card", 1],
+  ["quick_replies", 2],
+  ["image", 3],
+  ["custom_payload", 4],
+]);
 
-  constructor(platform) {
+export type MessagePayload = {};
+
+export default class PlatformProvider {
+  static googlePlatformName = "google";
+  private readonly platform: any;
+  private readonly text: TextTransformer;
+  /**
+   * Creates new instance of PlatformProvider
+   * @param platformName string
+   */
+  constructor(platformName: string) {
     let mod: any;
-    // assign the platform's class to the instance of the provider
+    let platform = platformName;
+    const { googlePlatformName } = PlatformProvider;
+    if (platformName.startsWith(googlePlatformName)) {
+      platform = googlePlatformName;
+    }
     try {
-      mod = require(`./${platform.replace(
-        /^\w/,
-        platform.substr(0, 1).toUpperCase()
-      )}`);
+      mod = require(`./platforms/${platform}`).default;
     } catch (_) {
-      // fallback to generic if unable to import corresponding module
-      mod = require("./Generic");
+      mod = require("./platforms/generic").default;
     }
     this.platform = new mod();
+    this.text = new TextTransformer();
   }
-
-  create(type, data) {
-    const platform = this.platform.constructor.name.toLowerCase();
-    // get the correct method on the correct class
-    let method = Object.getOwnPropertyNames(
-      Object.getPrototypeOf(this.platform)
-    ).find(prop => type.includes(prop));
-    // coerce odd types
-    switch (type) {
+  /**
+   * Creates json containing platform-specific data
+   * @param contentBlockType string
+   * @param messagePayload MessagePayload
+   * @returns object
+   */
+  create(contentBlockType: string = "", messagePayload: MessagePayload): object {
+    let methodToCallOnClass: string;
+    switch (contentBlockType) {
       case "api":
+      case "jump":
       case "delay":
-        method = "text";
+        methodToCallOnClass = undefined;
+        break;
+      case "button":
+        methodToCallOnClass = "quick_replies";
+      case "generic":
+        methodToCallOnClass = "card";
         break;
       case "carousel":
-        method = "list";
+        methodToCallOnClass = "list";
         break;
+      default:
+        methodToCallOnClass = Object.getOwnPropertyNames(
+          Object.getPrototypeOf(this.platform)).find(prop => contentBlockType.includes(prop)
+        );
     }
-    if (type.endsWith("button") || type.endsWith("generic")) {
-      method = "card";
-    }
-    if (!method) {
+    const platform = this.platform.constructor.name.toLowerCase();
+    if (!methodToCallOnClass) {
       return {
-        type: 4,
+        type: messageTypes.get("custom_payload"),
         payload: {
-          [platform]: JSON.stringify(data),
+          [platform]: JSON.stringify(messagePayload),
         },
         lang: "en",
       };
     }
+    const generatedResponse: any = this.platform[methodToCallOnClass](messagePayload);
+    const textlikeFields = ["text", "textToSpeech", "formattedText", "image"];
+    for (const field of textlikeFields) {
+      if (generatedResponse[field]) {
+        if (field === "image" && generatedResponse[field].accessibilityText) {
+          generatedResponse[field].accessibilityText = this.text.replaceVariableCharacterInText(generatedResponse[field].accessibilityText);
+          continue;
+        }
+        generatedResponse[field] = this.text.replaceVariableCharacterInText(generatedResponse[field]);
+      }
+    }
+    const { googlePlatformName } = PlatformProvider;
     return {
-      ...this.platform[method](data),
-      platform: platform !== "generic" ? platform : undefined,
+      ...generatedResponse,
+      ...(platform !== googlePlatformName ? { type: messageTypes.get(methodToCallOnClass) } : {}),
       lang: "en",
+      platform: platform !== "generic" ? platform : undefined,
+      condition: "",
     };
   }
 }
