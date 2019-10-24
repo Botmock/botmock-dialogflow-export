@@ -17,7 +17,7 @@ describe("run", () => {
   });
   test("outputs correct number of newlines", () => {
     const res = execSync("npm start");
-    expect(res.toString().split(EOL)).toHaveLength(13);
+    expect(res.toString().split(EOL).length).toBeGreaterThanOrEqual(33);
   });
 });
 
