@@ -3,12 +3,48 @@ import { readdir, mkdirp, remove } from "fs-extra";
 import { join } from "path";
 import { execSync } from "child_process";
 import { EOL, tmpdir } from "os";
+// import { default as fetch } from "node-fetch";
 import { mockProjectData, variableName } from "./fixtures";
 import { default as SDKWrapper } from "../lib/sdk";
 import { default as FileWriter } from "../lib/file";
 import { default as BoardBoss } from "../lib/board";
 import { default as TextTransformer } from "../lib/text";
 import { default as PlatformProvider } from "../lib/providers";
+
+interface Config {
+  readonly projectId: string;
+}
+
+class DialogflowActor {
+  private readonly restoreURL: string;
+  /**
+   * Creates new instance of DialogflowActor
+   * @param config Config
+   */
+  constructor(config: Config) {
+    const { projectId } = config;
+    this.restoreURL = `https://dialogflow.googleapis.com/v2beta1/${projectId}/agent:restore`;
+  }
+  /**
+   * Attempts to restore a Dialogflow agent from a zip
+   * @returns Promise<any>
+   */
+  public async restoreFromZip(): Promise<any> {
+    return;
+  }
+}
+
+describe.skip("import", () => {
+  let actorInstance: DialogflowActor;
+  beforeAll(() => {
+    actorInstance = new DialogflowActor({ projectId: process.env.DIALOGFLOW_PROJECT_ID });
+  });
+  test("entire project is able to be restored from without error", () => {
+    expect(async () => {
+      await actorInstance.restoreFromZip();
+    }).not.toThrow();
+  });
+});
 
 describe("run", () => {
   const pathToDefaultOutputDirectory = join(process.cwd(), "output");
