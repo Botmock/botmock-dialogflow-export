@@ -31,13 +31,13 @@ export default class {
   }
   /**
    * Creates json containing platform-specific data
-   * @param type string
-   * @param data MessagePayload
+   * @param contentBlockType string
+   * @param messagePayload MessagePayload
    * @returns object
    */
-  create(type: string = "", data: MessagePayload): object {
+  create(contentBlockType: string = "", messagePayload: MessagePayload): object {
     let methodToCallOnClass: string;
-    switch (type) {
+    switch (contentBlockType) {
       case "api":
       case "jump":
       case "delay":
@@ -53,7 +53,7 @@ export default class {
         break;
       default:
         methodToCallOnClass = Object.getOwnPropertyNames(
-          Object.getPrototypeOf(this.platform)).find(prop => type.includes(prop)
+          Object.getPrototypeOf(this.platform)).find(prop => contentBlockType.includes(prop)
         );
     }
     const platform = this.platform.constructor.name.toLowerCase();
@@ -61,12 +61,12 @@ export default class {
       return {
         type: 4,
         payload: {
-          [platform]: JSON.stringify(data),
+          [platform]: JSON.stringify(messagePayload),
         },
         lang: "en",
       };
     }
-    const generatedResponse: any = this.platform[methodToCallOnClass](data);
+    const generatedResponse: any = this.platform[methodToCallOnClass](messagePayload);
     const textlikeFields = ["text", "textToSpeech"];
     for (const field of textlikeFields) {
       if (generatedResponse[field]) {
