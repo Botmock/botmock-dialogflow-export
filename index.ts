@@ -97,7 +97,7 @@ async function main(args: string[]): Promise<void> {
   try {
     zipSync(outputDirectory, `${outputDirectory}.zip`);
   } finally {
-    log(`import ${outputDirectory}.zip in the Dialogflow console`);
+    log(`${outputDirectory}.zip is ready to be imported in the Dialogflow console`);
   }
 }
 
