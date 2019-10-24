@@ -89,13 +89,15 @@ export default class FileWriter extends flow.AbstractProject {
                 return null;
               }
             })
-            .filter(intent => !Object.is(intent, null));
+            .filter(intent => !Object.is(intent, null))
+            .filter(intent => !inputs.includes(intent));
           inputs.push(...intentsConnectedToPreviousMessage);
           break;
         case 0:
           for (const previousMessage of previousMessages) {
-            if (typeof previousMessage.previous_message_ids !== "undefined") {
-              gatherDeterministicInputPath(previousMessage.previous_message_ids);
+            const fullPreviousMessage = self.getMessage(previousMessage.message_id) as flow.Message;
+            if (typeof fullPreviousMessage.previous_message_ids !== "undefined") {
+              gatherDeterministicInputPath(fullPreviousMessage.previous_message_ids);
             }
           }
         default:
@@ -126,12 +128,20 @@ export default class FileWriter extends flow.AbstractProject {
               if (typeof nextMessage.intent !== "string") {
                 name = (this.getIntent(nextMessage.intent.value) as flow.Intent).name;
               }
+              const outputContextNameIsAlreadyAccumulated = acc.some((alreadyAddedObject: object) => (
+                // @ts-ignore
+                alreadyAddedObject.name === name
+              ));
+              if (outputContextNameIsAlreadyAccumulated) {
+                return null;
+              }
               return {
                 name,
                 parameters: {},
                 lifespan: FileWriter.lifespan
               }
             })
+            .filter(outputContextObject => !Object.is(outputContextObject, null))
         ]
       }, []);
   }

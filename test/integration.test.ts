@@ -1,9 +1,10 @@
 import "dotenv/config";
+// import { zipSync } from "cross-zip";
+// import { default as fetch } from "node-fetch";
 import { readdir, mkdirp, remove } from "fs-extra";
 import { join } from "path";
 import { execSync } from "child_process";
 import { EOL, tmpdir } from "os";
-// import { default as fetch } from "node-fetch";
 import { mockProjectData, variableName } from "./fixtures";
 import { default as SDKWrapper } from "../lib/sdk";
 import { default as FileWriter } from "../lib/file";
