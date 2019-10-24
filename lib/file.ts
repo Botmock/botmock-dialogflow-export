@@ -113,6 +113,7 @@ export default class FileWriter extends flow.AbstractProject {
    */
   private getOutputContextsForMessageConnectedByIntent(messageId: string): Dialogflow.OutputContext[] {
     return this.getMessagesForMessage(messageId)
+      .concat(Array.of(this.getMessage(messageId) as flow.Message))
       .filter(message => message.next_message_ids.some((nextMessage: flow.NextMessage) => (
         typeof nextMessage.intent !== "string"
       )))
