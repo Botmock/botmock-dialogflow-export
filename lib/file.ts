@@ -36,7 +36,7 @@ export default class FileWriter extends flow.AbstractProject {
   /**
    * Creates new instance of FileWriter class
    * 
-   * @remarks sets artifical intent between root message and only connected
+   * @remarks sets artificial intent between root message and first connected
    * message for the sake of establishing a welcome intent
    * 
    * @param config Config object containing outputDirectory and projectData

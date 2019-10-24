@@ -16,7 +16,8 @@ const messageTypes = new Map([
 
 export type MessagePayload = {};
 
-export default class {
+export default class PlatformProvider {
+  static googlePlatformName = "google";
   private readonly platform: any;
   private readonly text: TextTransformer;
   /**
@@ -26,8 +27,9 @@ export default class {
   constructor(platformName: string) {
     let mod: any;
     let platform = platformName;
-    if (platformName.startsWith("google")) {
-      platform = "google";
+    const { googlePlatformName } = PlatformProvider;
+    if (platformName.startsWith(googlePlatformName)) {
+      platform = googlePlatformName;
     }
     try {
       mod = require(`./platforms/${platform}`).default;
@@ -81,9 +83,10 @@ export default class {
         generatedResponse[field] = this.text.replaceVariableCharacterInText(generatedResponse[field]);
       }
     }
+    const { googlePlatformName } = PlatformProvider;
     return {
       ...generatedResponse,
-      type: messageTypes.get(methodToCallOnClass),
+      ...(platform !== googlePlatformName ? { type: messageTypes.get(methodToCallOnClass) } : {}),
       lang: "en",
       platform: platform !== "generic" ? platform : undefined,
       condition: "",
