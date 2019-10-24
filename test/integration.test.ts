@@ -26,13 +26,23 @@ class DialogflowActor {
     this.restoreURL = `https://dialogflow.googleapis.com/v2beta1/${projectId}/agent:restore`;
   }
   /**
-   * Attempts to restore a Dialogflow agent from a zip
+   * Attempts to restore a Dialogflow agent from zip file produced by exporter
+   * @param pathToZip string
    * @returns Promise<any>
+   * @todo
    */
-  public async restoreFromZip(): Promise<any> {
+  public async restoreFromZip(pathToZip: string): Promise<any> {
     return;
   }
 }
+
+/**
+ * Compresses a directory
+ * @param pathToDirectoryToCompress
+ * @returns Promise<void>
+ * @todo
+ */
+async function compressDirectory(pathToDirectoryToCompress: string): Promise<void> {}
 
 describe.skip("import", () => {
   let actorInstance: DialogflowActor;
@@ -41,7 +51,10 @@ describe.skip("import", () => {
   });
   test("entire project is able to be restored from without error", () => {
     expect(async () => {
-      await actorInstance.restoreFromZip();
+      execSync("npm start");
+      const pathToDefaultOutputDirectory = join(process.cwd(), "output.zip");
+      await compressDirectory(pathToDefaultOutputDirectory);
+      await actorInstance.restoreFromZip(pathToDefaultOutputDirectory);
     }).not.toThrow();
   });
 });
