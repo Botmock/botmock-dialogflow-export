@@ -1,11 +1,11 @@
 import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import { RewriteFrames } from "@sentry/integrations";
+import { Batcher } from "@botmock-api/client";
 import { writeJson, mkdirp, remove } from "fs-extra";
 import { zipSync } from "cross-zip";
 import { join } from "path";
 import { EOL } from "os";
-import { default as SDKWrapper } from "./lib/sdk";
 import { default as FileWriter } from "./lib/file";
 import { default as log } from "./lib/log";
 import { SENTRY_DSN } from "./lib/constants";
@@ -78,12 +78,18 @@ async function main(args: string[]): Promise<void> {
     entityPath,
   });
   log("fetching project data");
-  const { data: projectData } = await new SDKWrapper({
+  const { data: projectData } = await new Batcher({
     token: process.env.BOTMOCK_TOKEN, 
     teamId: process.env.BOTMOCK_TEAM_ID,
     projectId: process.env.BOTMOCK_PROJECT_ID,
     boardId: process.env.BOTMOCK_BOARD_ID,
-  }).fetch();
+  }).batchRequest([
+    "project",
+    "board",
+    "intents",
+    "entities",
+    "variables"
+  ]);
   log("writing files");
   const fileWriter = new FileWriter({
     outputDirectory,
@@ -97,7 +103,7 @@ async function main(args: string[]): Promise<void> {
   try {
     zipSync(outputDirectory, `${outputDirectory}.zip`);
   } finally {
-    log(`import ${outputDirectory}.zip in the Dialogflow console`);
+    log(`${outputDirectory}.zip is ready to be imported in the Dialogflow console`);
   }
 }
 

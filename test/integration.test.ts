@@ -5,7 +5,6 @@ import { join } from "path";
 import { execSync } from "child_process";
 import { EOL, tmpdir } from "os";
 import { mockProjectData, variableName } from "./fixtures";
-import { default as SDKWrapper } from "../lib/sdk";
 import { default as FileWriter } from "../lib/file";
 import { default as BoardBoss } from "../lib/board";
 import { default as TextTransformer } from "../lib/text";
@@ -70,24 +69,8 @@ describe("run", () => {
   });
 });
 
-describe("interaction of sdk wrapper and file writer", () => {
-  let sdkWrapperInstance: SDKWrapper;
-  const outputDirectory = tmpdir();
-  beforeEach(() => {
-    const [token, teamId, projectId, boardId] = [
-      process.env.BOTMOCK_TOKEN,
-      process.env.BOTMOCK_TEAM_ID,
-      process.env.BOTMOCK_PROJECT_ID,
-      process.env.BOTMOCK_BOARD_ID
-    ];
-    sdkWrapperInstance = new SDKWrapper({ token, teamId, projectId, boardId });
-  });
-  test("return value of sdk wrapper is consumable by file writer", async () => {
-    const { data } = await sdkWrapperInstance.fetch();
-    expect(() => {
-      new FileWriter({ outputDirectory, projectData: data });
-    }).not.toThrow();
-  });
+describe.skip("interaction of batcher and file writer", () => {
+  test.todo("return value of sdk wrapper is consumable by file writer");
 });
 
 describe("interaction of file writer and util classes", () => {
