@@ -9,9 +9,11 @@ import { default as TextTransformer } from "./text";
 import { default as PlatformProvider } from "./providers";
 import * as Dialogflow from "./types";
 
+export type ProjectData<T> = T extends Promise<infer K> ? K : any;
+
 interface Config {
   readonly outputDirectory: string;
-  readonly projectData: any;
+  readonly projectData: ProjectData<unknown>;
 }
 
 export default class FileWriter extends flow.AbstractProject {

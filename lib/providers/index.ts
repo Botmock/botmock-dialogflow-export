@@ -55,6 +55,7 @@ export default class PlatformProvider {
         break;
       case "button":
         methodToCallOnClass = "quick_replies";
+        break;
       case "generic":
         methodToCallOnClass = "card";
         break;
