@@ -20,7 +20,7 @@ enum MessageTypes {
   card = 1,
   quick_replies = 2,
   image = 3,
-  custom_payload = 3,
+  custom_payload = 4,
 }
 
 export type MessagePayload = {};
