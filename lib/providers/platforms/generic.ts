@@ -13,6 +13,7 @@ export default class Generic {
    * @returns object
    */
   public card(data: any): object {
+    console.log(data);
     let buttons = [];
     if (data.elements) {
       buttons = data.elements.flatMap((element: any) =>

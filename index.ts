@@ -102,8 +102,9 @@ async function main(args: string[]): Promise<void> {
   log("compressing generated files");
   try {
     zipSync(outputDirectory, `${outputDirectory}.zip`);
-  } finally {
     log(`${outputDirectory}.zip is ready to be imported in the Dialogflow console`);
+  } finally {
+    log("done");
   }
 }
 
