@@ -2,12 +2,12 @@ import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import { RewriteFrames } from "@sentry/integrations";
 import { Batcher } from "@botmock-api/client";
+import { default as log } from "@botmock-api/log";
 import { writeJson, mkdirp, remove } from "fs-extra";
 import { zipSync } from "cross-zip";
 import { join } from "path";
 import { EOL } from "os";
 import { default as FileWriter } from "./lib/file";
-import { default as log } from "./lib/log";
 import { SENTRY_DSN } from "./lib/constants";
 // @ts-ignore
 import pkg from "./package.json";
@@ -113,7 +113,7 @@ process.on("unhandledRejection", () => {});
 process.on("uncaughtException", () => {});
 
 main(process.argv).catch(async (err: Error) => {
-  log(err.stack, { isQuiet: true });
+  log(err.stack, { isError: true });
   if (process.env.OPT_IN_ERROR_REPORTING) {
     Sentry.captureException(err);
   } else {
