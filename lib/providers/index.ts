@@ -53,8 +53,6 @@ export default class PlatformProvider {
       case "delay":
         methodToCallOnClass = undefined;
         break;
-        // methodToCallOnClass = "quick_replies";
-        // break;
       case "button":
       case "generic":
         methodToCallOnClass = "card";
