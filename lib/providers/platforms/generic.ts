@@ -44,7 +44,7 @@ export default class Generic {
    * @returns object
    */
   public quick_replies(data: any): object {
-    const replies = data.quick_replies.map((reply: any) => reply.label || reply.title);
+    const replies = data.quick_replies.map((reply: any) => trimText(reply.label || reply.title));
     return { title: trimText(data.text), replies };
   }
 };
