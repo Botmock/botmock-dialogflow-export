@@ -15,13 +15,13 @@ export function trimText(text: string): string {
   return text.slice(0, dialogflowTextLengthLimit - 1);
 }
 
-const messageTypes = new Map([
-  ["text", 0],
-  ["card", 1],
-  ["quick_replies", 2],
-  ["image", 3],
-  ["custom_payload", 4],
-]);
+enum MessageTypes {
+  text = 0,
+  card = 1,
+  quick_replies = 2,
+  image = 3,
+  custom_payload = 3,
+}
 
 export type MessagePayload = {};
 
@@ -77,7 +77,7 @@ export default class PlatformProvider {
     const platform = this.platform.constructor.name.toLowerCase();
     if (!methodToCallOnClass) {
       return {
-        type: messageTypes.get("custom_payload"),
+        type: MessageTypes.custom_payload,
         payload: {
           [platform]: JSON.stringify(messagePayload),
         },
@@ -98,7 +98,7 @@ export default class PlatformProvider {
     const { googlePlatformName } = PlatformProvider;
     return {
       ...generatedResponse,
-      ...(platform !== googlePlatformName ? { type: messageTypes.get(methodToCallOnClass) } : {}),
+      ...(platform !== googlePlatformName ? { type: MessageTypes[methodToCallOnClass] } : {}),
       lang: "en",
       platform: platform !== "generic" ? platform : undefined,
       condition: "",
