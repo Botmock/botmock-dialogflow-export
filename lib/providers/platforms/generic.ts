@@ -7,7 +7,7 @@ export default class Generic {
    * @returns object
    */
   public text(data: any): object {
-    return { speech: trimText(data.text) };
+    return { speech: data.text };
   }
   /**
    * 
@@ -45,6 +45,6 @@ export default class Generic {
    */
   public quick_replies(data: any): object {
     const replies = data.quick_replies.map((reply: any) => trimText(reply.label || reply.title));
-    return { title: trimText(data.text), replies };
+    return { title: data.text, replies };
   }
 };
