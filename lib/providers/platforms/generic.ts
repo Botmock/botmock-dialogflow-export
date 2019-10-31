@@ -1,3 +1,5 @@
+import { trimText } from "../";
+
 export default class Generic {
   /**
    * 
@@ -17,12 +19,12 @@ export default class Generic {
     if (data.elements) {
       buttons = data.elements.flatMap((element: any) =>
         element.buttons.reduce((acc: any, button: any) => {
-          return [...acc, { text: button.title, postback: button.payload }];
+          return [...acc, { text: trimText(button.title), postback: button.payload }];
         }, [])
       );
     } else if (data.buttons) {
       buttons = data.buttons.map((button: any) => ({
-        text: button.title,
+        text: trimText(button.title),
         postback: button.payload,
       }));
     }
@@ -42,7 +44,7 @@ export default class Generic {
    * @returns object
    */
   public quick_replies(data: any): object {
-    const replies = data.quick_replies.map((reply: any) => reply.label || reply.title);
+    const replies = data.quick_replies.map((reply: any) => trimText(reply.label || reply.title));
     return { title: data.text, replies };
   }
 };

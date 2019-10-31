@@ -1,3 +1,5 @@
+import { trimText } from "../";
+
 export default class Slack {
   /**
    * 
@@ -22,7 +24,7 @@ export default class Slack {
    * @returns object
    */
   public quick_replies(data: any): object {
-    const replies = data.quick_replies.map((reply: any) => reply.title.substr(0, 19));
+    const replies = data.quick_replies.map((reply: any) => trimText(reply.title));
     return { title: data.title, replies };
   }
 };

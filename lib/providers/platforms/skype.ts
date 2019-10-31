@@ -1,3 +1,5 @@
+import { trimText } from "../";
+
 export default class Skype {
   /**
    * 
@@ -13,7 +15,7 @@ export default class Skype {
    * @returns object
    */
   public quick_replies(data: any): object {
-    const replies = data.quick_replies.map((reply: any) => reply.title.substr(0, 19));
+    const replies = data.quick_replies.map((reply: any) => trimText(reply.title));
     return { title: data.text, replies };
   }
   /**
@@ -33,8 +35,8 @@ export default class Skype {
     return {
       title: data.text,
       subtitle: data.text,
-      imageUrl: "",
-      buttons: data.buttons.map(button => ({
+      imageUrl: data.image_url,
+      buttons: data.buttons.map((button: any) => ({
         text: button.title,
       })),
     };

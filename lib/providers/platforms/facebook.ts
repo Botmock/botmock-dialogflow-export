@@ -1,3 +1,5 @@
+import { trimText } from "../";
+
 export default class Facebook {
   /**
    * 
@@ -11,7 +13,7 @@ export default class Facebook {
    * @param data 
    */
   public quick_replies(data: any) {
-    const replies = data.quick_replies.map((reply: any) => reply.title.substr(0, 19));
+    const replies = data.quick_replies.map((reply: any) => trimText(reply.title));
     return { title: data.text, replies };
   }
   /**
@@ -29,8 +31,8 @@ export default class Facebook {
     const { text = "", buttons = [] } = data;
     return {
       title: text,
-      buttons: buttons.map(button => ({
-        text: button.title,
+      buttons: buttons.map((button: any) => ({
+        text: trimText(button.title),
         postback: button.payload,
       })),
     };

@@ -35,14 +35,6 @@ class DialogflowActor {
   }
 }
 
-/**
- * Compresses a directory
- * @param pathToDirectoryToCompress
- * @returns Promise<void>
- * @todo
- */
-async function compressDirectory(pathToDirectoryToCompress: string): Promise<void> {}
-
 describe.skip("import", () => {
   let actorInstance: DialogflowActor;
   beforeAll(() => {
@@ -52,7 +44,6 @@ describe.skip("import", () => {
     expect(async () => {
       execSync("npm start");
       const pathToDefaultOutputDirectory = join(process.cwd(), "output.zip");
-      await compressDirectory(pathToDefaultOutputDirectory);
       await actorInstance.restoreFromZip(pathToDefaultOutputDirectory);
     }).not.toThrow();
   });

@@ -73,6 +73,7 @@ export default class FileWriter extends flow.AbstractProject {
   private getInputContextsForMessageConnectedByIntent(messageId: string): Dialogflow.InputContext[] {
     const self = this;
     const inputs: string[] = [];
+    const seenPreviousMessageIds: string[] = [];
     const { previous_message_ids } = this.getMessage(messageId) as flow.Message;
     (function gatherDeterministicInputPath(previousMessages: flow.PreviousMessage[]): void {
       const previousMessagesConnectedByIntents = previousMessages.filter(message => (
@@ -99,7 +100,11 @@ export default class FileWriter extends flow.AbstractProject {
         case 0:
           for (const previousMessage of previousMessages) {
             const fullPreviousMessage = self.getMessage(previousMessage.message_id) as flow.Message;
-            if (typeof fullPreviousMessage.previous_message_ids !== "undefined") {
+            seenPreviousMessageIds.push(...fullPreviousMessage.previous_message_ids.map(message => message.message_id));
+            const hasNotSeenPreviousMessages = !seenPreviousMessageIds.find(id => (
+              fullPreviousMessage.previous_message_ids.find(message => message.message_id === id)
+            ));
+            if (hasNotSeenPreviousMessages && typeof fullPreviousMessage.previous_message_ids !== "undefined") {
               gatherDeterministicInputPath(fullPreviousMessage.previous_message_ids);
             }
           }
@@ -199,7 +204,7 @@ export default class FileWriter extends flow.AbstractProject {
   private getMessagesForMessage(messageId: string): flow.Message[] {
     const message = this.board.getMessage(messageId);
     if (typeof message !== "undefined") {
-      return this.board.findMessagesUpToNextIntent(message);
+      return this.gatherMessagesUpToNextIntent(message);
     }
     return [];
   }
@@ -391,11 +396,11 @@ export default class FileWriter extends flow.AbstractProject {
                     }
                   }
                   return {
-                    text,
+                    text: typeof variableInTextSegment !== "undefined" ? text.replace(/\s/g, "") : text,
                     userDefined: false,
                     ...(typeof variableInTextSegment !== "undefined"
                       ? {
-                        alias: text,
+                        alias: text.replace(/\s/g, ""),
                         meta: entityForVariableInTextSegment,
                       }
                       : {})

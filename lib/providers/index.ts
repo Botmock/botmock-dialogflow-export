@@ -6,13 +6,22 @@ export * from "./platforms/google";
 export * from "./platforms/generic";
 export * from "./platforms/facebook";
 
-const messageTypes = new Map([
-  ["text", 0],
-  ["card", 1],
-  ["quick_replies", 2],
-  ["image", 3],
-  ["custom_payload", 4],
-]);
+/**
+ * Trims text to prevent errors on dialogflow import
+ * @param text text to trim
+ */
+export function trimText(text: string): string {
+  const dialogflowTextLengthLimit = 20;
+  return text.slice(0, dialogflowTextLengthLimit - 1);
+}
+
+enum MessageTypes {
+  text = 0,
+  card = 1,
+  quick_replies = 2,
+  image = 3,
+  custom_payload = 4,
+}
 
 export type MessagePayload = {};
 
@@ -54,8 +63,6 @@ export default class PlatformProvider {
         methodToCallOnClass = undefined;
         break;
       case "button":
-        methodToCallOnClass = "quick_replies";
-        break;
       case "generic":
         methodToCallOnClass = "card";
         break;
@@ -70,7 +77,7 @@ export default class PlatformProvider {
     const platform = this.platform.constructor.name.toLowerCase();
     if (!methodToCallOnClass) {
       return {
-        type: messageTypes.get("custom_payload"),
+        type: MessageTypes.custom_payload,
         payload: {
           [platform]: JSON.stringify(messagePayload),
         },
@@ -91,7 +98,7 @@ export default class PlatformProvider {
     const { googlePlatformName } = PlatformProvider;
     return {
       ...generatedResponse,
-      ...(platform !== googlePlatformName ? { type: messageTypes.get(methodToCallOnClass) } : {}),
+      ...(platform !== googlePlatformName ? { type: MessageTypes[methodToCallOnClass] } : {}),
       lang: "en",
       platform: platform !== "generic" ? platform : undefined,
       condition: "",

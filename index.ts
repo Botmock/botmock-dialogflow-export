@@ -48,6 +48,7 @@ interface Paths {
  */
 async function recreateOutputDirectories(paths: Paths): Promise<void> {
   const { outputPath, intentPath, entityPath } = paths;
+  await remove(`${outputPath}.zip`);
   await remove(intentPath);
   await remove(entityPath);
   await remove(outputPath);
@@ -102,8 +103,9 @@ async function main(args: string[]): Promise<void> {
   log("compressing generated files");
   try {
     zipSync(outputDirectory, `${outputDirectory}.zip`);
-  } finally {
     log(`${outputDirectory}.zip is ready to be imported in the Dialogflow console`);
+  } finally {
+    log("done");
   }
 }
 
