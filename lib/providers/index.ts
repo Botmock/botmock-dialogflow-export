@@ -6,6 +6,15 @@ export * from "./platforms/google";
 export * from "./platforms/generic";
 export * from "./platforms/facebook";
 
+/**
+ * Trims text to prevent errors on dialogflow import
+ * @param text text to trim
+ */
+export function trimText(text: string): string {
+  const dialogflowTextLengthLimit = 20;
+  return text.slice(0, dialogflowTextLengthLimit - 1);
+}
+
 const messageTypes = new Map([
   ["text", 0],
   ["card", 1],
