@@ -31,6 +31,7 @@
     "@botmock-api/client": "1.0.0",
     "@botmock-api/entity-map": "0.2.0",
     "@botmock-api/flow": "^0.7.0",
+    "@botmock-api/log": "^0.1.0",
     "@sentry/integrations": "5.7.1",
     "@sentry/node": "5.7.1",
     "chalk": "2.4.2",
