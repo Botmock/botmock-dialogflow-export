@@ -1,3 +1,5 @@
+import { trimText } from "../";
+
 export default class Google {
   /**
    * 
@@ -21,7 +23,7 @@ export default class Google {
         title = reply.title;
       }
       return {
-        title: title.substr(0, 19),
+        title: trimText(title),
       }
     });
     return { type: "suggestion_chips", suggestions };
