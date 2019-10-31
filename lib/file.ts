@@ -396,11 +396,11 @@ export default class FileWriter extends flow.AbstractProject {
                     }
                   }
                   return {
-                    text,
+                    text: typeof variableInTextSegment !== "undefined" ? text.replace(/\s/g, "") : text,
                     userDefined: false,
                     ...(typeof variableInTextSegment !== "undefined"
                       ? {
-                        alias: text,
+                        alias: text.replace(/\s/g, ""),
                         meta: entityForVariableInTextSegment,
                       }
                       : {})
