@@ -7,7 +7,27 @@ import { writeJson, readFile } from "fs-extra";
 import { default as BoardBoss } from "./board";
 import { default as TextTransformer } from "./text";
 import { default as PlatformProvider } from "./providers";
-import * as Dialogflow from "./types";
+
+namespace Dialogflow {
+  export type InputContext = string;
+  export type OutputContext = {
+    name: string | void;
+    parameters: {};
+    lifespan: number;
+  };
+  export type Parameter = {
+    id: string;
+    required: boolean;
+    dataType: string;
+    name: string;
+    value: string;
+    promptMessages: any[];
+    noMatchPromptMessages: [];
+    noInputPromptMessages: [];
+    outputDialogContexts: [];
+    isList: boolean;
+  };
+}
 
 export type ProjectData<T> = T extends Promise<infer K> ? K : any;
 
