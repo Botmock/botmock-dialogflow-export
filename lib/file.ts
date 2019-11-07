@@ -87,8 +87,6 @@ export default class FileWriter extends flow.AbstractProject {
   /**
    * Gets array of input context for a given connected message id
    * @param messageId string
-   * @returns Dialogflow.InputContext[]
-   * @todo
    */
   private getInputContextsForMessageConnectedByIntent(messageId: string): Dialogflow.InputContext[] {
     const self = this;
@@ -137,7 +135,6 @@ export default class FileWriter extends flow.AbstractProject {
   /**
    * Gets array of output context for a given connected message id
    * @param messageId string
-   * @returns Dialogflow.OutputContext[]
    */
   private getOutputContextsForMessageConnectedByIntent(messageId: string): Dialogflow.OutputContext[] {
     return this.getMessagesForMessage(messageId)
@@ -177,13 +174,13 @@ export default class FileWriter extends flow.AbstractProject {
   /**
    * Gets array of parameters for a given intent
    * @param intentId string
-   * @returns Dialogflow.Parameter[]
    */
   private getParametersForIntent(intentId: string): Dialogflow.Parameter[] {
     const { utterances, slots } = this.getIntent(intentId) as flow.Intent;
     const requiredSlotsForIntent = slots.filter(slot => slot.is_required);
     return this.text.getUniqueVariablesInUtterances(utterances)
-      .map((variableName: string) => {
+      .filter(variableName => typeof this.projectData.variables.find(variable => variable.name === variableName) !== "undefined")
+      .map(variableName => {
         const { id, name, default_value: value, entity: entityId } = this.projectData.variables.find(variable => (
           variable.name === variableName
         ));
@@ -218,8 +215,6 @@ export default class FileWriter extends flow.AbstractProject {
   /**
    * Gets array of messages connected to message id without any intent
    * @param messageId string
-   * @returns flow.Message[]
-   * @todo
    */
   private getMessagesForMessage(messageId: string): flow.Message[] {
     const message = this.board.getMessage(messageId);
