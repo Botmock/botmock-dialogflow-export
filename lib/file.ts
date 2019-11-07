@@ -200,7 +200,7 @@ export default class FileWriter extends flow.AbstractProject {
           id,
           required: typeof requiredSlot !== "undefined",
           dataType,
-          name,
+          name: name.substr(0, 30).replace(/\s/g, ""),
           value: `$${value || name}`,
           promptMessages: typeof requiredSlot !== "undefined"
             ? Array.of(requiredSlot.prompt)
