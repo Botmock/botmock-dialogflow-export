@@ -9,7 +9,6 @@ import { join } from "path";
 import { EOL } from "os";
 import { default as FileWriter } from "./lib/file";
 import { SENTRY_DSN } from "./lib/constants";
-// @ts-ignore
 import pkg from "./package.json";
 
 declare global {
