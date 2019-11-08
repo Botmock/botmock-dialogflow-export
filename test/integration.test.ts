@@ -60,10 +60,6 @@ describe("run", () => {
   });
 });
 
-describe.skip("interaction of batcher and file writer", () => {
-  test.todo("return value of sdk wrapper is consumable by file writer");
-});
-
 describe("interaction of file writer and util classes", () => {
   let fileWriterInstance: FileWriter;
   const outputDirectory = tmpdir();
@@ -95,11 +91,9 @@ describe("interaction of file writer and util classes", () => {
         new BoardBoss({ projectData, board, boardStructureByMessages })
       }).not.toThrow();
     });
-    test.todo("board boss can get messages in project data");
   });
 
   describe("text transformer", () => {
-    test.todo("text transformer affects intent file parameters");
     describe("text transformer public methods", () => {
       let textTransformerInstance: TextTransformer;
       beforeEach(() => {
@@ -125,9 +119,6 @@ describe("interaction of file writer and util classes", () => {
     let platformProviderInstance: PlatformProvider;
     beforeEach(() => {
       platformProviderInstance = new PlatformProvider("generic");
-    });
-    describe("platform provider inputs", () => {
-      test.todo("platform provider can consume collected messages");
     });
     describe("platform provider methods", () => {
       test("text", () => {

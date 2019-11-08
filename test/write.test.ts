@@ -63,5 +63,5 @@ describe("file content", () => {
   test.todo("intent files have correct input context");
   test.todo("intent files have correct output context");
   test.todo("intent files have correct parameters");
-  test.todo("utterance files have correct field content");
+  test.todo("utterance files have correct fields");
 });
