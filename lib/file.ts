@@ -152,7 +152,8 @@ export default class FileWriter extends flow.AbstractProject {
             .map((nextMessage: flow.NextMessage) => {
               let name: string;
               if (typeof nextMessage.intent !== "string") {
-                name = (this.getIntent(nextMessage.intent.value) as flow.Intent).name;
+                const { name: intentName }: any = this.getIntent(nextMessage.intent.value) ?? { name: "" };
+                name = intentName;
               }
               const outputContextNameIsAlreadyAccumulated = acc.some((alreadyAddedObject: object) => (
                 // @ts-ignore
