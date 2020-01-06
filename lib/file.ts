@@ -70,7 +70,7 @@ export default class FileWriter extends flow.AbstractProject {
     this.templateDirectory = join(process.cwd(), "templates");
     this.pathToIntents = join(this.outputDirectory, "intents");
     this.boardStructureByMessages = this.segmentizeBoardFromMessages();
-    this.text = new TextTransformer({});
+    this.text = new TextTransformer();
     this.board = new BoardBoss({
       projectData: config.projectData,
       board: this.projectData.board.board,
@@ -177,10 +177,7 @@ export default class FileWriter extends flow.AbstractProject {
    * @param intentId string
    */
   private getParametersForIntent(intentId: string): Dialogflow.Parameter[] {
-    let { utterances, slots } = this.getIntent(intentId) as flow.Intent;
-    if (typeof slots === "string") {
-      slots = JSON.parse(slots);
-    }
+    const { utterances, slots } = this.getIntent(intentId) as flow.Intent;
     const requiredSlotsForIntent = slots.filter(slot => slot.is_required);
     return this.text.getUniqueVariablesInUtterances(utterances)
       .filter(variableName => typeof this.projectData.variables.find(variable => variable.name === variableName) !== "undefined")
