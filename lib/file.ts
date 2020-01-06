@@ -68,7 +68,7 @@ export default class FileWriter extends flow.AbstractProject {
     super({ projectData: config.projectData });
     this.outputDirectory = config.outputDirectory;
     this.templateDirectory = join(process.cwd(), "templates");
-    this.pathToIntents = join(this.outputDirectory, "intents")
+    this.pathToIntents = join(this.outputDirectory, "intents");
     this.boardStructureByMessages = this.segmentizeBoardFromMessages();
     this.text = new TextTransformer({});
     this.board = new BoardBoss({
@@ -106,7 +106,7 @@ export default class FileWriter extends flow.AbstractProject {
             .map(intentId => {
               const intent = self.getIntent(intentId);
               if (typeof intent !== "undefined") {
-                return intent.name
+                return intent.name;
               } else {
                 return null;
               }
@@ -166,10 +166,10 @@ export default class FileWriter extends flow.AbstractProject {
                 name,
                 parameters: {},
                 lifespan: FileWriter.lifespan
-              }
+              };
             })
             .filter(outputContextObject => !Object.is(outputContextObject, null))
-        ]
+        ];
       }, []);
   }
   /**
@@ -177,7 +177,10 @@ export default class FileWriter extends flow.AbstractProject {
    * @param intentId string
    */
   private getParametersForIntent(intentId: string): Dialogflow.Parameter[] {
-    const { utterances, slots } = this.getIntent(intentId) as flow.Intent;
+    let { utterances, slots } = this.getIntent(intentId) as flow.Intent;
+    if (typeof slots === "string") {
+      slots = JSON.parse(slots);
+    }
     const requiredSlotsForIntent = slots.filter(slot => slot.is_required);
     return this.text.getUniqueVariablesInUtterances(utterances)
       .filter(variableName => typeof this.projectData.variables.find(variable => variable.name === variableName) !== "undefined")
@@ -210,7 +213,7 @@ export default class FileWriter extends flow.AbstractProject {
           noInputPromptMessages: [],
           outputDialogContexts: [],
           isList: false,
-        }
+        };
       });
   }
   /**
@@ -291,7 +294,7 @@ export default class FileWriter extends flow.AbstractProject {
         allowFuzzyExtraction: false
       };
       const pathToEntities = join(this.outputDirectory, "entities");
-      await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}.json`), entityData, { EOL, spaces: 2});
+      await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}.json`), entityData, { EOL, spaces: 2 });
       this.emit("write-complete", { basename: `${entityNameWithoutForbiddenCharaters}.json` });
       await writeJson(join(pathToEntities, `${entityNameWithoutForbiddenCharaters}_entries_en.json`), entityEntries, { EOL, spaces: 2 });
       this.emit("write-complete", { basename: `${entityNameWithoutForbiddenCharaters}_entries_en.json` });
@@ -420,17 +423,17 @@ export default class FileWriter extends flow.AbstractProject {
                         meta: entityForVariableInTextSegment,
                       }
                       : {})
-                  }
+                  };
                 }),
               isTemplate: false,
               count: 0,
               updated: 0,
-            }
+            };
           });
         await writeJson(join(this.pathToIntents, `${intentName}.json`), intentData, { EOL, spaces: 2 });
-        this.emit("write-complete", { basename: `${intentName}.json`});
+        this.emit("write-complete", { basename: `${intentName}.json` });
         await writeJson(join(this.pathToIntents, `${intentName}_usersays_en.json`), utteranceData, { EOL, spaces: 2 });
-        this.emit("write-complete", { basename: `${intentName}._usersays_en.json`});
+        this.emit("write-complete", { basename: `${intentName}._usersays_en.json` });
       }
     }
   }
