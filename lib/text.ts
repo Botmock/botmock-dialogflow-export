@@ -1,7 +1,7 @@
 import * as flow from "@botmock-api/flow";
 import { randomBytes } from "crypto";
 
-interface Config {}
+interface Config { }
 
 export default class TextTransformer {
   static readonly characterLimit = 100;
@@ -10,7 +10,7 @@ export default class TextTransformer {
    * Creates new instance of the TextTransformer class
    * @param config Config
    */
-  constructor(config?: Config) {}
+  constructor(config?: Config) { }
   /**
    * Replaces all occurances of variable char in given text
    * @param text string

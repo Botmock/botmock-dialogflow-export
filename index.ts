@@ -79,7 +79,7 @@ async function main(args: string[]): Promise<void> {
   });
   log("fetching project data");
   const { data: projectData } = await new Batcher({
-    token: process.env.BOTMOCK_TOKEN, 
+    token: process.env.BOTMOCK_TOKEN,
     teamId: process.env.BOTMOCK_TEAM_ID,
     projectId: process.env.BOTMOCK_PROJECT_ID,
     boardId: process.env.BOTMOCK_BOARD_ID,
@@ -108,8 +108,8 @@ async function main(args: string[]): Promise<void> {
   }
 }
 
-process.on("unhandledRejection", () => {});
-process.on("uncaughtException", () => {});
+process.on("unhandledRejection", () => { });
+process.on("uncaughtException", () => { });
 
 main(process.argv).catch(async (err: Error) => {
   log(err.stack, { isError: true });
