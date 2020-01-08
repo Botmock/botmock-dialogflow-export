@@ -338,6 +338,7 @@ export default class FileWriter extends flow.AbstractProject {
     const entriesOfSegmentizedBoard = this.boardStructureByMessages.entries();
     for (const [idOfConnectedMessage, idsOfConnectingIntents] of entriesOfSegmentizedBoard) {
       for (const idOfConnectedIntent of idsOfConnectingIntents) {
+        // Handle pseudo intent
         if (!this.getIntent(idOfConnectedIntent)) {
           await this.writePseudoWelcomeIntent(platformProvider);
           continue;

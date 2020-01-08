@@ -18,6 +18,7 @@ export default class TextTransformer {
    */
   public replaceVariableCharacterInText(text: string): string {
     const { dialogflowCharacter } = TextTransformer;
+    // Pattern for text between botmock variable characters
     const variableRegex: RegExp = /%[a-zA-Z0-9]+%/g;
     const matches: RegExpMatchArray | null = text.match(variableRegex);
     let str: string = text;

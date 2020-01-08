@@ -1,8 +1,8 @@
 import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import { RewriteFrames } from "@sentry/integrations";
-import { Batcher } from "@botmock-api/client";
 import { default as log } from "@botmock-api/log";
+import { Batcher } from "@botmock-api/client";
 import { writeJson, mkdirp, remove } from "fs-extra";
 import { zipSync } from "cross-zip";
 import { join } from "path";
@@ -68,7 +68,6 @@ async function main(args: string[]): Promise<void> {
   }
   const intentPath = join(outputDirectory, "intents");
   const entityPath = join(outputDirectory, "entities");
-
   log("creating output directories");
   await recreateOutputDirectories({
     outputPath: outputDirectory,
