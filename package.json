@@ -32,8 +32,6 @@
     "@botmock-api/entity-map": "0.2.0",
     "@botmock-api/flow": "^0.7.0",
     "@botmock-api/log": "^0.2.0",
-    "@sentry/integrations": "5.7.1",
-    "@sentry/node": "5.7.1",
     "cross-zip": "2.1.6",
     "dotenv": "8.2.0",
     "fs-extra": "^8.1.0"

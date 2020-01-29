@@ -85,7 +85,8 @@ export default class PlatformProvider {
       };
     }
     const generatedResponse: any = this.platform[methodToCallOnClass](messagePayload);
-    const textlikeFields = ["text", "textToSpeech", "formattedText", "image"];
+    const textlikeFields = ["text", "speech", "textToSpeech", "formattedText", "image"];
+    // retroactively replace native variable charcters
     for (const field of textlikeFields) {
       if (generatedResponse[field]) {
         if (field === "image" && generatedResponse[field].accessibilityText) {
