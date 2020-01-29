@@ -32,9 +32,6 @@
     "@botmock-api/entity-map": "0.2.0",
     "@botmock-api/flow": "^0.7.0",
     "@botmock-api/log": "^0.2.0",
-    "@sentry/integrations": "5.7.1",
-    "@sentry/node": "5.7.1",
-    "chalk": "2.4.2",
     "cross-zip": "2.1.6",
     "dotenv": "8.2.0",
     "fs-extra": "^8.1.0"
@@ -42,10 +39,10 @@
   "devDependencies": {
     "@types/fs-extra": "8.0.1",
     "@types/jest": "^24.0.23",
-    "@types/node": "^12.12.14",
+    "@types/node": "^13.5.0",
     "jest": "24.9.0",
     "ts-jest": "^24.2.0",
-    "ts-node": "^8.5.4",
-    "typescript": "^3.7.2"
+    "ts-node": "^8.6.2",
+    "typescript": "^3.7.5"
   }
 }

@@ -1,6 +1,6 @@
 # Botmock Dialogflow Export
 
-[![Build Status](https://dev.azure.com/botmock/botmock-dialogflow-export/_apis/build/status/Botmock.botmock-dialogflow-export?branchName=master)](https://dev.azure.com/botmock/botmock-dialogflow-export/_build/latest?definitionId=2&branchName=master)
+<!-- [![Build Status](https://dev.azure.com/botmock/botmock-dialogflow-export/_apis/build/status/Botmock.botmock-dialogflow-export?branchName=master)](https://dev.azure.com/botmock/botmock-dialogflow-export/_build/latest?definitionId=2&branchName=master) -->
 
 > import [botmock](https://botmock.com) projects in [dialogflow](https://console.dialogflow.com/)
 

@@ -1,8 +1,8 @@
 import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import { RewriteFrames } from "@sentry/integrations";
-import { Batcher } from "@botmock-api/client";
 import { default as log } from "@botmock-api/log";
+import { Batcher } from "@botmock-api/client";
 import { writeJson, mkdirp, remove } from "fs-extra";
 import { zipSync } from "cross-zip";
 import { join } from "path";
@@ -10,6 +10,16 @@ import { EOL } from "os";
 import { default as FileWriter } from "./lib/file";
 import { SENTRY_DSN } from "./lib/constants";
 import pkg from "./package.json";
+
+enum Platforms {
+  AIX = "aix",
+  DARWIN = "darwin",
+  BSD = "freebsd",
+  LINUX = "linux",
+  OPEN_BSD = "openbsd",
+  SUN_OS = "sunos",
+  WIN = "win32",
+}
 
 declare global {
   namespace NodeJS {
@@ -68,7 +78,6 @@ async function main(args: string[]): Promise<void> {
   }
   const intentPath = join(outputDirectory, "intents");
   const entityPath = join(outputDirectory, "entities");
-
   log("creating output directories");
   await recreateOutputDirectories({
     outputPath: outputDirectory,
@@ -93,17 +102,19 @@ async function main(args: string[]): Promise<void> {
     outputDirectory,
     projectData
   });
+  // @ts-ignore
   fileWriter.on("write-complete", ({ basename }) => {
     log(`wrote ${basename}`);
   });
   await fileWriter.write();
   log("compressing generated files");
-  try {
+  if (process.platform === Platforms.DARWIN) {
     zipSync(outputDirectory, `${outputDirectory}.zip`);
     log(`${outputDirectory}.zip is ready to be imported in the Dialogflow console`);
-  } finally {
-    log("done");
+  } else {
+    log(`auto-compression not yet supported for ${process.platform}`);
   }
+  log("done");
 }
 
 process.on("unhandledRejection", () => { });
