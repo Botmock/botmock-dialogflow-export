@@ -1,6 +1,4 @@
 import "dotenv/config";
-import * as Sentry from "@sentry/node";
-import { RewriteFrames } from "@sentry/integrations";
 import { default as log } from "@botmock-api/log";
 import { Batcher } from "@botmock-api/client";
 import { writeJson, mkdirp, remove } from "fs-extra";
@@ -8,8 +6,6 @@ import { zipSync } from "cross-zip";
 import { join } from "path";
 import { EOL } from "os";
 import { default as FileWriter } from "./lib/file";
-import { SENTRY_DSN } from "./lib/constants";
-import pkg from "./package.json";
 
 enum Platforms {
   AIX = "aix",
@@ -20,28 +16,6 @@ enum Platforms {
   SUN_OS = "sunos",
   WIN = "win32",
 }
-
-declare global {
-  namespace NodeJS {
-    interface Global {
-      __rootdir__: string;
-    }
-  }
-}
-
-global.__rootdir__ = __dirname || process.cwd();
-
-Sentry.init({
-  dsn: SENTRY_DSN,
-  release: `${pkg.name}@${pkg.version}`,
-  integrations: [new RewriteFrames({ root: global.__rootdir__ })],
-  beforeSend(event): Sentry.Event {
-    if (event.user.email) {
-      delete event.user.email;
-    }
-    return event;
-  }
-});
 
 interface Paths {
   readonly outputPath: string;
@@ -122,10 +96,6 @@ process.on("uncaughtException", () => { });
 
 main(process.argv).catch(async (err: Error) => {
   log(err.stack, { isError: true });
-  if (process.env.OPT_IN_ERROR_REPORTING) {
-    Sentry.captureException(err);
-  } else {
-    const { message, stack } = err;
-    await writeJson(join(__dirname, "err.json"), { message, stack }, { EOL, spaces: 2 });
-  }
+  const { message, stack } = err;
+  await writeJson(join(__dirname, "err.json"), { message, stack }, { EOL, spaces: 2 });
 });

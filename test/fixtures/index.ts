@@ -1,8 +1,8 @@
-import { uuid4 } from "@sentry/utils";
+import { v4 } from "uuid";
 
-const nextMessageId = uuid4();
-const messageId = uuid4();
-const intentId = uuid4();
+const nextMessageId = v4();
+const messageId = v4();
+const intentId = v4();
 
 export const variableName = "v";
 
