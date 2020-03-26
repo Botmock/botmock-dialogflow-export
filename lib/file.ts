@@ -1,6 +1,6 @@
 import { join } from "path";
 import { EOL } from "os";
-import { uuid4 } from "@sentry/utils";
+import { v4 } from "uuid";
 import * as flow from "@botmock-api/flow";
 import { default as findPlatformEntity } from "@botmock-api/entity-map";
 import { writeJson, readFile } from "fs-extra";
@@ -58,10 +58,10 @@ export default class FileWriter extends flow.AbstractProject {
   private boardStructureByMessages: flow.SegmentizedStructure;
   /**
    * Creates new instance of FileWriter class
-   * 
+   *
    * @remarks sets artificial intent between root message and first connected
    * message for the sake of establishing a welcome intent
-   * 
+   *
    * @param config Config object containing outputDirectory and projectData
    */
   constructor(config: Config) {
@@ -81,7 +81,7 @@ export default class FileWriter extends flow.AbstractProject {
       const rootMessage = this.board.getMessage(idOfRootMessage) as flow.Message;
       const [firstMessage] = rootMessage.next_message_ids as flow.NextMessage[];
       this.firstMessage = firstMessage;
-      this.boardStructureByMessages.set(firstMessage.message_id, Array.of(uuid4()));
+      this.boardStructureByMessages.set(firstMessage.message_id, Array.of(v4()));
     }
   }
   /**
@@ -301,10 +301,10 @@ export default class FileWriter extends flow.AbstractProject {
   }
   /**
    * Writes intent files for artifically inserted intent between root message and first message
-   * 
+   *
    * @remarks sets response messages and affected contexts based on the first message connected
    * to the root message
-   * 
+   *
    * @param providerInstance PlatformProvider
    * @returns Promise<void>
    */
@@ -331,9 +331,9 @@ export default class FileWriter extends flow.AbstractProject {
   }
   /**
    * Writes intent files and utterance files
-   * 
+   *
    * @remarks Iterates over intent ids in terms of the message they are connected to
-   * 
+   *
    * @returns Promise<void>
    */
   private async writeIntents(): Promise<void> {
@@ -391,7 +391,7 @@ export default class FileWriter extends flow.AbstractProject {
           .utterances
           .map(utterance => {
             return {
-              id: uuid4(),
+              id: v4(),
               data: utterance.text.split(FileWriter.botmockVariableCharacter)
                 .filter(text => text !== "")
                 .map(text => {
