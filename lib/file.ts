@@ -87,6 +87,7 @@ export default class FileWriter extends flow.AbstractProject {
   /**
    * Gets array of input context for a given connected message id
    * @param messageId string
+   * @todo Account for repeating intents
    */
   private getInputContextsForMessageConnectedByIntent(messageId: string): Dialogflow.InputContext[] {
     const self = this;
