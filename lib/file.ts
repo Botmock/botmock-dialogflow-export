@@ -7,6 +7,7 @@ import { writeJson, readFile } from "fs-extra";
 import { default as BoardBoss } from "./board";
 import { default as TextTransformer } from "./text";
 import { default as PlatformProvider } from "./providers";
+import { Intent } from "@botmock-api/flow";
 
 namespace Dialogflow {
   export type InputContext = string;
@@ -42,7 +43,7 @@ export default class FileWriter extends flow.AbstractProject {
   static botmockVariableCharacter = "%";
   static welcomeIntentName = "Default Welcome Intent";
   static fallbackIntentName = "Default Fallback Intent";
-  static defaultPriority = 500000;
+  static defaultPriority = 500_000;
   static supportedPlatforms = new Set([
     "facebook",
     "slack",
@@ -86,8 +87,8 @@ export default class FileWriter extends flow.AbstractProject {
   }
   /**
    * Gets array of input context for a given connected message id
+   *
    * @param messageId string
-   * @todo Account for repeating intents
    */
   private getInputContextsForMessageConnectedByIntent(messageId: string): Dialogflow.InputContext[] {
     const self = this;
@@ -99,23 +100,22 @@ export default class FileWriter extends flow.AbstractProject {
         self.boardStructureByMessages.get(message.message_id)
       ));
       switch (previousMessagesConnectedByIntents.length) {
+        // There is a single parent connected by an intent.
+        // Add the intents connected to it to the `inputs` array.
+        // Recur on this single parent.
         case 1:
           const [previousMessageConnectedByIntent] = previousMessagesConnectedByIntents;
           const { message_id: messageId } = self.getMessage(previousMessageConnectedByIntent.message_id) as flow.Message;
-          const intentsConnectedToPreviousMessage = self.boardStructureByMessages
-            .get(messageId)
-            .map(intentId => {
-              const intent = self.getIntent(intentId);
-              if (typeof intent !== "undefined") {
-                return intent.name;
-              } else {
-                return null;
-              }
-            })
-            .filter(intent => !Object.is(intent, null))
-            .filter(intent => !inputs.includes(intent));
+          const connectedIntents = self.boardStructureByMessages.get(messageId);
+          const intentsConnectedToPreviousMessage = connectedIntents.map(id => {
+            const intent = self.getIntent(id) as Intent;
+            return intent?.name ?? null;
+          }).filter(intent => !Object.is(intent, null));
           inputs.push(...intentsConnectedToPreviousMessage);
+          gatherDeterministicInputPath([previousMessageConnectedByIntent]);
           break;
+        // No parent is connected by an intent.
+        // Recur on each parent's parent to find one connected by an intent.
         case 0:
           for (const previousMessage of previousMessages) {
             const fullPreviousMessage = self.getMessage(previousMessage.message_id) as flow.Message;
@@ -234,7 +234,7 @@ export default class FileWriter extends flow.AbstractProject {
     const { defaultPriority } = FileWriter;
     const parameters = this.getParametersForIntent(intentId);
     if (parameters.some(parameter => parameter.dataType === "@sys.any")) {
-      return 250000;
+      return 250_000;
     }
     return defaultPriority;
   }
@@ -307,7 +307,6 @@ export default class FileWriter extends flow.AbstractProject {
    * to the root message
    *
    * @param providerInstance PlatformProvider
-   * @returns Promise<void>
    */
   private async writePseudoWelcomeIntent(providerInstance: PlatformProvider): Promise<void> {
     const pathToTemplates = join(this.templateDirectory, "defaults");
@@ -334,8 +333,6 @@ export default class FileWriter extends flow.AbstractProject {
    * Writes intent files and utterance files
    *
    * @remarks Iterates over intent ids in terms of the message they are connected to
-   *
-   * @returns Promise<void>
    */
   private async writeIntents(): Promise<void> {
     const platform = this.projectData.project.platform.toLowerCase();
@@ -343,7 +340,6 @@ export default class FileWriter extends flow.AbstractProject {
     const entriesOfSegmentizedBoard = this.boardStructureByMessages.entries();
     for (const [idOfConnectedMessage, idsOfConnectingIntents] of entriesOfSegmentizedBoard) {
       for (const idOfConnectedIntent of idsOfConnectingIntents) {
-        // Handle pseudo intent
         if (!this.getIntent(idOfConnectedIntent)) {
           await this.writePseudoWelcomeIntent(platformProvider);
           continue;
@@ -367,12 +363,8 @@ export default class FileWriter extends flow.AbstractProject {
                 ...this.getOutputContextsForMessageConnectedByIntent(idOfConnectedMessage)
               ],
               parameters: this.getParametersForIntent(idOfConnectedIntent),
-              messages: [
-                this.getMessage(idOfConnectedMessage),
-                ...this.getMessagesForMessage(idOfConnectedMessage),
-              ].map((message: flow.Message) => (
-                platformProvider.create(message.message_type, message.payload)
-              )),
+              messages: [this.getMessage(idOfConnectedMessage), ...this.getMessagesForMessage(idOfConnectedMessage)]
+                .map((message: flow.Message) => platformProvider.create(message.message_type, message.payload)),
               defaultResponsePlatforms: FileWriter.supportedPlatforms.has(platform)
                 ? { [platform]: true }
                 : {},
@@ -444,7 +436,6 @@ export default class FileWriter extends flow.AbstractProject {
   }
   /**
    * Writes necessary files to output directory
-   * @returns Promise<void>
    */
   public async write(): Promise<void> {
     await this.writeMeta();
