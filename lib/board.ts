@@ -11,8 +11,7 @@ export default class extends flow.AbstractProject {
   private readonly boardStructureByMessages: flow.SegmentizedStructure;
   /**
    * Creates new instance of BoardBoss class
-   * @param config object containing full board and board structure as seen
-   * from intents
+   * @param config object containing full board and board structure as seen from intents
    */
   constructor(config: Config) {
     super({ projectData: config.projectData });
@@ -21,7 +20,6 @@ export default class extends flow.AbstractProject {
   }
   /**
    * Determines if the entire board contains a welcome intent
-   * @returns boolean
    */
   public containsWelcomeIntent(): boolean {
     const [rootMessage] = this.board.root_messages;
