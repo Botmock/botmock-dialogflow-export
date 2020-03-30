@@ -111,6 +111,9 @@ export default class FileWriter extends flow.AbstractProject {
             return intent?.name ?? null;
           }).filter(intent => !Object.is(intent, null));
           inputs.push(...intentsConnectedToPreviousMessage);
+          const metaParent = self.getMessage(previousMessageConnectedByIntent.message_id) as flow.Message;
+          seenPreviousMessageIds.push(...metaParent.previous_message_ids.map(m => m.message_id));
+          gatherDeterministicInputPath(metaParent.previous_message_ids);
           break;
         // No parent is connected by an intent.
         // Recur on each parent's parent to find one connected by an intent.
@@ -125,6 +128,7 @@ export default class FileWriter extends flow.AbstractProject {
               gatherDeterministicInputPath(fullPreviousMessage.previous_message_ids);
             }
           }
+          break;
         default:
           break;
       }
