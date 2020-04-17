@@ -34,21 +34,25 @@ To translate Botmock projects into Dialogflow agents, we make certain assumption
   up responses across different intent files so as to bypass the repsonse type limits Dialogflow
   has in place.
 
-- If there is no intent on the connector from the root message to the first message in the Botmock flow, the 
+- If there is no intent on the connector from the root message to the first message in the Botmock flow, the
   script creates one and merges into it all utterances from the default Dialogflow Welcome Intent.
 
 - When using quick replies or suggestion chips in a project, some intent utterances should be designed to exactly match the content of the options in the content block.
 
 ### Approach to importing
 
-The script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the path of 
-intents on connectors in the Botmock flow to control conversation paths. In other words, in the flow, a 
-message downstream of a particular intent will require that intent as input context in the created file. 
+The script maps input [context](https://cloud.google.com/dialogflow/docs/contexts-input-output) to the path of
+intents on connectors in the Botmock flow to control conversation paths. In other words, in the flow, a
+message downstream of a particular intent will require that intent as input context in the created file.
 Similarly, output contexts are set by the intents on connectors that go out of particular messages.
 
 > Note that Dialogflow has a limit of **5** input contexts per intent. Projects should be structured to take account of this fact.
 
 > Note also that Dialogflow has a limit of **100** characters in the name of any intent file. The script will begin to use random bytes in file names to prevent this limit from being exceeded.
+
+### Handling import errors
+
+If Dialogflow issues an error on import, note that you may have to manually edit `.json` files contained in output.
 
 ### Prerequisites
 
