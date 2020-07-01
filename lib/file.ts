@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { join } from "path";
 import { EOL } from "os";
 import { v4 } from "uuid";
@@ -349,6 +351,8 @@ export default class FileWriter extends flow.AbstractProject {
     const platform = this.projectData.project.platform.toLowerCase();
     const platformProvider = new PlatformProvider(platform);
     const entriesOfSegmentizedBoard = this.boardStructureByMessages.entries();
+    const [lang] = this.projectData.project.locales;
+
     for (const [idOfConnectedMessage, idsOfConnectingIntents] of entriesOfSegmentizedBoard) {
       for (const idOfConnectedIntent of idsOfConnectingIntents) {
         if (!this.getIntent(idOfConnectedIntent)) {
@@ -357,6 +361,8 @@ export default class FileWriter extends flow.AbstractProject {
         }
         const inputContexts = this.getInputContextsForMessageConnectedByIntent(idOfConnectedMessage);
         const intentName = this.createFilenameForIntent(inputContexts, idOfConnectedIntent);
+
+        const lang = "en";
         const intentData = {
           id: idOfConnectedIntent,
           name: intentName,
@@ -375,7 +381,7 @@ export default class FileWriter extends flow.AbstractProject {
               ],
               parameters: this.getParametersForIntent(idOfConnectedIntent),
               messages: [this.getMessage(idOfConnectedMessage), ...this.getMessagesForMessage(idOfConnectedMessage)]
-                .map((message: flow.Message) => platformProvider.create(message.message_type, message.payload)),
+                .map((message: flow.Message) => platformProvider.create(message.message_type, message.payload, lang)),
               defaultResponsePlatforms: FileWriter.supportedPlatforms.has(platform)
                 ? { [platform]: true }
                 : {},

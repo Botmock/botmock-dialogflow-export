@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import TextTransformer from "../text";
 
 export * from "./platforms/skype";
@@ -54,7 +56,7 @@ export default class PlatformProvider {
    * @param messagePayload MessagePayload
    * @returns object
    */
-  create(contentBlockType: string = "", messagePayload: MessagePayload): object {
+  public create(contentBlockType: string = "", messagePayload: MessagePayload, lang?: string = "en"): object {
     let methodToCallOnClass: string;
     switch (contentBlockType) {
       case "api":
@@ -72,7 +74,7 @@ export default class PlatformProvider {
       default:
         methodToCallOnClass = Object.getOwnPropertyNames(
           Object.getPrototypeOf(this.platform)).find(prop => contentBlockType.includes(prop)
-        );
+          );
     }
     const platform = this.platform.constructor.name.toLowerCase();
     if (!methodToCallOnClass) {
@@ -81,7 +83,7 @@ export default class PlatformProvider {
         payload: {
           [platform]: JSON.stringify(messagePayload),
         },
-        lang: "en",
+        lang,
       };
     }
     const generatedResponse: any = this.platform[methodToCallOnClass](messagePayload);
@@ -100,7 +102,7 @@ export default class PlatformProvider {
     return {
       ...generatedResponse,
       ...(platform !== googlePlatformName ? { type: MessageTypes[methodToCallOnClass] } : {}),
-      lang: "en",
+      lang,
       platform: platform !== "generic" ? platform : undefined,
       condition: "",
     };
