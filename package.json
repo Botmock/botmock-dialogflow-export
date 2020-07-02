@@ -1,6 +1,6 @@
 {
   "name": "botmock-dialogflow-export",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "import botmock projects in dialogflow",
   "engines": {
     "node": ">=12.12.0"
