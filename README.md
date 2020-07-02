@@ -19,7 +19,6 @@ This script produces a compressible directory able to be [restored](https://clou
     * [env](#env)
   * [Commands](#commands)
     * [start](#start)
-    <!-- * [report](#report) -->
   * [Importing](#importing)
     * [restoration](#restoration)
 
