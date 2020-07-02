@@ -6,7 +6,6 @@
     "node": ">=12.12.0"
   },
   "scripts": {
-    "test": "jest",
     "start": "ts-node index.ts"
   },
   "keywords": [
@@ -14,14 +13,6 @@
     "dialogflow",
     "nodejs"
   ],
-  "jest": {
-    "preset": "ts-jest",
-    "globals": {
-      "ts-jest": {
-        "tsConfig": "tsconfig.json"
-      }
-    }
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Botmock/botmock-dialogflow-export.git"
