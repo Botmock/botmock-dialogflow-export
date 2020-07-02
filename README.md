@@ -1,8 +1,8 @@
 # Botmock Dialogflow Export
 
-> import [botmock](https://botmock.com) projects in [dialogflow](https://console.dialogflow.com/)
+Node.js project for importing [Botmock](https://botmock.com) projects in [Dialogflow](https://console.dialogflow.com/)
 
-This script produces a compressible directory able to be [restored](https://cloud.google.com/dialogflow/docs/agents-settings) from in the Dialogflow console.
+> **Note**: The deprecated version of this exporter can be found in the `legacy` branch.
 
 ## Table of Contents
 
