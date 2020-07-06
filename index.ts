@@ -2,6 +2,8 @@ import "dotenv/config";
 import { DialogflowExporter, Resources, FileWriter, Kind, ProjectReference } from "@botmock/export";
 
 /**
+ * Generates directory hierarchy in `./output`.
+ *
  * @example
  * ```shell
  * npm start
