@@ -10,6 +10,7 @@ Node.js project for importing [Botmock](https://botmock.com) projects in [Dialog
   * [Usage](#usage)
   * [Botmock project structure](#botmock-project-structure)
   * [Approach to importing](#approach-to-importing)
+  * [Handling import errors](#handling-import-errors)
 
 ## Overview
 
