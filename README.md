@@ -22,8 +22,8 @@ Node.js project for importing [Botmock](https://botmock.com) projects in [Dialog
 Running the following commands should allow you to generate restorable content from your Botmock project.
 
 - `git clone git@github.com:Botmock/botmock-dialogflow-export.git`
-- `npm install`
 - `cd botmock-dialogflow-export`
+- `npm install`
 - `mv ./sample.env ./env` and edit `.env` to contain your token and project ids
 - `npm start`
 
