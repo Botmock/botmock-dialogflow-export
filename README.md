@@ -26,6 +26,7 @@ Running the following commands should allow you to generate restorable content f
 - `npm install`
 - `mv ./sample.env ./env` and edit `.env` to contain your token and project ids
 - `npm start`
+- compress `./output` into `output.zip`
 
 ### Botmock Project Structure
 
