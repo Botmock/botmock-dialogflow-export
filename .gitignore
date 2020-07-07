@@ -1,5 +1,4 @@
 node_modules
-err.json
 output
+.env
 *.zip
-*.env
