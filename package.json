@@ -19,11 +19,11 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@botmock/export": "^0.12.0",
     "@types/node": "^13.9.5",
+    "dotenv": "8.2.0",
     "ts-node": "^8.8.1",
     "typescript": "^3.8.3",
-    "@botmock/export": "^0.10.1",
-    "dotenv": "8.2.0",
     "uuid": "^7.0.2"
   }
 }
