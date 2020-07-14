@@ -11,11 +11,11 @@ import { DialogflowExporter, FileWriter, Kind, ProjectReference } from "@botmock
  */
 async function main(): Promise<void> {
   const projectReference: ProjectReference = {
-    teamId: process.env.TEAM_ID as string,
-    projectId: process.env.PROJECT_ID as string,
-    boardId: process.env.BOARD_ID,
+    teamId: process.env.BOTMOCK_TEAM_ID as string,
+    projectId: process.env.BOTMOCK_PROJECT_ID as string,
+    boardId: process.env.BOTMOCK_BOARD_ID,
   };
-  const exporter = new DialogflowExporter({ token: process.env.TOKEN as string });
+  const exporter = new DialogflowExporter({ token: process.env.BOTMOCK_TOKEN as string });
   const { data } = await exporter.exportProjectUnderDataTransformations({ projectReference });
 
   const writeResult = await (new FileWriter({ directoryRoot: "./output" })).writeAllResourcesToFiles({ data });
