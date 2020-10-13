@@ -15,7 +15,15 @@ async function main(): Promise<void> {
     projectId: process.env.BOTMOCK_PROJECT_ID as string,
     boardId: process.env.BOTMOCK_BOARD_ID,
   };
-  const exporter = new DialogflowExporter({ token: process.env.BOTMOCK_TOKEN as string });
+  const exporter = new DialogflowExporter({
+    token: process.env.BOTMOCK_TOKEN as string,
+    shouldUseFollowUpIntents: true,
+    // url: 'https://[your-instance].botmock.com',
+    // debug: true,
+    // modifyIntentCallback: _modifyIntentCallback,
+    // modifyUtteranceCallback: _modifyUtteranceCallback,
+    // modifyIntentParameterCallback: _modifyIntentParameterCallback,
+  });
   const { data } = await exporter.exportProjectUnderDataTransformations({ projectReference });
 
   const writeResult = await (new FileWriter({ directoryRoot: "./output" })).writeAllResourcesToFiles({ data });
