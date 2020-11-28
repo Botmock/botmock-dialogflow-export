@@ -39,18 +39,18 @@ This folder contains all the intent json files that Dialogflow agent needs. You 
 This folder will contains three files
 
 - blocks.json
-   - blocks.json file contains all message blocks of your botmock project and thier payload. 
+   - blocks.json file contains all message blocks of your Botmock project and thier payload. 
 - conditions.json
-  - conditions.json file contain intents names and inside intent you there are message block ids connected with conditions.  
+  - conditions.json file contains all the intent names and each intent has message block ids connected with conditions.  
 - functions.js
-  - functions.json is contain functions to get response of intent based on user's input. This file uses condition.json, blocks.json and [@botmock/utils](https://www.npmjs.com/package/@botmock/utils) to evaluate and return response.
+  - functions.json contain functions to get response of an intent based on user's input. This file uses condition.json, blocks.json and [@botmock/utils](https://www.npmjs.com/package/@botmock/utils) to evaluate and return response.
 
 These files will be handy if you are planning on using Dialogflow's fulfillment api.
 
 
 ### Botmock's Dialogflow exporter supports CONDITIONAL RESPONSES via webhooks
 
-Please follow the [botmock-dialogflow-webhook-example](https://github.com/Botmock/botmock-dialogflow-webhook-example/blob/main/index.js) to learn how you can get started quickly with a nodeJS server already setup with our SDK
+Please follow the [botmock-dialogflow-webhook-example](https://github.com/Botmock/botmock-dialogflow-webhook-example) to learn how you can get started quickly with a nodeJS server already setup with our SDK
 
  
 
