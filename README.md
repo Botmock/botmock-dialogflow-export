@@ -26,7 +26,33 @@ Running the following commands should allow you to generate restorable content f
 - `npm install`
 - `mv ./sample.env ./.env` and edit `.env` to contain your token and project ids
 - `npm start`
-- compress `./output` into `output.zip`
+
+The export is going to create an output folder. This folder consists of two folders:
+
+- upload
+- webhook
+
+#### Upload Folder
+This folder contains all the intent json files that Dialogflow agent needs. You will compress this "upload" folder to a .zip file which will be uploaded in Dialogflow.
+
+#### Webhook Folder
+This folder will contains three files
+
+- blocks.json
+   - blocks.json file contains all message blocks of your Botmock project and thier payload. 
+- conditions.json
+  - conditions.json file contains all the intent names and each intent has message block ids connected with conditions.  
+- functions.js
+  - functions.json contain functions to get response of an intent based on user's input. This file uses condition.json, blocks.json and [@botmock/utils](https://www.npmjs.com/package/@botmock/utils) to evaluate and return response.
+
+These files will be handy if you are planning on using Dialogflow's fulfillment api.
+
+
+### Botmock's Dialogflow exporter supports CONDITIONAL RESPONSES via webhooks
+
+Please follow the [botmock-dialogflow-webhook-example](https://github.com/Botmock/botmock-dialogflow-webhook-example) to learn how you can get started quickly with a nodeJS server already setup with our SDK
+
+ 
 
 ### Botmock Project Structure
 
