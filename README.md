@@ -27,7 +27,8 @@ Running the following commands should allow you to generate restorable content f
 - `mv ./sample.env ./.env` and edit `.env` to contain your token and project ids
 - `npm start`
 
-Note: To include all the dependent flows please add the option `includeJumpBlocks` in the options of the exporter.
+#### Note: 
+- To include all the dependent flows please add the option `includeJumpBlocks` in the options of the exporter.
 
 The export is going to create an output folder. This folder consists of two folders:
 
