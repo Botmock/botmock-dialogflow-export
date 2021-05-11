@@ -29,6 +29,7 @@ Running the following commands should allow you to generate restorable content f
 
 #### Note: 
 - To include all the dependent flows please add the option `includeJumpBlocks` in the options of the exporter.
+- To make all the responses triggered from a fullfilment API then add the option `useWebhookForAllResponses` in the options of the exporter. 
 
 The export is going to create an output folder. This folder consists of two folders:
 
